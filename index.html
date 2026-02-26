@@ -317,6 +317,37 @@
       flex-wrap: wrap;
     }
 
+    .order-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .order-btn {
+      background: #22c55e;
+      color: #052e16;
+      border: 1px solid #16a34a;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .order-btn:disabled {
+      cursor: not-allowed;
+      background: var(--disabled);
+      color: #d1d5db;
+      border-color: var(--border);
+      opacity: 0.8;
+    }
+
+    .order-btn.secondary {
+      background: #1d4ed8;
+      color: #dbeafe;
+      border-color: #2563eb;
+    }
+
     .achievement {
       display: grid;
       grid-template-columns: 1fr auto;
@@ -451,6 +482,20 @@
         </div>
       </div>
 
+      <div class="progress-wrap" id="orderPanel">
+        <div class="progress-title" id="orderTitle">生产订单：尚未解锁</div>
+        <div class="progress-track"><div id="orderFill" class="progress-fill"></div></div>
+        <div class="progress-meta">
+          <span id="orderHint">累计齿轮达到 300 后解锁</span>
+          <span id="orderPct">0%</span>
+          <span id="orderReward">奖励：-</span>
+        </div>
+        <div class="order-actions">
+          <button class="order-btn" id="claimOrderBtn" disabled>领取奖励</button>
+          <button class="order-btn secondary" id="rerollOrderBtn" disabled>刷新订单（200 齿轮）</button>
+        </div>
+      </div>
+
       <h2 class="section-title">自动化建筑</h2>
       <div class="buildings" id="buildingList"></div>
 
@@ -475,6 +520,8 @@
     const FIXED_STEP = 1 / TICK_RATE;
     const MAX_ACCUMULATED_SECONDS = 0.25;
     const OFFLINE_CAP_SECONDS = 8 * 60 * 60;
+    const ORDER_UNLOCK_LIFETIME_GEARS = 300;
+    const ORDER_REROLL_COST = 200;
 
     const upgrades = [
       { id: "training", name: "员工培训", price: 250, desc: "手动生产 +1", type: "manual", value: 1, purchased: false, unlockRP: 0, requires: null },
@@ -526,7 +573,8 @@
       questIndex: 0,
       logs: [],
       autoBuy: false,
-      autoBuyAccumulator: 0
+      autoBuyAccumulator: 0,
+      activeOrder: null
     };
 
     const gearsEl = document.getElementById("gears");
@@ -560,6 +608,13 @@
     const statQuestEl = document.getElementById("statQuest");
     const statModeEl = document.getElementById("statMode");
     const statLifetimeEl = document.getElementById("statLifetime");
+    const orderTitleEl = document.getElementById("orderTitle");
+    const orderFillEl = document.getElementById("orderFill");
+    const orderHintEl = document.getElementById("orderHint");
+    const orderPctEl = document.getElementById("orderPct");
+    const orderRewardEl = document.getElementById("orderReward");
+    const claimOrderBtn = document.getElementById("claimOrderBtn");
+    const rerollOrderBtn = document.getElementById("rerollOrderBtn");
 
     const buildingViewMap = new Map();
     const upgradeViewMap = new Map();
@@ -617,6 +672,61 @@
       return cost;
     };
 
+    const getOrderProgress = (order = state.activeOrder) => {
+      if (!order) return 0;
+      if (order.type === "clicks") return Math.max(0, state.totalClicks - order.startValue);
+      if (order.type === "lifetime") return Math.max(0, state.lifetimeGears - order.startValue);
+      if (order.type === "building") {
+        const building = buildings.find((b) => b.id === order.buildingId);
+        return Math.max(0, (building?.owned || 0) - order.startValue);
+      }
+      return 0;
+    };
+
+    const createOrder = () => {
+      const tier = Math.max(1, Math.floor(state.lifetimeGears / 2000) + 1);
+      const rewardGear = 150 * tier;
+      const rewardRP = 1 + Math.floor(tier / 3);
+      const pool = [
+        {
+          id: `order_click_${Date.now()}`,
+          type: "clicks",
+          title: "订单：人工质检",
+          desc: "手动点击完成一次人工抽检",
+          target: 25 + tier * 5,
+          startValue: state.totalClicks,
+          reward: { type: "gear", value: rewardGear }
+        },
+        {
+          id: `order_lifetime_${Date.now()}`,
+          type: "lifetime",
+          title: "订单：加急出货",
+          desc: "在当前阶段额外生产齿轮",
+          target: 800 + tier * 250,
+          startValue: state.lifetimeGears,
+          reward: { type: "gear", value: rewardGear * 2 }
+        },
+        {
+          id: `order_building_${Date.now()}`,
+          type: "building",
+          buildingId: "conveyor",
+          title: "订单：扩展传送线",
+          desc: "新增传送带以提升物流效率",
+          target: 3 + Math.floor(tier / 2),
+          startValue: buildings.find((b) => b.id === "conveyor")?.owned || 0,
+          reward: { type: "rp", value: rewardRP }
+        }
+      ];
+      state.activeOrder = pool[Math.floor(Math.random() * pool.length)];
+      saveGame();
+    };
+
+    const ensureOrder = () => {
+      const unlocked = state.lifetimeGears >= ORDER_UNLOCK_LIFETIME_GEARS;
+      if (!unlocked) return;
+      if (!state.activeOrder) createOrder();
+    };
+
     const saveGame = () => {
       const payload = {
         gears: state.gears,
@@ -634,6 +744,7 @@
         achievements: achievements.map((a) => ({ id: a.id, done: a.done, claimed: a.claimed })),
         skills: skills.map((s) => ({ id: s.id, level: s.level })),
         researchPoints: state.researchPoints,
+        activeOrder: state.activeOrder,
         savedAt: Date.now()
       };
       localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
@@ -700,6 +811,9 @@
         state.totalClicks = Math.max(0, Number(data.totalClicks) || 0);
         state.lifetimeGears = Math.max(0, Number(data.lifetimeGears) || 0);
         state.researchPoints = Math.max(0, Math.floor(Number(data.researchPoints) || 0));
+        if (data.activeOrder && typeof data.activeOrder === "object") {
+          state.activeOrder = data.activeOrder;
+        }
 
         if (Array.isArray(data.upgrades)) {
           for (const saved of data.upgrades) {
@@ -732,6 +846,8 @@
         if (offlineGears > 0) {
           state.pendingOfflineGears = offlineGears;
         }
+
+        ensureOrder();
       } catch (error) {
         console.warn("存档读取失败，已忽略：", error);
       }
@@ -1005,6 +1121,31 @@
       statModeEl.textContent = `自动购买：${state.autoBuy ? "开" : "关"}`;
       statLifetimeEl.textContent = `累计齿轮：${format(state.lifetimeGears)}`;
 
+      const orderUnlocked = state.lifetimeGears >= ORDER_UNLOCK_LIFETIME_GEARS;
+      if (!orderUnlocked) {
+        orderTitleEl.textContent = "生产订单：尚未解锁";
+        orderFillEl.style.width = "0%";
+        orderHintEl.textContent = `累计齿轮达到 ${ORDER_UNLOCK_LIFETIME_GEARS} 后解锁`;
+        orderPctEl.textContent = "0%";
+        orderRewardEl.textContent = "奖励：-";
+        claimOrderBtn.disabled = true;
+        rerollOrderBtn.disabled = true;
+      } else {
+        ensureOrder();
+        const order = state.activeOrder;
+        const progress = order ? Math.min(getOrderProgress(order), order.target) : 0;
+        const pct = order ? Math.min(100, (progress / order.target) * 100) : 0;
+        orderTitleEl.textContent = order?.title || "生产订单";
+        orderFillEl.style.width = `${pct}%`;
+        orderHintEl.textContent = order ? `${order.desc}（${format(progress)} / ${format(order.target)}）` : "暂无订单";
+        orderPctEl.textContent = `${pct.toFixed(0)}%`;
+        orderRewardEl.textContent = order
+          ? `奖励：${order.reward.type === "gear" ? `+${format(order.reward.value)} 齿轮` : `+${order.reward.value} RP`}`
+          : "奖励：-";
+        claimOrderBtn.disabled = !(order && progress >= order.target);
+        rerollOrderBtn.disabled = state.gears < ORDER_REROLL_COST;
+      }
+
       renderMode();
     };
 
@@ -1164,6 +1305,27 @@
       render();
     });
 
+    claimOrderBtn.addEventListener("click", () => {
+      const order = state.activeOrder;
+      if (!order) return;
+      const progress = getOrderProgress(order);
+      if (progress < order.target) return;
+      grantReward(order.reward, `订单完成（${order.title}）`);
+      state.activeOrder = null;
+      ensureOrder();
+      saveGame();
+      render();
+    });
+
+    rerollOrderBtn.addEventListener("click", () => {
+      if (state.lifetimeGears < ORDER_UNLOCK_LIFETIME_GEARS) return;
+      if (state.gears < ORDER_REROLL_COST) return;
+      state.gears -= ORDER_REROLL_COST;
+      createOrder();
+      pushLog("已刷新生产订单");
+      render();
+    });
+
     prestigeBtn.addEventListener("click", () => {
       const gain = Math.floor(Math.sqrt(state.lifetimeGears / 2000));
       if (gain <= 0) {
@@ -1188,6 +1350,7 @@
       state.questIndex = 0;
       state.autoBuy = false;
       state.autoBuyAccumulator = 0;
+      state.activeOrder = null;
       for (const b of buildings) b.owned = 0;
       for (const u of upgrades) u.purchased = false;
       for (const s of skills) s.level = 0;
@@ -1215,6 +1378,7 @@
       state.questIndex = 0;
       state.autoBuy = false;
       state.autoBuyAccumulator = 0;
+      state.activeOrder = null;
       for (const b of buildings) b.owned = 0;
       for (const u of upgrades) u.purchased = false;
       for (const s of skills) s.level = 0;
