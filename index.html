@@ -795,6 +795,11 @@
           <button class="order-btn secondary" id="debugAddRpBtn">+5 RP</button>
           <button class="order-btn secondary" id="debugSnapshotBtn">记录快照</button>
         </div>
+        <div class="order-actions">
+          <button class="order-btn secondary" id="debugManualMultBtn">手动倍率 x1.00</button>
+          <button class="order-btn secondary" id="debugGpsMultBtn">产线倍率 x1.00</button>
+          <button class="order-btn secondary" id="debugResetMultBtn">重置调试倍率</button>
+        </div>
       </div>
 
       <div class="progress-wrap">
@@ -1066,7 +1071,9 @@
       financeCreditBase: 0,
       financeStrategySwitches: 0,
       prestigeBranches: { legacy_manual: 0, legacy_line: 0 },
-      debugPanelOpen: false
+      debugPanelOpen: false,
+      debugManualMult: 1,
+      debugGpsMult: 1
     };
 
     const gearsEl = document.getElementById("gears");
@@ -1093,6 +1100,9 @@
     const debugAddGearsBtn = document.getElementById("debugAddGearsBtn");
     const debugAddRpBtn = document.getElementById("debugAddRpBtn");
     const debugSnapshotBtn = document.getElementById("debugSnapshotBtn");
+    const debugManualMultBtn = document.getElementById("debugManualMultBtn");
+    const debugGpsMultBtn = document.getElementById("debugGpsMultBtn");
+    const debugResetMultBtn = document.getElementById("debugResetMultBtn");
     const upgradeList = document.getElementById("upgradeList");
     const achievementList = document.getElementById("achievementList");
     const skillList = document.getElementById("skillList");
@@ -1199,9 +1209,9 @@
       return Math.max(1, synergy - imbalance * 0.06);
     };
 
-    const getTotalGPS = () => getBaseGPS() * state.gpsMultiplier * getResearchMultiplier() * getSkillGpsMultiplier() * getIndustryChainMultiplier() * getPrestigeGpsMultiplier();
+    const getTotalGPS = () => getBaseGPS() * state.gpsMultiplier * getResearchMultiplier() * getSkillGpsMultiplier() * getIndustryChainMultiplier() * getPrestigeGpsMultiplier() * state.debugGpsMult;
     const getComboMultiplier = () => 1 + Math.min(COMBO_MAX_STREAK, state.comboStreak) * COMBO_BONUS_PER_STACK;
-    const getManualGain = () => state.manualPower * getSkillManualMultiplier() * getComboMultiplier() * getPrestigeManualMultiplier();
+    const getManualGain = () => state.manualPower * getSkillManualMultiplier() * getComboMultiplier() * getPrestigeManualMultiplier() * state.debugManualMult;
 
     const getPrestigeGain = (lifetimeGears) => {
       const base = Math.floor(Math.sqrt(lifetimeGears / PRESTIGE_BASE_DIVISOR));
@@ -1642,6 +1652,8 @@
         financeStrategySwitches: state.financeStrategySwitches,
         prestigeBranches: state.prestigeBranches,
         debugPanelOpen: state.debugPanelOpen,
+        debugManualMult: state.debugManualMult,
+        debugGpsMult: state.debugGpsMult,
         saveVersion: SAVE_VERSION,
         savedAt: Date.now()
       };
@@ -1728,6 +1740,8 @@
           legacy_line: Math.max(0, Math.min(5, Math.floor(Number(data.prestigeBranches?.legacy_line) || 0)))
         };
         state.debugPanelOpen = Boolean(data.debugPanelOpen);
+        state.debugManualMult = Math.max(0.2, Math.min(5, Number(data.debugManualMult) || 1));
+        state.debugGpsMult = Math.max(0.2, Math.min(5, Number(data.debugGpsMult) || 1));
         if (data.categoryCollapse && typeof data.categoryCollapse === "object") {
           state.categoryCollapse.economy = Boolean(data.categoryCollapse.economy);
           state.categoryCollapse.goals = Boolean(data.categoryCollapse.goals);
@@ -2183,6 +2197,8 @@
 
       debugPanelEl.style.display = state.debugPanelOpen ? "block" : "none";
       debugSnapshotInfoEl.textContent = `快照：齿轮 ${format(state.gears)} / RP ${state.researchPoints} / GPS ${format(getTotalGPS())}`;
+      debugManualMultBtn.textContent = `手动倍率 x${state.debugManualMult.toFixed(2)}`;
+      debugGpsMultBtn.textContent = `产线倍率 x${state.debugGpsMult.toFixed(2)}`;
 
       if (state.pendingOfflineGears > 0) {
         offlineNoticeEl.style.display = "flex";
@@ -2560,8 +2576,33 @@
 
     debugSnapshotBtn.addEventListener("click", () => {
       if (!state.debugPanelOpen) return;
-      const line = `[Debug快照] gears=${format(state.gears)} rp=${state.researchPoints} gps=${format(getTotalGPS())} lifetime=${format(state.lifetimeGears)}`;
+      const line = `[Debug快照] gears=${format(state.gears)} rp=${state.researchPoints} gps=${format(getTotalGPS())} lifetime=${format(state.lifetimeGears)} manualMult=${state.debugManualMult.toFixed(2)} gpsMult=${state.debugGpsMult.toFixed(2)}`;
       pushLog(line);
+      saveGame();
+      render();
+    });
+
+    debugManualMultBtn.addEventListener("click", () => {
+      if (!state.debugPanelOpen) return;
+      state.debugManualMult = state.debugManualMult >= 3 ? 1 : Math.min(3, +(state.debugManualMult + 0.5).toFixed(2));
+      pushLog(`[Debug] 手动倍率调整为 x${state.debugManualMult.toFixed(2)}`);
+      saveGame();
+      render();
+    });
+
+    debugGpsMultBtn.addEventListener("click", () => {
+      if (!state.debugPanelOpen) return;
+      state.debugGpsMult = state.debugGpsMult >= 3 ? 1 : Math.min(3, +(state.debugGpsMult + 0.5).toFixed(2));
+      pushLog(`[Debug] 产线倍率调整为 x${state.debugGpsMult.toFixed(2)}`);
+      saveGame();
+      render();
+    });
+
+    debugResetMultBtn.addEventListener("click", () => {
+      if (!state.debugPanelOpen) return;
+      state.debugManualMult = 1;
+      state.debugGpsMult = 1;
+      pushLog("[Debug] 已重置调试倍率到 x1.00");
       saveGame();
       render();
     });
@@ -2762,6 +2803,8 @@
       state.financeStrategySwitches = 0;
       state.prestigeBranches = { legacy_manual: 0, legacy_line: 0 };
       state.debugPanelOpen = false;
+      state.debugManualMult = 1;
+      state.debugGpsMult = 1;
       for (const b of buildings) b.owned = 0;
       for (const u of upgrades) u.purchased = false;
       for (const s of skills) s.level = 0;
