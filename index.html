@@ -399,6 +399,20 @@
         <div class="subtitle" id="rewardFeed" style="margin-top:8px">成就奖励将显示在这里</div>
       </div>
 
+      <div class="progress-wrap">
+        <div class="progress-title">统计摘要</div>
+        <div class="progress-meta" style="margin-top:0">
+          <span id="statBuildings">建筑总数：0</span>
+          <span id="statUpgrades">升级已研发：0</span>
+          <span id="statAchievements">成就完成：0/0</span>
+        </div>
+        <div class="progress-meta">
+          <span id="statQuest">任务进度：0/0</span>
+          <span id="statMode">自动购买：关</span>
+          <span id="statLifetime">累计齿轮：0</span>
+        </div>
+      </div>
+
       <h2 class="section-title">自动化建筑</h2>
       <div class="buildings" id="buildingList"></div>
 
@@ -490,6 +504,12 @@
     const rpEl = document.getElementById("rp");
     const rewardFeedEl = document.getElementById("rewardFeed");
     const eventLogEl = document.getElementById("eventLog");
+    const statBuildingsEl = document.getElementById("statBuildings");
+    const statUpgradesEl = document.getElementById("statUpgrades");
+    const statAchievementsEl = document.getElementById("statAchievements");
+    const statQuestEl = document.getElementById("statQuest");
+    const statModeEl = document.getElementById("statMode");
+    const statLifetimeEl = document.getElementById("statLifetime");
 
     const buildingViewMap = new Map();
     const upgradeViewMap = new Map();
@@ -847,6 +867,16 @@
         el.textContent = line;
         eventLogEl.appendChild(el);
       }
+
+      const totalBuildings = buildings.reduce((sum, b) => sum + b.owned, 0);
+      const doneAchievements = achievements.filter((a) => a.done).length;
+      const doneUpgrades = upgrades.filter((u) => u.purchased).length;
+      statBuildingsEl.textContent = `建筑总数：${totalBuildings}`;
+      statUpgradesEl.textContent = `升级已研发：${doneUpgrades}/${upgrades.length}`;
+      statAchievementsEl.textContent = `成就完成：${doneAchievements}/${achievements.length}`;
+      statQuestEl.textContent = `任务进度：${Math.min(state.questIndex, questChain.length)}/${questChain.length}`;
+      statModeEl.textContent = `自动购买：${state.autoBuy ? "开" : "关"}`;
+      statLifetimeEl.textContent = `累计齿轮：${format(state.lifetimeGears)}`;
 
       renderMode();
     };
