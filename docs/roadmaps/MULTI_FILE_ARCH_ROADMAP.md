@@ -103,6 +103,7 @@ src/
 - 在 `docs/roadmaps` 维护“滚动更新日志”，确保每轮拆分可追踪（`docs/roadmaps/ROLLING_UPDATE_LOG.md`）。
 - ✅ 已新增滚动更新日志文档并沉淀迭代模板。
 - ✅ Iteration H 已补齐迭代产物校验脚本，强化路线图/日志/TODO 文档契约。
+- ✅ Iteration I 已为过载倒计时补齐临界反馈与低性能降级策略，兼顾手感与稳定性。
 
 ## 里程碑清单
 - M1：目录边界建立 + 主循环可运行。

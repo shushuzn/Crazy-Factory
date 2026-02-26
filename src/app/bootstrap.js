@@ -1369,7 +1369,7 @@ const getCurrentPrice = (building, ownedOffset = 0) => calcCurrentPrice({
           const overheatPct = Math.max(0, Math.min(1, comboOverheatTimer / COMBO_OVERHEAT_MAX_SECONDS));
           comboBoostStatusEl.style.setProperty("--boost-fill", `${(overheatPct * 100).toFixed(1)}%`);
           comboBoostStatusEl.classList.toggle("active", overheatActive);
-          comboBoostStatusEl.classList.toggle("critical", overheatActive && comboOverheatTimer <= 1);
+          comboBoostStatusEl.classList.toggle("critical", overheatActive && comboOverheatTimer <= 1 && !state.lowPerfMode);
           comboBoostStatusEl.textContent = overheatActive
             ? `过载增幅：x${COMBO_OVERHEAT_MANUAL_MULT.toFixed(2)}（${comboOverheatTimer.toFixed(1)}s，续燃+${COMBO_OVERHEAT_EXTENSION_SECONDS.toFixed(2)}s/击）`
             : "过载增幅：未激活";
