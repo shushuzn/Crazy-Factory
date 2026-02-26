@@ -604,6 +604,9 @@
       <h2 class="section-title">技能</h2>
       <div class="buildings" id="skillList"></div>
 
+      <h2 class="section-title">建筑专精</h2>
+      <div class="buildings" id="specializationList"></div>
+
       <h2 class="section-title">成就</h2>
       <div class="buildings" id="achievementList"></div>
 
@@ -665,6 +668,17 @@
       { id: "manual_mastery", name: "手动精通", desc: "手动产出每级 +25%", maxLevel: 5, level: 0, costRP: 1 },
       { id: "line_optimizer", name: "产线优化", desc: "总 GPS 每级 +20%", maxLevel: 5, level: 0, costRP: 1 },
       { id: "bulk_discount", name: "采购折扣", desc: "建筑价格每级 -3%", maxLevel: 5, level: 0, costRP: 1 }
+    ];
+
+
+
+    const specializationUpgrades = [
+      { id: "intern_output", buildingId: "intern", branch: "output", name: "实习生训练计划", desc: "实习生产出每级 +20%", costRP: 1, maxLevel: 5, level: 0 },
+      { id: "intern_cost", buildingId: "intern", branch: "cost", name: "实习生批量招募", desc: "实习生价格每级 -4%", costRP: 1, maxLevel: 5, level: 0 },
+      { id: "conveyor_output", buildingId: "conveyor", branch: "output", name: "传送带高效马达", desc: "传送带产出每级 +20%", costRP: 2, maxLevel: 5, level: 0 },
+      { id: "conveyor_cost", buildingId: "conveyor", branch: "cost", name: "传送带标准化采购", desc: "传送带价格每级 -4%", costRP: 2, maxLevel: 5, level: 0 },
+      { id: "assembler_output", buildingId: "assembler", branch: "output", name: "组装机精密校准", desc: "组装机产出每级 +20%", costRP: 3, maxLevel: 5, level: 0 },
+      { id: "assembler_cost", buildingId: "assembler", branch: "cost", name: "组装机供应链优化", desc: "组装机价格每级 -4%", costRP: 3, maxLevel: 5, level: 0 }
     ];
 
     const achievements = [
@@ -737,6 +751,7 @@
     const upgradeList = document.getElementById("upgradeList");
     const achievementList = document.getElementById("achievementList");
     const skillList = document.getElementById("skillList");
+    const specializationList = document.getElementById("specializationList");
     const goalTitleEl = document.getElementById("goalTitle");
     const goalFillEl = document.getElementById("goalFill");
     const goalHintEl = document.getElementById("goalHint");
@@ -765,6 +780,7 @@
     const upgradeViewMap = new Map();
     const achievementViewMap = new Map();
     const skillViewMap = new Map();
+    const specializationViewMap = new Map();
 
     const format = (num) => {
       if (!Number.isFinite(num)) return "0";
@@ -776,7 +792,10 @@
     };
 
     const getSkillLevel = (id) => skills.find((s) => s.id === id)?.level || 0;
-    const getDiscountMultiplier = () => Math.max(0.7, 1 - getSkillLevel("bulk_discount") * 0.03);
+    const getSpecializationLevel = (buildingId, branch) => specializationUpgrades.find((s) => s.buildingId === buildingId && s.branch === branch)?.level || 0;
+    const getBuildingCostMultiplier = (buildingId) => Math.max(0.65, 1 - getSpecializationLevel(buildingId, "cost") * 0.04);
+    const getBuildingOutputMultiplier = (buildingId) => 1 + getSpecializationLevel(buildingId, "output") * 0.2;
+    const getDiscountMultiplier = (buildingId) => Math.max(0.7, 1 - getSkillLevel("bulk_discount") * 0.03) * getBuildingCostMultiplier(buildingId);
 
     // 经济曲线二次调优：中后期把“拥有数量”映射为更平缓的有效指数，避免增长斜率过陡造成停滞。
     const getEffectiveOwnedForPrice = (owned) => {
@@ -791,10 +810,10 @@
 
     const getCurrentPrice = (building, ownedOffset = 0) => {
       const effectiveOwned = getEffectiveOwnedForPrice(building.owned + ownedOffset);
-      return Math.floor(building.basePrice * Math.pow(PRICE_GROWTH, effectiveOwned) * getDiscountMultiplier());
+      return Math.floor(building.basePrice * Math.pow(PRICE_GROWTH, effectiveOwned) * getDiscountMultiplier(building.id));
     };
 
-    const getBaseGPS = () => buildings.reduce((sum, b) => sum + b.dps * b.owned, 0);
+    const getBaseGPS = () => buildings.reduce((sum, b) => sum + b.dps * b.owned * getBuildingOutputMultiplier(b.id), 0);
     const getResearchMultiplier = () => 1 + state.researchPoints * 0.1;
     const getSkillGpsMultiplier = () => 1 + getSkillLevel("line_optimizer") * 0.2;
     const getSkillManualMultiplier = () => 1 + getSkillLevel("manual_mastery") * 0.25;
@@ -1076,6 +1095,7 @@
         lifetimeGears: state.lifetimeGears,
         achievements: achievements.map((a) => ({ id: a.id, done: a.done, claimed: a.claimed })),
         skills: skills.map((s) => ({ id: s.id, level: s.level })),
+        specializationUpgrades: specializationUpgrades.map((sp) => ({ id: sp.id, level: sp.level })),
         researchPoints: state.researchPoints,
         activeOrder: state.activeOrder,
         audioEnabled: state.audioEnabled,
@@ -1175,6 +1195,14 @@
           }
         }
 
+        if (Array.isArray(data.specializationUpgrades)) {
+          for (const saved of data.specializationUpgrades) {
+            const target = specializationUpgrades.find((sp) => sp.id === saved.id);
+            if (!target) continue;
+            target.level = Math.max(0, Math.min(target.maxLevel, Math.floor(Number(saved.level) || 0)));
+          }
+        }
+
         if (Array.isArray(data.achievements)) {
           for (const saved of data.achievements) {
             const target = achievements.find((a) => a.id === saved.id);
@@ -1265,6 +1293,37 @@
         btn: row.querySelector(`[data-skill-buy="${skill.id}"]`),
         meta: row.querySelector(`[data-skill-meta="${skill.id}"]`)
       });
+    };
+
+    const createSpecializationRow = (spec) => {
+      const row = document.createElement("div");
+      row.className = "skill";
+      row.dataset.id = spec.id;
+      row.innerHTML = `
+        <div>
+          <div class="name">${spec.name}</div>
+          <div class="meta">${spec.desc}</div>
+          <div class="meta" data-spec-meta="${spec.id}"></div>
+        </div>
+        <button class="btn skill-btn" data-spec-buy="${spec.id}">升级（${spec.costRP} RP）</button>
+      `;
+      specializationList.appendChild(row);
+      specializationViewMap.set(spec.id, {
+        btn: row.querySelector(`[data-spec-buy="${spec.id}"]`),
+        meta: row.querySelector(`[data-spec-meta="${spec.id}"]`)
+      });
+    };
+
+    const buySpecialization = (id) => {
+      const spec = specializationUpgrades.find((sp) => sp.id === id);
+      if (!spec) return;
+      if (spec.level >= spec.maxLevel) return;
+      if (state.researchPoints < spec.costRP) return;
+      state.researchPoints -= spec.costRP;
+      spec.level += 1;
+      pushLog(`专精升级：${spec.name} Lv.${spec.level}`);
+      saveGame();
+      render();
     };
 
     const createAchievementRow = (achievement) => {
@@ -1443,6 +1502,19 @@
         }
       }
 
+      for (const spec of specializationUpgrades) {
+        const view = specializationViewMap.get(spec.id);
+        if (!view) continue;
+        view.meta.textContent = `等级 ${spec.level}/${spec.maxLevel}`;
+        if (spec.level >= spec.maxLevel) {
+          view.btn.disabled = true;
+          view.btn.textContent = "已满级";
+        } else {
+          view.btn.disabled = state.researchPoints < spec.costRP;
+          view.btn.textContent = `升级（${spec.costRP} RP）`;
+        }
+      }
+
       for (const achievement of achievements) {
         if (!achievement.done && achievement.check()) {
           achievement.done = true;
@@ -1476,8 +1548,9 @@
       const doneAchievements = achievements.filter((a) => a.done).length;
       const doneUpgrades = upgrades.filter((u) => u.purchased).length;
       const totalSkillLevels = skills.reduce((sum, s) => sum + s.level, 0);
+      const totalSpecLevels = specializationUpgrades.reduce((sum, sp) => sum + sp.level, 0);
       statBuildingsEl.textContent = `建筑总数：${totalBuildings}`;
-      statUpgradesEl.textContent = `升级已研发：${doneUpgrades}/${upgrades.length} | 技能等级：${totalSkillLevels}`;
+      statUpgradesEl.textContent = `升级已研发：${doneUpgrades}/${upgrades.length} | 技能等级：${totalSkillLevels} | 专精等级：${totalSpecLevels}`;
       statAchievementsEl.textContent = `成就完成：${doneAchievements}/${achievements.length}`;
       statQuestEl.textContent = `任务进度：${Math.min(state.questIndex, questChain.length)}/${questChain.length}`;
       statModeEl.textContent = `自动购买：${state.autoBuy ? "开" : "关"}`;
@@ -1640,6 +1713,14 @@
       buySkill(id);
     });
 
+    specializationList.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLButtonElement)) return;
+      const id = target.dataset.specBuy;
+      if (!id) return;
+      buySpecialization(id);
+    });
+
 
     exportSaveBtn.addEventListener("click", () => {
       exportSave();
@@ -1774,6 +1855,7 @@
       for (const b of buildings) b.owned = 0;
       for (const u of upgrades) u.purchased = false;
       for (const s of skills) s.level = 0;
+      for (const sp of specializationUpgrades) sp.level = 0;
       for (const a of achievements) { a.done = false; a.claimed = false; }
       saveGame();
       render();
@@ -1804,6 +1886,7 @@
       for (const b of buildings) b.owned = 0;
       for (const u of upgrades) u.purchased = false;
       for (const s of skills) s.level = 0;
+      for (const sp of specializationUpgrades) sp.level = 0;
       for (const a of achievements) { a.done = false; a.claimed = false; }
       render();
     });
@@ -1811,6 +1894,7 @@
     for (const building of buildings) createBuildingRow(building);
     for (const upgrade of upgrades) createUpgradeRow(upgrade);
     for (const skill of skills) createSkillRow(skill);
+    for (const spec of specializationUpgrades) createSpecializationRow(spec);
     for (const achievement of achievements) createAchievementRow(achievement);
 
     loadGame();

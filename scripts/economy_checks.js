@@ -51,6 +51,8 @@ const getPrestigeGain = (lifetimeGears) => {
 };
 
 const getComboMultiplier = (streak) => 1 + Math.min(COMBO_MAX_STREAK, streak) * COMBO_BONUS_PER_STACK;
+const getBuildingCostMultiplier = (costLevel) => Math.max(0.65, 1 - costLevel * 0.04);
+const getBuildingOutputMultiplier = (outputLevel) => 1 + outputLevel * 0.2;
 const shouldSpawnFloatingGain = (activeCount, priority = "normal") => {
   const hardCap = FX_MAX_FLOATING_GAINS + FX_PRIORITY_SLOTS;
   const normalCap = FX_MAX_FLOATING_GAINS;
@@ -101,6 +103,10 @@ assert(getResearchMultiplier(5) === 1.5, 'rp 5 multiplier should be 1.5');
 assert(getComboMultiplier(0) === 1, 'combo at 0 should not buff');
 assert(getComboMultiplier(10) === 1.2, 'combo 10 should be +20%');
 assert(getComboMultiplier(999) === 1 + COMBO_MAX_STREAK * COMBO_BONUS_PER_STACK, 'combo multiplier should clamp');
+assert(getBuildingCostMultiplier(0) === 1, 'building cost multiplier base should be 1');
+assert(getBuildingCostMultiplier(5) === 0.8, 'building cost multiplier level 5 should be 0.8');
+assert(getBuildingCostMultiplier(999) === 0.65, 'building cost multiplier should clamp');
+assert(getBuildingOutputMultiplier(3) === 1.6, 'building output multiplier level 3 should be 1.6');
 assert(shouldSpawnFloatingGain(0) === true, 'floating gain should spawn when queue is empty');
 assert(shouldSpawnFloatingGain(FX_MAX_FLOATING_GAINS) === false, 'normal floating gain should stop at cap');
 assert(shouldSpawnFloatingGain(FX_MAX_FLOATING_GAINS, 'high') === true, 'high priority gain should use reserved slots');
