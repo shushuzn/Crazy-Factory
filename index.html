@@ -576,6 +576,15 @@
     const FX_FLOAT_DURATION_MS = 850;
     const FX_PANEL_PULSE_MS = 300;
     const FX_BTN_POP_MS = 200;
+    const ORDER_TIER_STEP = 2000;
+
+    const ORDER_TEMPLATES = [
+      { key: "clicks", type: "clicks", minTier: 1, weight: 3, title: "订单：人工质检", desc: "手动点击完成一次人工抽检" },
+      { key: "lifetime", type: "lifetime", minTier: 1, weight: 3, title: "订单：加急出货", desc: "在当前阶段额外生产齿轮" },
+      { key: "conveyor", type: "building", buildingId: "conveyor", minTier: 1, weight: 2, title: "订单：扩展传送线", desc: "新增传送带以提升物流效率" },
+      { key: "assembler", type: "building", buildingId: "assembler", minTier: 2, weight: 1, title: "订单：精密组装", desc: "扩充组装机以提升高阶产线" },
+      { key: "intern", type: "building", buildingId: "intern", minTier: 3, weight: 2, title: "订单：培训冲刺", desc: "扩招实习生补充基础产线" }
+    ];
 
     const upgrades = [
       { id: "training", name: "员工培训", price: 250, desc: "手动生产 +1", type: "manual", value: 1, purchased: false, unlockRP: 0, requires: null },
@@ -770,41 +779,63 @@
       return 0;
     };
 
+    const pickWeightedOrderTemplate = (tier) => {
+      const unlocked = ORDER_TEMPLATES.filter((template) => template.minTier <= tier);
+      const totalWeight = unlocked.reduce((sum, item) => sum + item.weight, 0);
+      let roll = Math.random() * totalWeight;
+      for (const template of unlocked) {
+        roll -= template.weight;
+        if (roll <= 0) return template;
+      }
+      return unlocked[unlocked.length - 1] || ORDER_TEMPLATES[0];
+    };
+
     const createOrder = () => {
-      const tier = Math.max(1, Math.floor(state.lifetimeGears / 2000) + 1);
+      const tier = Math.max(1, Math.floor(state.lifetimeGears / ORDER_TIER_STEP) + 1);
       const rewardGear = 150 * tier;
       const rewardRP = 1 + Math.floor(tier / 3);
-      const pool = [
-        {
-          id: `order_click_${Date.now()}`,
+      const template = pickWeightedOrderTemplate(tier);
+      const timestamp = Date.now();
+
+      if (template.type === "clicks") {
+        state.activeOrder = {
+          id: `order_${template.key}_${timestamp}`,
           type: "clicks",
-          title: "订单：人工质检",
-          desc: "手动点击完成一次人工抽检",
+          title: template.title,
+          desc: template.desc,
           target: 25 + tier * 5,
           startValue: state.totalClicks,
           reward: { type: "gear", value: rewardGear }
-        },
-        {
-          id: `order_lifetime_${Date.now()}`,
+        };
+      }
+
+      if (template.type === "lifetime") {
+        state.activeOrder = {
+          id: `order_${template.key}_${timestamp}`,
           type: "lifetime",
-          title: "订单：加急出货",
-          desc: "在当前阶段额外生产齿轮",
+          title: template.title,
+          desc: template.desc,
           target: 800 + tier * 250,
           startValue: state.lifetimeGears,
           reward: { type: "gear", value: rewardGear * 2 }
-        },
-        {
-          id: `order_building_${Date.now()}`,
+        };
+      }
+
+      if (template.type === "building") {
+        const buildingId = template.buildingId;
+        const baseTarget = buildingId === "assembler" ? 2 : 3;
+        state.activeOrder = {
+          id: `order_${template.key}_${timestamp}`,
           type: "building",
-          buildingId: "conveyor",
-          title: "订单：扩展传送线",
-          desc: "新增传送带以提升物流效率",
-          target: 3 + Math.floor(tier / 2),
-          startValue: buildings.find((b) => b.id === "conveyor")?.owned || 0,
-          reward: { type: "rp", value: rewardRP }
-        }
-      ];
-      state.activeOrder = pool[Math.floor(Math.random() * pool.length)];
+          buildingId,
+          title: template.title,
+          desc: template.desc,
+          target: baseTarget + Math.floor(tier / 2),
+          startValue: buildings.find((b) => b.id === buildingId)?.owned || 0,
+          reward: { type: buildingId === "assembler" ? "rp" : "gear", value: buildingId === "assembler" ? rewardRP : rewardGear }
+        };
+      }
+
       saveGame();
     };
 

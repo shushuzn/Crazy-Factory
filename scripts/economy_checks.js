@@ -7,6 +7,16 @@ const assert = (condition, message) => {
 const PRICE_GROWTH = 1.15;
 const OFFLINE_CAP_SECONDS = 8 * 60 * 60;
 
+const ORDER_TEMPLATES = [
+  { key: 'clicks', minTier: 1, weight: 3 },
+  { key: 'lifetime', minTier: 1, weight: 3 },
+  { key: 'conveyor', minTier: 1, weight: 2 },
+  { key: 'assembler', minTier: 2, weight: 1 },
+  { key: 'intern', minTier: 3, weight: 2 }
+];
+
+const getUnlockedTemplates = (tier) => ORDER_TEMPLATES.filter((t) => t.minTier <= tier);
+
 const getCurrentPrice = (basePrice, owned, discountMultiplier = 1) =>
   Math.floor(basePrice * Math.pow(PRICE_GROWTH, owned) * discountMultiplier);
 
@@ -62,4 +72,10 @@ const migrated = migrateSaveData({ gears: 10, activeOrder: { type: 'unknown', ta
 assert(migrated.saveVersion === 2, 'saveVersion should migrate to 2');
 assert(migrated.activeOrder === null, 'invalid order should be nulled during migration');
 
+
+
+// order template unlock
+assert(getUnlockedTemplates(1).length === 3, 'tier1 should unlock 3 templates');
+assert(getUnlockedTemplates(2).some((t) => t.key === 'assembler'), 'tier2 should unlock assembler template');
+assert(getUnlockedTemplates(3).length === 5, 'tier3 should unlock all templates');
 console.log('economy checks passed');
