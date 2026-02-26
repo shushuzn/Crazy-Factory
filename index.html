@@ -236,6 +236,12 @@
       min-height: 1.2em;
     }
 
+    .locked-note {
+      color: #fca5a5;
+      font-size: 0.8rem;
+      margin-top: 4px;
+    }
+
     .progress-wrap {
       background: var(--panel-2);
       border: 1px solid var(--border);
@@ -398,9 +404,9 @@
     const OFFLINE_CAP_SECONDS = 8 * 60 * 60;
 
     const upgrades = [
-      { id: "training", name: "员工培训", price: 250, desc: "手动生产 +1", type: "manual", value: 1, purchased: false },
-      { id: "lubricant", name: "润滑油优化", price: 800, desc: "总 GPS x1.5", type: "gps", value: 1.5, purchased: false },
-      { id: "ai", name: "调度 AI", price: 5000, desc: "总 GPS x2", type: "gps", value: 2, purchased: false }
+      { id: "training", name: "员工培训", price: 250, desc: "手动生产 +1", type: "manual", value: 1, purchased: false, unlockRP: 0, requires: null },
+      { id: "lubricant", name: "润滑油优化", price: 800, desc: "总 GPS x1.5", type: "gps", value: 1.5, purchased: false, unlockRP: 0, requires: "training" },
+      { id: "ai", name: "调度 AI", price: 5000, desc: "总 GPS x2", type: "gps", value: 2, purchased: false, unlockRP: 1, requires: "lubricant" }
     ];
 
     const achievements = [
@@ -411,9 +417,9 @@
     ];
 
     const buildings = [
-      { id: "intern", name: "实习生", basePrice: 15, dps: 1, owned: 0 },
-      { id: "conveyor", name: "传送带", basePrice: 100, dps: 8, owned: 0 },
-      { id: "assembler", name: "组装机", basePrice: 1100, dps: 47, owned: 0 }
+      { id: "intern", name: "实习生", basePrice: 15, dps: 1, owned: 0, unlockLifetimeGears: 0 },
+      { id: "conveyor", name: "传送带", basePrice: 100, dps: 8, owned: 0, unlockLifetimeGears: 200 },
+      { id: "assembler", name: "组装机", basePrice: 1100, dps: 47, owned: 0, unlockLifetimeGears: 1500 }
     ];
 
     const state = {
@@ -584,6 +590,7 @@
             <span>拥有：<strong data-owned="${building.id}">0</strong></span>
           </div>
           <div class="hint" data-hint="${building.id}"></div>
+          <div class="locked-note" data-lock="${building.id}"></div>
         </div>
         <button class="btn buy-btn" data-buy="${building.id}">购买 x1（0 齿轮）</button>
       `;
@@ -593,7 +600,8 @@
       buildingViewMap.set(building.id, {
         ownedEl: row.querySelector(`[data-owned="${building.id}"]`),
         buyBtn: row.querySelector(`[data-buy="${building.id}"]`),
-        hintEl: row.querySelector(`[data-hint="${building.id}"]`)
+        hintEl: row.querySelector(`[data-hint="${building.id}"]`),
+        lockEl: row.querySelector(`[data-lock="${building.id}"]`)
       });
     };
 
@@ -605,12 +613,14 @@
         <div>
           <div class="name">${upgrade.name}</div>
           <div class="meta">${upgrade.desc}</div>
+          <div class="meta" data-upgrade-lock="${upgrade.id}"></div>
         </div>
         <button class="btn upgrade-btn" data-upgrade="${upgrade.id}">研发（${format(upgrade.price)} 齿轮）</button>
       `;
       upgradeList.appendChild(row);
       upgradeViewMap.set(upgrade.id, {
-        btn: row.querySelector(`[data-upgrade="${upgrade.id}"]`)
+        btn: row.querySelector(`[data-upgrade="${upgrade.id}"]`),
+        lockEl: row.querySelector(`[data-upgrade-lock="${upgrade.id}"]`)
       });
     };
 
@@ -646,6 +656,20 @@
       saveGame();
     };
 
+    
+    const isBuildingUnlocked = (building) => state.lifetimeGears >= building.unlockLifetimeGears;
+
+    const getUpgradeLockedReason = (upgrade) => {
+      if (state.researchPoints < upgrade.unlockRP) {
+        return `需要 RP ${upgrade.unlockRP}`;
+      }
+      if (upgrade.requires) {
+        const required = upgrades.find((u) => u.id === upgrade.requires);
+        if (required && !required.purchased) return `前置：${required.name}`;
+      }
+      return "";
+    };
+
     const renderMode = () => {
       for (const btn of modeButtons) {
         btn.classList.toggle("active", btn.dataset.mode === state.purchaseMode);
@@ -669,14 +693,21 @@
         view.ownedEl.textContent = building.owned;
         view.buyBtn.textContent = `购买 x${purchaseCount}（${format(cost)} 齿轮）`;
 
-        const affordable = count > 0;
+        const unlocked = isBuildingUnlocked(building);
+        const affordable = count > 0 && unlocked;
         view.buyBtn.disabled = !affordable;
 
-        if (affordable) {
+        if (!unlocked) {
+          view.lockEl.textContent = `解锁条件：累计齿轮 ${format(building.unlockLifetimeGears)}`;
           view.hintEl.textContent = "";
         } else {
-          const nextPrice = getCurrentPrice(building);
-          view.hintEl.textContent = `还差 ${format(nextPrice - state.gears)} 齿轮`;
+          view.lockEl.textContent = "";
+          if (affordable) {
+            view.hintEl.textContent = "";
+          } else {
+            const nextPrice = getCurrentPrice(building);
+            view.hintEl.textContent = `还差 ${format(nextPrice - state.gears)} 齿轮`;
+          }
         }
       }
 
@@ -686,10 +717,13 @@
         if (upgrade.purchased) {
           view.btn.textContent = "已研发";
           view.btn.disabled = true;
+          view.lockEl.textContent = "";
           continue;
         }
+        const lockedReason = getUpgradeLockedReason(upgrade);
+        view.lockEl.textContent = lockedReason;
         view.btn.textContent = `研发（${format(upgrade.price)} 齿轮）`;
-        view.btn.disabled = state.gears < upgrade.price;
+        view.btn.disabled = state.gears < upgrade.price || Boolean(lockedReason);
       }
 
 
@@ -728,6 +762,7 @@
     const buyBuilding = (id) => {
       const building = buildings.find((b) => b.id === id);
       if (!building) return;
+      if (!isBuildingUnlocked(building)) return;
 
       const count = getAffordableCount(building, state.gears, state.purchaseMode);
       if (count <= 0) return;
@@ -746,6 +781,8 @@
     const buyUpgrade = (id) => {
       const upgrade = upgrades.find((u) => u.id === id);
       if (!upgrade || upgrade.purchased) return;
+      const lockedReason = getUpgradeLockedReason(upgrade);
+      if (lockedReason) return;
       if (state.gears < upgrade.price) return;
 
       state.gears -= upgrade.price;
