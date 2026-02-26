@@ -947,7 +947,7 @@
     const PRESTIGE_LATE_BONUS_STEP = 2_000_000;
     const SAVE_KEY = "crazy_factory_save_v1";
     const SAVE_BACKUP_KEY = "crazy_factory_save_backup";
-    const SAVE_VERSION = 3;
+    const SAVE_VERSION = 4;
     const TICK_RATE = 60;
     const FIXED_STEP = 1 / TICK_RATE;
     const MAX_ACCUMULATED_SECONDS = 0.25;
@@ -1348,7 +1348,7 @@
       if (!unlocked) return { tone: "info", text: `建议：先把累计齿轮推到 ${FINANCE_UNLOCK_LIFETIME_GEARS} 解锁金融。` };
 
       const upgradeCost = 1 + state.financeTier;
-      const cap = Math.max(FINANCE_MIN_CAP_GPS, mainlineGps * FINANCE_MAX_SHARE_OF_MAINLINE);
+      const cap = Math.max(FINANCE_MIN_CAP_GPS, mainlineGps * FINANCE_MAX_SHARE_OF_MAINLINE * getCurrentSeason().capMult * (1 - getAiLiquidityPressure() * 0.25));
       const capRatio = cap > 0 ? financeIncome / cap : 0;
       const marketKey = getCurrentMarketKey();
 
@@ -1670,6 +1670,19 @@
         }
       }
 
+      if (version < 4) {
+        data.saveVersion = 4;
+        data.financeSeasonIndex = Math.max(0, Math.floor(Number(data.financeSeasonIndex) || 0));
+        data.financeLeaderboard = Array.isArray(data.financeLeaderboard) ? data.financeLeaderboard : [];
+        if (!data.financeAssets || typeof data.financeAssets !== "object") {
+          data.financeAssets = { bond: 0.34, equity: 0.33, derivative: 0.33 };
+        }
+        if (!Number.isFinite(Number(data.financeLineage))) data.financeLineage = 0;
+        if (!Number.isFinite(Number(data.debugManualMult))) data.debugManualMult = 1;
+        if (!Number.isFinite(Number(data.debugGpsMult))) data.debugGpsMult = 1;
+        if (typeof data.debugPanelOpen !== "boolean") data.debugPanelOpen = false;
+      }
+
       if (!Number.isFinite(Number(data.saveVersion))) {
         data.saveVersion = SAVE_VERSION;
       }
@@ -1742,6 +1755,8 @@
       if (!data || typeof data !== "object") return null;
       if (!Array.isArray(data.buildings) || !Array.isArray(data.upgrades)) return null;
       if (!Array.isArray(data.skills) || !Array.isArray(data.achievements)) return null;
+      if (data.financeLeaderboard && !Array.isArray(data.financeLeaderboard)) return null;
+      if (data.financeAssets && typeof data.financeAssets !== "object") return null;
       return data;
     };
 
@@ -2382,7 +2397,7 @@
         financeFillEl.style.width = `${Math.min(100, (state.financeTier / 8) * 100)}%`;
         const mainlineGps = getTotalGPS();
         const effectiveFinance = getFinanceIncomePerSecond(mainlineGps);
-        const cap = Math.max(FINANCE_MIN_CAP_GPS, mainlineGps * FINANCE_MAX_SHARE_OF_MAINLINE);
+        const cap = Math.max(FINANCE_MIN_CAP_GPS, mainlineGps * FINANCE_MAX_SHARE_OF_MAINLINE * getCurrentSeason().capMult * (1 - getAiLiquidityPressure() * 0.25));
         financeHintEl.textContent = `秒收益：+${format(effectiveFinance)} 齿轮（封顶 ${format(cap)}）`;
         financeYieldEl.textContent = `年化：${(apr * 100).toFixed(1)}%`;
         financeCapitalEl.textContent = `资金池：${format(state.financeCapital)}`;
