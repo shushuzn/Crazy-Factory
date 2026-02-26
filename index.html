@@ -387,6 +387,13 @@
       border-color: #2563eb;
     }
 
+    .order-btn.active {
+      background: linear-gradient(90deg, #0891b2, #2563eb);
+      color: #ecfeff;
+      border-color: #22d3ee;
+      box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.2);
+    }
+
 
 
     .fx-layer {
@@ -853,6 +860,7 @@
           <span id="financeBreakdown">构成：基础 0% / 波动 0% / 风控 0%</span>
           <span id="financeMarket">市场：平稳</span>
           <span id="financeStrategy">策略：平衡</span>
+          <span id="financeSwitches">切换：0 次</span>
         </div>
         <div class="subtitle finance-advice info" id="financeAdvice">建议：解锁后会在这里显示下一步操作</div>
         <div class="order-actions" id="financeStrategyActions">
@@ -1140,6 +1148,7 @@
     const financeBreakdownEl = document.getElementById("financeBreakdown");
     const financeMarketEl = document.getElementById("financeMarket");
     const financeStrategyEl = document.getElementById("financeStrategy");
+    const financeSwitchesEl = document.getElementById("financeSwitches");
     const financeAdviceEl = document.getElementById("financeAdvice");
     const financeStrategyConservativeBtn = document.getElementById("financeStrategyConservativeBtn");
     const financeStrategyBalancedBtn = document.getElementById("financeStrategyBalancedBtn");
@@ -2276,9 +2285,13 @@
         financeBreakdownEl.textContent = "构成：基础 0% / 波动 0% / 风控 0%";
         financeMarketEl.textContent = "市场：平稳";
         financeStrategyEl.textContent = "策略：平衡";
+        financeSwitchesEl.textContent = "切换：0 次";
         financeStrategyConservativeBtn.disabled = true;
         financeStrategyBalancedBtn.disabled = true;
         financeStrategyAggressiveBtn.disabled = true;
+        financeStrategyConservativeBtn.classList.remove("active");
+        financeStrategyBalancedBtn.classList.remove("active");
+        financeStrategyAggressiveBtn.classList.remove("active");
         financeInvestBtn.disabled = true;
         financeWithdrawBtn.disabled = true;
         financeUpgradeBtn.disabled = true;
@@ -2306,6 +2319,10 @@
         financeBreakdownEl.textContent = `构成：基础 ${(comp.base * 100).toFixed(1)}% / 波动 ${(comp.cycle * 100).toFixed(1)}% / 风控 ${(comp.riskControl * 100).toFixed(1)}% / 信用 Lv.${comp.creditLevel} / 元进度 +${(state.financeMetaPoints * FINANCE_META_APR_PER_POINT * 100).toFixed(1)}%${sprintText}`;
         financeMarketEl.textContent = `市场：${market.label}`;
         financeStrategyEl.textContent = `策略：${strategy.label}`;
+        financeSwitchesEl.textContent = `切换：${state.financeStrategySwitches} 次`;
+        financeStrategyConservativeBtn.classList.toggle("active", state.financeStrategy === "conservative");
+        financeStrategyBalancedBtn.classList.toggle("active", state.financeStrategy === "balanced");
+        financeStrategyAggressiveBtn.classList.toggle("active", state.financeStrategy === "aggressive");
         financeStrategyConservativeBtn.disabled = false;
         financeStrategyBalancedBtn.disabled = false;
         financeStrategyAggressiveBtn.disabled = false;
