@@ -474,7 +474,7 @@
       <div class="manual">
         <div>
           <strong>手动生产</strong>
-          <div class="subtitle" style="margin-top:4px">每次点击 +1 齿轮</div>
+          <div class="subtitle" id="manualHint" style="margin-top:4px">每次点击 +1 齿轮</div>
         </div>
         <button id="manualBtn" class="btn">+1 齿轮</button>
       </div>
@@ -587,6 +587,9 @@
     const ORDER_TIER_STEP = 2000;
     const AUDIO_VOLUME = 0.03;
     const AUDIO_ENABLED_DEFAULT = true;
+    const COMBO_DECAY_SECONDS = 2.5;
+    const COMBO_MAX_STREAK = 40;
+    const COMBO_BONUS_PER_STACK = 0.02;
 
     const ORDER_TEMPLATES = [
       { key: "clicks", type: "clicks", minTier: 1, weight: 3, title: "订单：人工质检", desc: "手动点击完成一次人工抽检" },
@@ -648,12 +651,15 @@
       autoBuy: false,
       autoBuyAccumulator: 0,
       activeOrder: null,
-      audioEnabled: AUDIO_ENABLED_DEFAULT
+      audioEnabled: AUDIO_ENABLED_DEFAULT,
+      comboStreak: 0,
+      comboTimer: 0
     };
 
     const gearsEl = document.getElementById("gears");
     const gpsEl = document.getElementById("gps");
     const manualBtn = document.getElementById("manualBtn");
+    const manualHintEl = document.getElementById("manualHint");
     const buildingList = document.getElementById("buildingList");
     const modeButtons = [...document.querySelectorAll("[data-mode]")];
     const speedButtons = [...document.querySelectorAll("[data-speed]")];
@@ -731,7 +737,8 @@
     const getSkillGpsMultiplier = () => 1 + getSkillLevel("line_optimizer") * 0.2;
     const getSkillManualMultiplier = () => 1 + getSkillLevel("manual_mastery") * 0.25;
     const getTotalGPS = () => getBaseGPS() * state.gpsMultiplier * getResearchMultiplier() * getSkillGpsMultiplier();
-    const getManualGain = () => state.manualPower * getSkillManualMultiplier();
+    const getComboMultiplier = () => 1 + Math.min(COMBO_MAX_STREAK, state.comboStreak) * COMBO_BONUS_PER_STACK;
+    const getManualGain = () => state.manualPower * getSkillManualMultiplier() * getComboMultiplier();
 
     const getPrestigeGain = (lifetimeGears) => {
       const base = Math.floor(Math.sqrt(lifetimeGears / PRESTIGE_BASE_DIVISOR));
@@ -1012,6 +1019,8 @@
         }
         state.autoBuy = Boolean(data.autoBuy);
         state.audioEnabled = data.audioEnabled !== false;
+        state.comboStreak = 0;
+        state.comboTimer = 0;
         state.questIndex = Math.max(0, Math.min(Number(data.questIndex) || 0, questChain.length));
         if (Array.isArray(data.logs)) state.logs = data.logs.slice(0, 20);
 
@@ -1350,6 +1359,10 @@
       statModeEl.textContent = `自动购买：${state.autoBuy ? "开" : "关"}`;
       statLifetimeEl.textContent = `累计齿轮：${format(state.lifetimeGears)}`;
 
+      if (manualHintEl) {
+        manualHintEl.textContent = `连击 x${(getComboMultiplier()).toFixed(2)}（${state.comboStreak} 连，${COMBO_DECAY_SECONDS}s 衰减）`;
+      }
+
       const orderUnlocked = state.lifetimeGears >= ORDER_UNLOCK_LIFETIME_GEARS;
       if (!orderUnlocked) {
         orderTitleEl.textContent = "生产订单：尚未解锁";
@@ -1457,11 +1470,21 @@
     };
 
     manualBtn.addEventListener("click", () => {
+      state.comboStreak = Math.min(COMBO_MAX_STREAK, state.comboStreak + 1);
+      state.comboTimer = COMBO_DECAY_SECONDS;
+
       const gain = getManualGain();
       state.gears += gain;
       state.lifetimeGears += gain;
       state.totalClicks += 1;
       if (state.totalClicks === 1) pushLog("首次手动生产");
+
+      if (state.comboStreak === 10 || state.comboStreak === 25) {
+        triggerPanelPulse(gamePanelEl);
+        playSfx("order");
+        pushLog(`连击加速：${state.comboStreak} 连击`);
+      }
+
       triggerButtonPop(manualBtn);
       spawnFloatingGain(manualBtn, `+${format(gain)}`, "gear");
       playSfx("click");
@@ -1602,6 +1625,8 @@
       state.autoBuy = false;
       state.autoBuyAccumulator = 0;
       state.activeOrder = null;
+      state.comboStreak = 0;
+      state.comboTimer = 0;
       for (const b of buildings) b.owned = 0;
       for (const u of upgrades) u.purchased = false;
       for (const s of skills) s.level = 0;
@@ -1630,6 +1655,8 @@
       state.autoBuy = false;
       state.autoBuyAccumulator = 0;
       state.activeOrder = null;
+      state.comboStreak = 0;
+      state.comboTimer = 0;
       for (const b of buildings) b.owned = 0;
       for (const u of upgrades) u.purchased = false;
       for (const s of skills) s.level = 0;
@@ -1656,6 +1683,13 @@
         state.gears += gain;
         state.lifetimeGears += gain;
         state.accumulator -= FIXED_STEP;
+
+        if (state.comboTimer > 0) {
+          state.comboTimer = Math.max(0, state.comboTimer - FIXED_STEP * state.gameSpeed);
+          if (state.comboTimer === 0 && state.comboStreak > 0) {
+            state.comboStreak = 0;
+          }
+        }
 
         if (state.autoBuy) {
           state.autoBuyAccumulator += FIXED_STEP * state.gameSpeed;

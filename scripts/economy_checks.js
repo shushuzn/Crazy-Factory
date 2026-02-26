@@ -13,6 +13,8 @@ const PRESTIGE_BASE_DIVISOR = 2000;
 const PRESTIGE_LATE_BONUS_START = 2_000_000;
 const PRESTIGE_LATE_BONUS_STEP = 2_000_000;
 const OFFLINE_CAP_SECONDS = 8 * 60 * 60;
+const COMBO_MAX_STREAK = 40;
+const COMBO_BONUS_PER_STACK = 0.02;
 
 const ORDER_TEMPLATES = [
   { key: 'clicks', minTier: 1, weight: 3 },
@@ -45,6 +47,8 @@ const getPrestigeGain = (lifetimeGears) => {
   const lateBonus = Math.floor((lifetimeGears - PRESTIGE_LATE_BONUS_START) / PRESTIGE_LATE_BONUS_STEP) + 1;
   return base + lateBonus;
 };
+
+const getComboMultiplier = (streak) => 1 + Math.min(COMBO_MAX_STREAK, streak) * COMBO_BONUS_PER_STACK;
 
 const getOfflineReward = (gps, savedAtMs, nowMs) => {
   const offlineSeconds = Math.max(0, Math.min((nowMs - savedAtMs) / 1000, OFFLINE_CAP_SECONDS));
@@ -80,6 +84,9 @@ assert(getCurrentPrice(100, 120) < Math.floor(100 * Math.pow(PRICE_GROWTH, 120))
 // multipliers
 assert(getResearchMultiplier(0) === 1, 'rp 0 multiplier should be 1');
 assert(getResearchMultiplier(5) === 1.5, 'rp 5 multiplier should be 1.5');
+assert(getComboMultiplier(0) === 1, 'combo at 0 should not buff');
+assert(getComboMultiplier(10) === 1.2, 'combo 10 should be +20%');
+assert(getComboMultiplier(999) === 1 + COMBO_MAX_STREAK * COMBO_BONUS_PER_STACK, 'combo multiplier should clamp');
 
 // prestige
 assert(getPrestigeGain(0) === 0, 'prestige gain at zero should be 0');
