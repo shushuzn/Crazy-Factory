@@ -58,12 +58,14 @@ src/
   - 纯函数：价格计算、奖励结算、订单生成。
   - 副作用：DOM 更新、音频播放、localStorage。
 - ✅ 已新增 `scripts/module_checks.mjs`，覆盖 `core/state`、`fx/feedbackBus`、`systems/economy+task` 模块级回归。
+- ✅ 已落地 `src/core/saveMigrations.js`（`SAVE_MIGRATIONS` 映射表 + 统一迁移入口）。
 - 为 `core` 与 `systems` 持续补充最小单测（Node 可跑，无浏览器依赖）。
 - 存档兼容策略：新增 `SAVE_VERSION` 迁移映射表，避免后续字段调整导致坏档。
 
 ### 验收标准
 - 新增 `scripts/*_checks.js` 的模块级回归脚本可独立运行。
 - `node scripts/module_checks.mjs` 通过。
+- `scripts/module_checks.mjs` 已覆盖存档迁移映射回归（v1→v4）。
 - 老存档导入成功率维持 100%。
 
 ## 阶段 3：Vibe 反馈工程化（1 个迭代）

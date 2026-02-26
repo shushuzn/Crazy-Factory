@@ -3,6 +3,7 @@ import { getCurrentPrice, getEffectiveOwnedForPrice, getPrestigeGain } from '../
 import { createOrderFromTemplate, getOrderProgress, pickWeightedOrderTemplate } from '../src/systems/taskSystem.js';
 import { createInitialState } from '../src/core/state.js';
 import { createFeedbackBus } from '../src/fx/feedbackBus.js';
+import { migrateSaveData } from '../src/core/saveMigrations.js';
 
 function runEconomyChecks() {
   const curve = { midStart: 40, lateStart: 100, midFactor: 0.82, lateFactor: 0.68 };
@@ -53,6 +54,20 @@ function runTaskChecks() {
   assert.equal(progress, 15);
 }
 
+
+function runMigrationChecks() {
+  const v1 = migrateSaveData({ saveVersion: 1, activeOrder: { type: 'oops', target: 'x' } }, 4);
+  assert.equal(v1.saveVersion, 4);
+  assert.equal(v1.activeOrder, null);
+
+  const v2 = migrateSaveData({ saveVersion: 2 }, 4);
+  assert.deepEqual(v2.prestigeBranches, { legacy_manual: 0, legacy_line: 0 });
+
+  const v3 = migrateSaveData({ saveVersion: 3, financeAssets: null }, 4);
+  assert.equal(v3.saveVersion, 4);
+  assert.equal(typeof v3.financeAssets, 'object');
+}
+
 function runCoreChecks() {
   const state = createInitialState({
     audioEnabledDefault: true,
@@ -73,6 +88,7 @@ function runCoreChecks() {
 
 runEconomyChecks();
 runTaskChecks();
+runMigrationChecks();
 runCoreChecks();
 
 console.log('module checks passed');

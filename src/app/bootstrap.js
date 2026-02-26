@@ -57,6 +57,7 @@ import {
 } from "../core/constants.js";
 import { createInitialState } from "../core/state.js";
 import { createFeedbackBus } from "../fx/feedbackBus.js";
+import { migrateSaveData as migrateSavePayload } from "../core/saveMigrations.js";
 import { getCurrentPrice as calcCurrentPrice, getPrestigeGain as calcPrestigeGain } from "../systems/economySystem.js";
 import { createOrderFromTemplate, getOrderProgress as calcOrderProgress, pickWeightedOrderTemplate as pickWeightedTemplate } from "../systems/taskSystem.js";
 import { createAudioSystem } from "../systems/audioSystem.js";
@@ -601,53 +602,7 @@ const getCurrentPrice = (building, ownedOffset = 0) => calcCurrentPrice({
       if (!unlocked) return;
       if (!state.activeOrder) createOrder();
     };
-
-    const migrateSaveData = (rawData) => {
-      if (!rawData || typeof rawData !== "object") return null;
-      const data = { ...rawData };
-      const version = Number(data.saveVersion) || 1;
-
-      // v1 -> v2：补齐版本号并修正无效订单数据，避免后续渲染阶段出现脏状态。
-      if (version < 2) {
-        data.saveVersion = 2;
-        if (data.activeOrder && typeof data.activeOrder === "object") {
-          const hasType = ["clicks", "lifetime", "building"].includes(data.activeOrder.type);
-          const hasTarget = Number.isFinite(Number(data.activeOrder.target));
-          if (!hasType || !hasTarget) {
-            data.activeOrder = null;
-          }
-        }
-      }
-
-      if (version < 3) {
-        data.saveVersion = 3;
-        if (!data.prestigeBranches || typeof data.prestigeBranches !== "object") {
-          data.prestigeBranches = { legacy_manual: 0, legacy_line: 0 };
-        }
-      }
-
-      if (version < 4) {
-        data.saveVersion = 4;
-        data.financeSeasonIndex = Math.max(0, Math.floor(Number(data.financeSeasonIndex) || 0));
-        data.financeLeaderboard = Array.isArray(data.financeLeaderboard) ? data.financeLeaderboard : [];
-        if (!data.financeAssets || typeof data.financeAssets !== "object") {
-          data.financeAssets = { bond: 0.34, equity: 0.33, derivative: 0.33 };
-        }
-        if (!Number.isFinite(Number(data.financeLineage))) data.financeLineage = 0;
-        if (!Number.isFinite(Number(data.debugManualMult))) data.debugManualMult = 1;
-        if (!Number.isFinite(Number(data.debugGpsMult))) data.debugGpsMult = 1;
-        if (typeof data.debugPanelOpen !== "boolean") data.debugPanelOpen = false;
-      }
-
-      if (!Number.isFinite(Number(data.overdriveUntil))) data.overdriveUntil = 0;
-      if (!Number.isFinite(Number(data.overdriveCooldownUntil))) data.overdriveCooldownUntil = 0;
-      if (!Number.isFinite(Number(data.overdriveActivations))) data.overdriveActivations = 0;
-
-      if (!Number.isFinite(Number(data.saveVersion))) {
-        data.saveVersion = SAVE_VERSION;
-      }
-      return data;
-    };
+    const migrateSaveData = (rawData) => migrateSavePayload(rawData, SAVE_VERSION);
 
     const resetCollectionProgress = () => {
       for (const b of buildings) b.owned = 0;
