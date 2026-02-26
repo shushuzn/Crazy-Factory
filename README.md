@@ -53,6 +53,7 @@ price = floor(basePrice * 1.15 ^ owned)
 - Prestige（软重置）：重置局内进度，换取 RP 永久加成
 - 离线收益：离线结算（8 小时封顶）
 - 存档：本地自动保存 + 手动重置
+- 经济校验脚本：`node scripts/economy_checks.js` 可快速验证价格/离线/Prestige/存档迁移边界
 
 ## 项目结构
 

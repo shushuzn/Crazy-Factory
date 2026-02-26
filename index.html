@@ -564,6 +564,7 @@
   <script>
     const PRICE_GROWTH = 1.15;
     const SAVE_KEY = "crazy_factory_save_v1";
+    const SAVE_VERSION = 2;
     const TICK_RATE = 60;
     const FIXED_STEP = 1 / TICK_RATE;
     const MAX_ACCUMULATED_SECONDS = 0.25;
@@ -813,6 +814,29 @@
       if (!state.activeOrder) createOrder();
     };
 
+    const migrateSaveData = (rawData) => {
+      if (!rawData || typeof rawData !== "object") return null;
+      const data = { ...rawData };
+      const version = Number(data.saveVersion) || 1;
+
+      // v1 -> v2：补齐版本号并修正无效订单数据，避免后续渲染阶段出现脏状态。
+      if (version < 2) {
+        data.saveVersion = 2;
+        if (data.activeOrder && typeof data.activeOrder === "object") {
+          const hasType = ["clicks", "lifetime", "building"].includes(data.activeOrder.type);
+          const hasTarget = Number.isFinite(Number(data.activeOrder.target));
+          if (!hasType || !hasTarget) {
+            data.activeOrder = null;
+          }
+        }
+      }
+
+      if (!Number.isFinite(Number(data.saveVersion))) {
+        data.saveVersion = SAVE_VERSION;
+      }
+      return data;
+    };
+
     const saveGame = () => {
       const payload = {
         gears: state.gears,
@@ -831,6 +855,7 @@
         skills: skills.map((s) => ({ id: s.id, level: s.level })),
         researchPoints: state.researchPoints,
         activeOrder: state.activeOrder,
+        saveVersion: SAVE_VERSION,
         savedAt: Date.now()
       };
       localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
@@ -855,9 +880,9 @@
       const raw = window.prompt("粘贴存档文本以导入（会覆盖当前进度）");
       if (!raw) return;
       try {
-        const data = JSON.parse(raw);
+        const data = migrateSaveData(JSON.parse(raw));
         if (!data || typeof data !== "object") throw new Error("invalid payload");
-        localStorage.setItem(SAVE_KEY, raw);
+        localStorage.setItem(SAVE_KEY, JSON.stringify(data));
         pushLog("已导入存档，正在刷新状态");
         loadGame();
         render();
@@ -870,7 +895,7 @@
       try {
         const raw = localStorage.getItem(SAVE_KEY);
         if (!raw) return;
-        const data = JSON.parse(raw);
+        const data = migrateSaveData(JSON.parse(raw));
         if (!data || typeof data !== "object") return;
 
         state.gears = Number(data.gears) || 0;
@@ -934,6 +959,10 @@
         }
 
         ensureOrder();
+
+        if ((Number(data.saveVersion) || 1) !== SAVE_VERSION) {
+          saveGame();
+        }
       } catch (error) {
         console.warn("存档读取失败，已忽略：", error);
       }
@@ -1222,6 +1251,10 @@
         rerollOrderBtn.disabled = true;
       } else {
         ensureOrder();
+
+        if ((Number(data.saveVersion) || 1) !== SAVE_VERSION) {
+          saveGame();
+        }
         const order = state.activeOrder;
         const progress = order ? Math.min(getOrderProgress(order), order.target) : 0;
         const pct = order ? Math.min(100, (progress / order.target) * 100) : 0;
