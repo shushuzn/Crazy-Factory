@@ -773,6 +773,7 @@
         <button class="chip" id="importSaveBtn">导入存档</button>
         <button class="chip" id="prestigeBtn">软重置</button>
         <button class="chip" id="resetSaveBtn">重置存档</button>
+        <button class="chip" id="debugToggleBtn">调试面板: 关</button>
       </div>
 
       <div id="offlineNotice" class="manual" style="display:none">
@@ -781,6 +782,19 @@
           <div class="subtitle" id="offlineText" style="margin-top:4px"></div>
         </div>
         <button id="claimOfflineBtn" class="btn">领取</button>
+      </div>
+
+      <div class="progress-wrap" id="debugPanel" style="display:none">
+        <div class="progress-title">开发调试面板</div>
+        <div class="progress-meta">
+          <span id="debugSnapshotInfo">快照：未生成</span>
+          <span>用于数值验证，不影响正式玩法</span>
+        </div>
+        <div class="order-actions">
+          <button class="order-btn secondary" id="debugAddGearsBtn">+10k 齿轮</button>
+          <button class="order-btn secondary" id="debugAddRpBtn">+5 RP</button>
+          <button class="order-btn secondary" id="debugSnapshotBtn">记录快照</button>
+        </div>
       </div>
 
       <div class="progress-wrap">
@@ -1051,7 +1065,8 @@
       financeMetaPoints: 0,
       financeCreditBase: 0,
       financeStrategySwitches: 0,
-      prestigeBranches: { legacy_manual: 0, legacy_line: 0 }
+      prestigeBranches: { legacy_manual: 0, legacy_line: 0 },
+      debugPanelOpen: false
     };
 
     const gearsEl = document.getElementById("gears");
@@ -1069,9 +1084,15 @@
     const importSaveBtn = document.getElementById("importSaveBtn");
     const prestigeBtn = document.getElementById("prestigeBtn");
     const resetSaveBtn = document.getElementById("resetSaveBtn");
+    const debugToggleBtn = document.getElementById("debugToggleBtn");
     const offlineNoticeEl = document.getElementById("offlineNotice");
     const offlineTextEl = document.getElementById("offlineText");
     const claimOfflineBtn = document.getElementById("claimOfflineBtn");
+    const debugPanelEl = document.getElementById("debugPanel");
+    const debugSnapshotInfoEl = document.getElementById("debugSnapshotInfo");
+    const debugAddGearsBtn = document.getElementById("debugAddGearsBtn");
+    const debugAddRpBtn = document.getElementById("debugAddRpBtn");
+    const debugSnapshotBtn = document.getElementById("debugSnapshotBtn");
     const upgradeList = document.getElementById("upgradeList");
     const achievementList = document.getElementById("achievementList");
     const skillList = document.getElementById("skillList");
@@ -1620,6 +1641,7 @@
         financeCreditBase: state.financeCreditBase,
         financeStrategySwitches: state.financeStrategySwitches,
         prestigeBranches: state.prestigeBranches,
+        debugPanelOpen: state.debugPanelOpen,
         saveVersion: SAVE_VERSION,
         savedAt: Date.now()
       };
@@ -1705,6 +1727,7 @@
           legacy_manual: Math.max(0, Math.min(5, Math.floor(Number(data.prestigeBranches?.legacy_manual) || 0))),
           legacy_line: Math.max(0, Math.min(5, Math.floor(Number(data.prestigeBranches?.legacy_line) || 0)))
         };
+        state.debugPanelOpen = Boolean(data.debugPanelOpen);
         if (data.categoryCollapse && typeof data.categoryCollapse === "object") {
           state.categoryCollapse.economy = Boolean(data.categoryCollapse.economy);
           state.categoryCollapse.goals = Boolean(data.categoryCollapse.goals);
@@ -2048,6 +2071,8 @@
       lowPerfBtn.textContent = `低性能模式: ${state.lowPerfMode ? "开" : "关"}`;
       lowPerfAudioBtn.classList.toggle("active", state.lowPerfAudioSafe);
       lowPerfAudioBtn.textContent = `低性能音效保护: ${state.lowPerfAudioSafe ? "开" : "关"}`;
+      debugToggleBtn.classList.toggle("active", state.debugPanelOpen);
+      debugToggleBtn.textContent = `调试面板: ${state.debugPanelOpen ? "开" : "关"}`;
     };
 
     const render = () => {
@@ -2155,6 +2180,9 @@
         view.badge.classList.toggle("done", achievement.done);
         view.badge.textContent = achievement.done ? (achievement.claimed ? "已完成+奖励" : "已完成") : "未完成";
       }
+
+      debugPanelEl.style.display = state.debugPanelOpen ? "block" : "none";
+      debugSnapshotInfoEl.textContent = `快照：齿轮 ${format(state.gears)} / RP ${state.researchPoints} / GPS ${format(getTotalGPS())}`;
 
       if (state.pendingOfflineGears > 0) {
         offlineNoticeEl.style.display = "flex";
@@ -2491,6 +2519,14 @@
         pushLog(`低性能音效保护已${state.lowPerfAudioSafe ? "开启" : "关闭"}`);
         saveGame();
         render();
+        return;
+      }
+
+      if (target.id === "debugToggleBtn") {
+        state.debugPanelOpen = !state.debugPanelOpen;
+        pushLog(`调试面板已${state.debugPanelOpen ? "开启" : "关闭"}`);
+        saveGame();
+        render();
       }
     });
 
@@ -2503,6 +2539,31 @@
       state.categoryCollapse[key] = !state.categoryCollapse[key];
       saveGame();
       renderCategoryCollapse();
+    });
+
+    debugAddGearsBtn.addEventListener("click", () => {
+      if (!state.debugPanelOpen) return;
+      state.gears += 10000;
+      state.lifetimeGears += 10000;
+      pushLog("[Debug] 注入 +10k 齿轮");
+      saveGame();
+      render();
+    });
+
+    debugAddRpBtn.addEventListener("click", () => {
+      if (!state.debugPanelOpen) return;
+      state.researchPoints += 5;
+      pushLog("[Debug] 注入 +5 RP");
+      saveGame();
+      render();
+    });
+
+    debugSnapshotBtn.addEventListener("click", () => {
+      if (!state.debugPanelOpen) return;
+      const line = `[Debug快照] gears=${format(state.gears)} rp=${state.researchPoints} gps=${format(getTotalGPS())} lifetime=${format(state.lifetimeGears)}`;
+      pushLog(line);
+      saveGame();
+      render();
     });
 
     claimOfflineBtn.addEventListener("click", () => {
@@ -2700,6 +2761,7 @@
       state.financeCreditBase = 0;
       state.financeStrategySwitches = 0;
       state.prestigeBranches = { legacy_manual: 0, legacy_line: 0 };
+      state.debugPanelOpen = false;
       for (const b of buildings) b.owned = 0;
       for (const u of upgrades) u.purchased = false;
       for (const s of skills) s.level = 0;
