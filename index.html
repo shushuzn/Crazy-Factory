@@ -918,6 +918,10 @@
     const FINANCE_HEDGE_COST_RATIO = 0.06;
     const FINANCE_HEDGE_APR_MULT = 0.7;
     const FINANCE_HEDGE_VOL_MULT = 0.35;
+    const FINANCE_PRESTIGE_SPRINT_TRIGGER = 0.85;
+    const FINANCE_PRESTIGE_SPRINT_APR_BONUS = 0.03;
+    const FINANCE_PRESTIGE_SPRINT_VOL_MULT = 1.45;
+    const FINANCE_META_APR_PER_POINT = 0.004;
     const CHAIN_BONUS_PER_STAGE = 0.08;
     const CHAIN_MAX_STAGES = 10;
 
@@ -1029,7 +1033,10 @@
       financeLastInvestAt: 0,
       financeLastWithdrawAt: 0,
       financeStrategy: "balanced",
-      financeHedgeUntil: 0
+      financeHedgeUntil: 0,
+      financeMetaPoints: 0,
+      financeCreditBase: 0,
+      financeStrategySwitches: 0
     };
 
     const gearsEl = document.getElementById("gears");
@@ -1180,6 +1187,16 @@
     const getCurrentMarketState = () => FINANCE_MARKET_STATES[getCurrentMarketKey()];
     const getCurrentStrategyProfile = () => FINANCE_STRATEGIES[state.financeStrategy] || FINANCE_STRATEGIES.balanced;
     const isHedgeActive = (nowMs = Date.now()) => state.financeHedgeUntil > nowMs;
+    const getFinanceCreditLevel = () => {
+      const chainBonus = Math.max(0, Math.floor((getIndustryChainMultiplier() - 1) / 0.08));
+      return Math.max(0, state.financeCreditBase + chainBonus);
+    };
+    const isPrestigeSprintWindow = () => {
+      const current = getPrestigeGain(state.lifetimeGears);
+      const nearNext = getPrestigeGain(state.lifetimeGears + 220_000) > current;
+      const progress = Math.min(1, state.lifetimeGears / 2_000_000);
+      return current >= 1 && (nearNext || progress >= FINANCE_PRESTIGE_SPRINT_TRIGGER);
+    };
 
     // 金融系统：把市场状态、策略切换、对冲动作并入收益构成，形成“低风险+高风险”共存。
     const getFinanceAprComponents = (nowMs = Date.now()) => {
@@ -1188,15 +1205,20 @@
       const hedgeOn = isHedgeActive(nowMs);
       const base = FINANCE_BASE_APR;
       const cycle = FINANCE_CYCLE_AMPLITUDE * Math.sin(state.totalClicks / 45) * market.cycleScale * (hedgeOn ? FINANCE_HEDGE_VOL_MULT : 1);
+      const creditLevel = getFinanceCreditLevel();
+      const sprintOn = isPrestigeSprintWindow();
       const riskControl = state.financeTier * FINANCE_TIER_APR_BONUS;
-      const marketShift = market.aprDelta;
+      const marketShift = market.aprDelta + creditLevel * 0.003;
       const strategyShift = base * (strategy.aprMult - 1);
+      const metaShift = state.financeMetaPoints * FINANCE_META_APR_PER_POINT;
+      const sprintShift = sprintOn ? FINANCE_PRESTIGE_SPRINT_APR_BONUS : 0;
       const hedgeShift = hedgeOn ? (base * FINANCE_HEDGE_APR_MULT - base) : 0;
-      return { base, cycle, riskControl, marketShift, strategyShift, hedgeShift };
+      const cycleBoost = sprintOn ? FINANCE_PRESTIGE_SPRINT_VOL_MULT : 1;
+      return { base, cycle: cycle * cycleBoost, riskControl, marketShift, strategyShift, metaShift, sprintShift, hedgeShift, creditLevel, sprintOn };
     };
     const getFinanceApr = (nowMs = Date.now()) => {
       const c = getFinanceAprComponents(nowMs);
-      return Math.max(0.01, c.base + c.cycle + c.riskControl + c.marketShift + c.strategyShift + c.hedgeShift);
+      return Math.max(0.01, c.base + c.cycle + c.riskControl + c.marketShift + c.strategyShift + c.metaShift + c.sprintShift + c.hedgeShift);
     };
     // 金融收益做“主线占比封顶”：避免单一路线碾压，同时策略会影响主线权重。
     const getFinanceIncomePerSecond = (baseGps = getTotalGPS(), nowMs = Date.now()) => {
@@ -1221,6 +1243,10 @@
 
       if (marketKey === "panic" && state.financeCapital >= hedgeCost && !isHedgeActive()) {
         return { tone: "warn", text: "建议：恐慌期先做对冲（低风险动作），压低波动再观察提取窗口。" };
+      }
+
+      if (isPrestigeSprintWindow() && state.financeStrategy !== "aggressive") {
+        return { tone: "good", text: "建议：已进入 Prestige 冲刺窗口，可切激进策略冲高收益后再重置。" };
       }
 
       if (state.financeTier < 8 && state.researchPoints >= upgradeCost) {
@@ -1561,6 +1587,9 @@
         financeLastWithdrawAt: state.financeLastWithdrawAt,
         financeStrategy: state.financeStrategy,
         financeHedgeUntil: state.financeHedgeUntil,
+        financeMetaPoints: state.financeMetaPoints,
+        financeCreditBase: state.financeCreditBase,
+        financeStrategySwitches: state.financeStrategySwitches,
         saveVersion: SAVE_VERSION,
         savedAt: Date.now()
       };
@@ -1639,6 +1668,9 @@
         state.financeLastWithdrawAt = Math.max(0, Number(data.financeLastWithdrawAt) || 0);
         state.financeStrategy = ["conservative", "balanced", "aggressive"].includes(data.financeStrategy) ? data.financeStrategy : "balanced";
         state.financeHedgeUntil = Math.max(0, Number(data.financeHedgeUntil) || 0);
+        state.financeMetaPoints = Math.max(0, Math.floor(Number(data.financeMetaPoints) || 0));
+        state.financeCreditBase = Math.max(0, Math.floor(Number(data.financeCreditBase) || 0));
+        state.financeStrategySwitches = Math.max(0, Math.floor(Number(data.financeStrategySwitches) || 0));
         if (data.categoryCollapse && typeof data.categoryCollapse === "object") {
           state.categoryCollapse.economy = Boolean(data.categoryCollapse.economy);
           state.categoryCollapse.goals = Boolean(data.categoryCollapse.goals);
@@ -1956,7 +1988,7 @@
     const render = () => {
       gearsEl.textContent = format(state.gears);
       gpsEl.textContent = format(getTotalGPS());
-      rpEl.textContent = `研究点 RP：${state.researchPoints}（总产出 x${getResearchMultiplier().toFixed(1)}，速度 x${state.gameSpeed}，金融 +${format(getFinanceIncomePerSecond())}/s，产业链 x${getIndustryChainMultiplier().toFixed(2)}）`;
+      rpEl.textContent = `研究点 RP：${state.researchPoints}（总产出 x${getResearchMultiplier().toFixed(1)}，速度 x${state.gameSpeed}，金融 +${format(getFinanceIncomePerSecond())}/s，产业链 x${getIndustryChainMultiplier().toFixed(2)}，信用 Lv.${getFinanceCreditLevel()}，金融元进度 ${state.financeMetaPoints}）`;
 
       for (const building of buildings) {
         const view = buildingViewMap.get(building.id);
@@ -2143,7 +2175,8 @@
         financeHintEl.textContent = `秒收益：+${format(effectiveFinance)} 齿轮（封顶 ${format(cap)}）`;
         financeYieldEl.textContent = `年化：${(apr * 100).toFixed(1)}%`;
         financeCapitalEl.textContent = `资金池：${format(state.financeCapital)}`;
-        financeBreakdownEl.textContent = `构成：基础 ${(comp.base * 100).toFixed(1)}% / 波动 ${(comp.cycle * 100).toFixed(1)}% / 风控 ${(comp.riskControl * 100).toFixed(1)}%`;
+        const sprintText = comp.sprintOn ? " / 冲刺 +ON" : "";
+        financeBreakdownEl.textContent = `构成：基础 ${(comp.base * 100).toFixed(1)}% / 波动 ${(comp.cycle * 100).toFixed(1)}% / 风控 ${(comp.riskControl * 100).toFixed(1)}% / 信用 Lv.${comp.creditLevel} / 元进度 +${(state.financeMetaPoints * FINANCE_META_APR_PER_POINT * 100).toFixed(1)}%${sprintText}`;
         financeMarketEl.textContent = `市场：${market.label}`;
         financeStrategyEl.textContent = `策略：${strategy.label}`;
         financeStrategyConservativeBtn.disabled = false;
@@ -2151,10 +2184,12 @@
         financeStrategyAggressiveBtn.disabled = false;
         financeInvestBtn.disabled = state.gears < 100 || investCooling;
         financeWithdrawBtn.disabled = state.financeCapital < 1 || withdrawCooling;
-        financeUpgradeBtn.disabled = state.researchPoints < (1 + state.financeTier) || state.financeTier >= 8;
+        const creditDiscount = Math.min(0.35, getFinanceCreditLevel() * 0.04);
+        const upgradeCost = Math.max(1, Math.ceil((1 + state.financeTier) * (1 - creditDiscount)));
+        financeUpgradeBtn.disabled = state.researchPoints < upgradeCost || state.financeTier >= 8;
         financeInvestBtn.textContent = investCooling ? "投入冷却中..." : "投入 10% 齿轮";
         financeWithdrawBtn.textContent = withdrawCooling ? "提取冷却中..." : "提取 25% 资金";
-        financeUpgradeBtn.textContent = state.financeTier >= 8 ? "风控已满级" : `风控升级（${1 + state.financeTier} RP）`;
+        financeUpgradeBtn.textContent = state.financeTier >= 8 ? "风控已满级" : `风控升级（${upgradeCost} RP）`;
         const hedgeCost = Math.max(1, Math.floor(state.financeCapital * FINANCE_HEDGE_COST_RATIO));
         financeHedgeBtn.disabled = isHedgeActive() || state.financeCapital < hedgeCost;
         financeHedgeBtn.textContent = isHedgeActive() ? "对冲生效中..." : `对冲（${format(hedgeCost)} 资金，12s）`;
@@ -2420,6 +2455,7 @@
     const setFinanceStrategy = (strategyKey) => {
       if (!["conservative", "balanced", "aggressive"].includes(strategyKey)) return;
       if (state.lifetimeGears < FINANCE_UNLOCK_LIFETIME_GEARS) return;
+      if (state.financeStrategy !== strategyKey) state.financeStrategySwitches += 1;
       state.financeStrategy = strategyKey;
       pushLog(`[Finance/策略] 切换为${FINANCE_STRATEGIES[strategyKey].label}`);
       triggerTypedPanelPulse("order", document.getElementById("financePanel"));
@@ -2480,7 +2516,8 @@
 
     financeUpgradeBtn.addEventListener("click", () => {
       if (state.lifetimeGears < FINANCE_UNLOCK_LIFETIME_GEARS) return;
-      const cost = 1 + state.financeTier;
+      const creditDiscount = Math.min(0.35, getFinanceCreditLevel() * 0.04);
+      const cost = Math.max(1, Math.ceil((1 + state.financeTier) * (1 - creditDiscount)));
       if (state.financeTier >= 8 || state.researchPoints < cost) return;
       state.researchPoints -= cost;
       state.financeTier += 1;
@@ -2502,8 +2539,11 @@
       if (!ok) return;
 
       state.researchPoints += gain;
+      const retainedMeta = Math.max(1, Math.floor(state.financeTier / 2) + Math.floor(getFinanceCreditLevel() / 2));
+      state.financeMetaPoints += retainedMeta;
+      state.financeCreditBase = Math.max(0, Math.floor(getFinanceCreditLevel() * 0.5));
       triggerEventHighlight("prestige", `Prestige +${gain} RP`, "本轮效率重塑完成");
-      pushLog(`执行 Prestige，获得 RP +${gain}`);
+      pushLog(`执行 Prestige，获得 RP +${gain}（保留金融元进度 +${retainedMeta}）`);
       playSfx("prestige");
       triggerScreenShake(gamePanelEl, "prestige");
       state.gears = 0;
@@ -2528,6 +2568,7 @@
       state.financeLastWithdrawAt = 0;
       state.financeStrategy = "balanced";
       state.financeHedgeUntil = 0;
+      state.financeStrategySwitches = 0;
       for (const b of buildings) b.owned = 0;
       for (const u of upgrades) u.purchased = false;
       for (const s of skills) s.level = 0;
@@ -2565,6 +2606,9 @@
       state.financeLastWithdrawAt = 0;
       state.financeStrategy = "balanced";
       state.financeHedgeUntil = 0;
+      state.financeMetaPoints = 0;
+      state.financeCreditBase = 0;
+      state.financeStrategySwitches = 0;
       for (const b of buildings) b.owned = 0;
       for (const u of upgrades) u.purchased = false;
       for (const s of skills) s.level = 0;
