@@ -506,6 +506,31 @@
       background: rgba(31, 41, 55, 0.45);
     }
 
+
+
+    .category-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .category-toggle {
+      border: 1px solid var(--border);
+      background: #0b1220;
+      color: #cbd5e1;
+      border-radius: 8px;
+      padding: 5px 9px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .category.collapsed .category-body {
+      display: none;
+    }
+
     .category-title {
       margin: 0 0 10px;
       font-size: 0.92rem;
@@ -626,8 +651,12 @@
       </div>
 
       <div class="category-grid">
-        <section class="category">
-          <h3 class="category-title">经济栏目</h3>
+        <section class="category" data-category="economy">
+          <div class="category-head">
+            <h3 class="category-title">经济栏目</h3>
+            <button class="category-toggle" data-toggle-category="economy">折叠</button>
+          </div>
+          <div class="category-body">
           <h2 class="section-title">自动化建筑</h2>
           <div class="buildings" id="buildingList"></div>
 
@@ -639,15 +668,21 @@
 
           <h2 class="section-title">建筑专精</h2>
           <div class="buildings" id="specializationList"></div>
+        </div>
         </section>
 
-        <section class="category">
-          <h3 class="category-title">目标栏目</h3>
+        <section class="category" data-category="goals">
+          <div class="category-head">
+            <h3 class="category-title">目标栏目</h3>
+            <button class="category-toggle" data-toggle-category="goals">折叠</button>
+          </div>
+          <div class="category-body">
           <h2 class="section-title">成就</h2>
           <div class="buildings" id="achievementList"></div>
 
           <h2 class="section-title">事件日志</h2>
           <div class="buildings" id="eventLog"></div>
+          </div>
         </section>
       </div>
     </section>
@@ -765,7 +800,8 @@
       activeFloatingGains: 0,
       lastShakeAt: 0,
       lowPerfMode: false,
-      lowPerfAudioSafe: false
+      lowPerfAudioSafe: false,
+      categoryCollapse: { economy: false, goals: false }
     };
 
     const gearsEl = document.getElementById("gears");
@@ -1139,6 +1175,7 @@
         audioEnabled: state.audioEnabled,
         lowPerfMode: state.lowPerfMode,
         lowPerfAudioSafe: state.lowPerfAudioSafe,
+        categoryCollapse: state.categoryCollapse,
         saveVersion: SAVE_VERSION,
         savedAt: Date.now()
       };
@@ -1193,6 +1230,10 @@
         state.audioEnabled = data.audioEnabled !== false;
         state.lowPerfMode = Boolean(data.lowPerfMode);
         state.lowPerfAudioSafe = Boolean(data.lowPerfAudioSafe);
+        if (data.categoryCollapse && typeof data.categoryCollapse === "object") {
+          state.categoryCollapse.economy = Boolean(data.categoryCollapse.economy);
+          state.categoryCollapse.goals = Boolean(data.categoryCollapse.goals);
+        }
         state.comboStreak = 0;
         state.comboTimer = 0;
         state.activeFloatingGains = 0;
@@ -1459,6 +1500,16 @@
       }
     };
 
+    const renderCategoryCollapse = () => {
+      for (const section of document.querySelectorAll(".category[data-category]")) {
+        const key = section.getAttribute("data-category");
+        const collapsed = Boolean(state.categoryCollapse?.[key]);
+        section.classList.toggle("collapsed", collapsed);
+        const btn = section.querySelector("[data-toggle-category]");
+        if (btn) btn.textContent = collapsed ? "展开" : "折叠";
+      }
+    };
+
     const renderMode = () => {
       for (const btn of modeButtons) {
         btn.classList.toggle("active", btn.dataset.mode === state.purchaseMode);
@@ -1628,6 +1679,7 @@
       }
 
       renderMode();
+      renderCategoryCollapse();
     };
 
     const tryAutoBuy = () => {
@@ -1822,6 +1874,17 @@
         saveGame();
         render();
       }
+    });
+
+
+    document.querySelector('.category-grid').addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLButtonElement)) return;
+      const key = target.dataset.toggleCategory;
+      if (!key) return;
+      state.categoryCollapse[key] = !state.categoryCollapse[key];
+      saveGame();
+      renderCategoryCollapse();
     });
 
     claimOfflineBtn.addEventListener("click", () => {
