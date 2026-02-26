@@ -879,6 +879,7 @@
           <button class="order-btn secondary" id="financeUpgradeBtn" disabled>风控升级（1 RP）</button>
           <button class="order-btn secondary" id="financeHedgeBtn" disabled>对冲（6%资金，12s）</button>
           <button class="order-btn secondary" id="financeSettleBtn" disabled>赛季结算</button>
+          <button class="order-btn secondary" id="financeAutoBtn" disabled>半自动策略：关</button>
         </div>
         <div class="order-actions">
           <button class="order-btn secondary" id="financeAssetBondBtn" disabled>债券 +10%</button>
@@ -1096,7 +1097,9 @@
       financeSeasonIndex: 0,
       financeLeaderboard: [],
       financeAssets: { bond: 0.34, equity: 0.33, derivative: 0.33 },
-      financeLineage: 0
+      financeLineage: 0,
+      financeAutoPilot: false,
+      financeAutoAccumulator: 0
     };
 
     const gearsEl = document.getElementById("gears");
@@ -1178,6 +1181,7 @@
     const financeUpgradeBtn = document.getElementById("financeUpgradeBtn");
     const financeHedgeBtn = document.getElementById("financeHedgeBtn");
     const financeSettleBtn = document.getElementById("financeSettleBtn");
+    const financeAutoBtn = document.getElementById("financeAutoBtn");
     const financeAssetBondBtn = document.getElementById("financeAssetBondBtn");
     const financeAssetEquityBtn = document.getElementById("financeAssetEquityBtn");
     const financeAssetDerivativeBtn = document.getElementById("financeAssetDerivativeBtn");
@@ -1725,6 +1729,7 @@
         financeLeaderboard: state.financeLeaderboard,
         financeAssets: state.financeAssets,
         financeLineage: state.financeLineage,
+        financeAutoPilot: state.financeAutoPilot,
         prestigeBranches: state.prestigeBranches,
         debugPanelOpen: state.debugPanelOpen,
         debugManualMult: state.debugManualMult,
@@ -1821,6 +1826,8 @@
         const sum = b + e + d || 1;
         state.financeAssets = { bond: b/sum, equity: e/sum, derivative: d/sum };
         state.financeLineage = Math.max(0, Math.floor(Number(data.financeLineage) || 0));
+        state.financeAutoPilot = Boolean(data.financeAutoPilot);
+        state.financeAutoAccumulator = 0;
         state.prestigeBranches = {
           legacy_manual: Math.max(0, Math.min(5, Math.floor(Number(data.prestigeBranches?.legacy_manual) || 0))),
           legacy_line: Math.max(0, Math.min(5, Math.floor(Number(data.prestigeBranches?.legacy_line) || 0)))
@@ -2379,6 +2386,9 @@
         financeUpgradeBtn.disabled = true;
         financeHedgeBtn.disabled = true;
         financeSettleBtn.disabled = true;
+        financeAutoBtn.disabled = true;
+        financeAutoBtn.classList.remove("active");
+        financeAutoBtn.textContent = "半自动策略：关";
         financeAssetBondBtn.disabled = true;
         financeAssetEquityBtn.disabled = true;
         financeAssetDerivativeBtn.disabled = true;
@@ -2430,6 +2440,9 @@
         financeHedgeBtn.disabled = isHedgeActive() || state.financeCapital < hedgeCost;
         financeHedgeBtn.textContent = isHedgeActive() ? "对冲生效中..." : `对冲（${format(hedgeCost)} 资金，12s）`;
         financeSettleBtn.disabled = state.financeCapital < 100;
+        financeAutoBtn.disabled = false;
+        financeAutoBtn.classList.toggle("active", state.financeAutoPilot);
+        financeAutoBtn.textContent = `半自动策略：${state.financeAutoPilot ? "开" : "关"}`;
         financeAssetBondBtn.disabled = false;
         financeAssetEquityBtn.disabled = false;
         financeAssetDerivativeBtn.disabled = false;
@@ -2772,6 +2785,70 @@
     financeStrategyBalancedBtn.addEventListener("click", () => setFinanceStrategy("balanced"));
     financeStrategyAggressiveBtn.addEventListener("click", () => setFinanceStrategy("aggressive"));
 
+    const runFinanceAutopilotStep = () => {
+      if (!state.financeAutoPilot || state.lifetimeGears < FINANCE_UNLOCK_LIFETIME_GEARS) return;
+      const nowMs = Date.now();
+      const marketKey = getCurrentMarketKey();
+      const strategy = state.financeStrategy;
+      const mainlineGps = getTotalGPS();
+      const cap = Math.max(FINANCE_MIN_CAP_GPS, mainlineGps * FINANCE_MAX_SHARE_OF_MAINLINE * getCurrentSeason().capMult * (1 - getAiLiquidityPressure() * 0.25));
+      const financeIncome = getFinanceIncomePerSecond(mainlineGps);
+      const capRatio = cap > 0 ? financeIncome / cap : 0;
+      const investCooling = nowMs - state.financeLastInvestAt < FINANCE_COOLDOWN_MS;
+      const withdrawCooling = nowMs - state.financeLastWithdrawAt < FINANCE_COOLDOWN_MS;
+
+      if (marketKey === "panic" && !isHedgeActive(nowMs)) {
+        const hedgeCost = Math.max(1, Math.floor(state.financeCapital * FINANCE_HEDGE_COST_RATIO));
+        if (state.financeCapital >= hedgeCost) {
+          state.financeCapital -= hedgeCost;
+          state.financeHedgeUntil = nowMs + FINANCE_HEDGE_DURATION_MS;
+          pushLog(`[Finance/半自动] 触发对冲，成本 ${format(hedgeCost)}`);
+          return;
+        }
+      }
+
+      if (marketKey === "overheat" && strategy !== "aggressive") {
+        setFinanceStrategy("aggressive");
+        pushLog("[Finance/半自动] 过热期切换激进策略");
+        return;
+      }
+      if (marketKey === "pullback" && strategy === "aggressive") {
+        setFinanceStrategy("balanced");
+        pushLog("[Finance/半自动] 回调期回归平衡策略");
+        return;
+      }
+
+      if (!investCooling && state.gears >= 100 && capRatio < 0.7) {
+        const invest = Math.floor(state.gears * 0.1);
+        if (invest >= 100) {
+          state.gears -= invest;
+          state.financeCapital += invest;
+          state.financeLastInvestAt = nowMs;
+          pushLog(`[Finance/半自动] 投入 ${format(invest)} 齿轮`);
+          return;
+        }
+      }
+
+      if (!withdrawCooling && state.financeCapital > 0 && capRatio > 0.92) {
+        const withdraw = Math.floor(state.financeCapital * 0.25);
+        if (withdraw > 0) {
+          state.financeCapital -= withdraw;
+          state.gears += withdraw;
+          state.lifetimeGears += withdraw;
+          state.financeLastWithdrawAt = nowMs;
+          pushLog(`[Finance/半自动] 提取 ${format(withdraw)} 齿轮`);
+        }
+      }
+    };
+
+    financeAutoBtn.addEventListener("click", () => {
+      if (state.lifetimeGears < FINANCE_UNLOCK_LIFETIME_GEARS) return;
+      state.financeAutoPilot = !state.financeAutoPilot;
+      pushLog(`[Finance/半自动] 已${state.financeAutoPilot ? "开启" : "关闭"}`);
+      saveGame();
+      render();
+    });
+
     financeSettleBtn.addEventListener("click", () => {
       if (state.lifetimeGears < FINANCE_UNLOCK_LIFETIME_GEARS || state.financeCapital < 100) return;
       const riskBudget = getAssetRiskBudget();
@@ -2910,6 +2987,8 @@
       state.financeLeaderboard = [];
       state.financeAssets = { bond: 0.34, equity: 0.33, derivative: 0.33 };
       state.financeLineage = 0;
+      state.financeAutoPilot = false;
+      state.financeAutoAccumulator = 0;
       for (const b of buildings) b.owned = 0;
       for (const u of upgrades) u.purchased = false;
       for (const s of skills) s.level = 0;
@@ -2954,6 +3033,8 @@
       state.financeLeaderboard = [];
       state.financeAssets = { bond: 0.34, equity: 0.33, derivative: 0.33 };
       state.financeLineage = 0;
+      state.financeAutoPilot = false;
+      state.financeAutoAccumulator = 0;
       state.prestigeBranches = { legacy_manual: 0, legacy_line: 0 };
       state.debugPanelOpen = false;
       state.debugManualMult = 1;
@@ -2994,6 +3075,14 @@
           state.comboTimer = Math.max(0, state.comboTimer - FIXED_STEP * state.gameSpeed);
           if (state.comboTimer === 0 && state.comboStreak > 0) {
             state.comboStreak = 0;
+          }
+        }
+
+        if (state.financeAutoPilot) {
+          state.financeAutoAccumulator += FIXED_STEP * state.gameSpeed;
+          if (state.financeAutoAccumulator >= 2) {
+            state.financeAutoAccumulator = 0;
+            runFinanceAutopilotStep();
           }
         }
 
