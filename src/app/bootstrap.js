@@ -58,6 +58,7 @@ import {
 import { createInitialState } from "../core/state.js";
 import { createFeedbackBus } from "../fx/feedbackBus.js";
 import { getCurrentPrice as calcCurrentPrice, getPrestigeGain as calcPrestigeGain } from "../systems/economySystem.js";
+import { createOrderFromTemplate, getOrderProgress as calcOrderProgress, pickWeightedOrderTemplate as pickWeightedTemplate } from "../systems/taskSystem.js";
 
 export function boot() {
 const PRESTIGE_BRANCHES = [
@@ -597,37 +598,18 @@ const getCurrentPrice = (building, ownedOffset = 0) => calcCurrentPrice({
       osc.start(now);
       osc.stop(now + safeT);
     };
-
-    const getOrderProgress = (order = state.activeOrder) => {
-      if (!order) return 0;
-      if (order.type === "clicks") return Math.max(0, state.totalClicks - order.startValue);
-      if (order.type === "lifetime") return Math.max(0, state.lifetimeGears - order.startValue);
-      if (order.type === "building") {
-        const building = buildings.find((b) => b.id === order.buildingId);
-        return Math.max(0, (building?.owned || 0) - order.startValue);
-      }
-      return 0;
-    };
-
+    const getOrderProgress = (order = state.activeOrder) => calcOrderProgress(order, {
+      totalClicks: state.totalClicks,
+      lifetimeGears: state.lifetimeGears,
+      buildingOwnedById: Object.fromEntries(buildings.map((b) => [b.id, b.owned]))
+    });
     const pickWeightedOrderTemplate = (tier, marketKey = "stable") => {
       const unlocked = ORDER_TEMPLATES.filter((template) => template.minTier <= tier);
-      const weighted = unlocked.map((template) => ({
-        ...template,
-        dynWeight: template.weight * (template.preferredMarket === marketKey ? 1.8 : 1)
-      }));
-      const totalWeight = weighted.reduce((sum, item) => sum + item.dynWeight, 0);
-      let roll = Math.random() * totalWeight;
-      for (const template of weighted) {
-        roll -= template.dynWeight;
-        if (roll <= 0) return template;
-      }
-      return weighted[weighted.length - 1] || ORDER_TEMPLATES[0];
+      return pickWeightedTemplate(unlocked, marketKey, Math.random) || ORDER_TEMPLATES[0];
     };
 
     const createOrder = () => {
       const tier = Math.max(1, Math.floor(state.lifetimeGears / ORDER_TIER_STEP) + 1);
-      const rewardGear = 150 * tier;
-      const rewardRP = 1 + Math.floor(tier / 3);
       const marketKey = getCurrentMarketKey();
       const template = pickWeightedOrderTemplate(tier, marketKey);
       const strategy = getCurrentStrategyProfile();
@@ -635,52 +617,18 @@ const getCurrentPrice = (building, ownedOffset = 0) => calcCurrentPrice({
       const targetScale = Math.max(0.6, Number(template.targetScale) || 1);
       const rewardScale = Math.max(0.5, (Number(template.rewardScale) || 1) * strategy.orderRewardMult * (getCurrentMarketState().orderWeight || 1));
 
-      if (template.type === "clicks") {
-        state.activeOrder = {
-          id: `order_${template.key}_${timestamp}`,
-          type: "clicks",
-          title: template.title,
-          desc: template.desc,
-          target: Math.max(10, Math.floor((25 + tier * 5) * targetScale)),
-          startValue: state.totalClicks,
-          reward: { type: template.rewardType || "gear", value: Math.max(1, Math.floor(rewardGear * rewardScale)) },
-          financeTag: template.financeTag || null
-        };
-      }
-
-      if (template.type === "lifetime") {
-        state.activeOrder = {
-          id: `order_${template.key}_${timestamp}`,
-          type: "lifetime",
-          title: template.title,
-          desc: template.desc,
-          target: Math.max(400, Math.floor((800 + tier * 250) * targetScale)),
-          startValue: state.lifetimeGears,
-          reward: {
-            type: template.rewardType || "gear",
-            value: Math.max(1, Math.floor((template.rewardType === "rp" ? rewardRP : rewardGear * 2) * rewardScale))
-          },
-          financeTag: template.financeTag || null
-        };
-      }
-
-      if (template.type === "building") {
-        const buildingId = template.buildingId;
-        const baseTarget = buildingId === "assembler" ? 2 : 3;
-        state.activeOrder = {
-          id: `order_${template.key}_${timestamp}`,
-          type: "building",
-          buildingId,
-          title: template.title,
-          desc: template.desc,
-          target: Math.max(1, Math.floor((baseTarget + Math.floor(tier / 2)) * targetScale)),
-          startValue: buildings.find((b) => b.id === buildingId)?.owned || 0,
-          reward: {
-            type: template.rewardType || (buildingId === "assembler" ? "rp" : "gear"),
-            value: Math.max(1, Math.floor((buildingId === "assembler" ? rewardRP : rewardGear) * rewardScale))
-          }
-        };
-      }
+      state.activeOrder = createOrderFromTemplate({
+        template,
+        tier,
+        timestamp,
+        rewardScale,
+        targetScale,
+        runtimeSnapshot: {
+          totalClicks: state.totalClicks,
+          lifetimeGears: state.lifetimeGears,
+          buildingOwnedById: Object.fromEntries(buildings.map((b) => [b.id, b.owned]))
+        }
+      });
 
       saveGame();
     };
