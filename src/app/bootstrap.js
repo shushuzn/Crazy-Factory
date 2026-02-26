@@ -8,6 +8,8 @@ import {
   COMBO_HEAT_PEAK_RATIO,
   COMBO_HEAT_WARN_RATIO,
   COMBO_MAX_STREAK,
+  COMBO_OVERHEAT_DURATION_SECONDS,
+  COMBO_OVERHEAT_MANUAL_MULT,
   DEFAULT_FINANCE_ASSETS,
   FINANCE_BASE_APR,
   FINANCE_COOLDOWN_MS,
@@ -152,6 +154,7 @@ const PRESTIGE_BRANCHES = [
     const comboHeatLabelEl = document.getElementById("comboHeatLabel");
     const comboHeatMetaEl = document.getElementById("comboHeatMeta");
     const comboHeatFillEl = document.getElementById("comboHeatFill");
+    const comboBoostStatusEl = document.getElementById("comboBoostStatus");
     const manualHintEl = document.getElementById("manualHint");
     const buildingList = document.getElementById("buildingList");
     const modeButtons = [...document.querySelectorAll("[data-mode]")];
@@ -257,6 +260,7 @@ const PRESTIGE_BRANCHES = [
     const prestigeBranchViewMap = new Map();
     // 为什么：只在阈值跨越时触发演出，避免每帧重复触发造成噪音与性能抖动。
     let comboHeatStage = 0;
+    let comboOverheatTimer = 0;
 
     const format = (num) => {
       if (!Number.isFinite(num)) return "0";
@@ -316,7 +320,8 @@ const getCurrentPrice = (building, ownedOffset = 0) => calcCurrentPrice({
 
     const getTotalGPS = () => getBaseGPS() * state.gpsMultiplier * getResearchMultiplier() * getSkillGpsMultiplier() * getIndustryChainMultiplier() * getPrestigeGpsMultiplier() * getOverdriveMultiplier() * state.debugGpsMult;
     const getComboMultiplier = () => 1 + Math.min(COMBO_MAX_STREAK, state.comboStreak) * COMBO_BONUS_PER_STACK;
-    const getManualGain = () => state.manualPower * getSkillManualMultiplier() * getComboMultiplier() * getPrestigeManualMultiplier() * state.debugManualMult;
+    const getComboOverheatMultiplier = () => (comboOverheatTimer > 0 ? COMBO_OVERHEAT_MANUAL_MULT : 1);
+    const getManualGain = () => state.manualPower * getSkillManualMultiplier() * getComboMultiplier() * getComboOverheatMultiplier() * getPrestigeManualMultiplier() * state.debugManualMult;
 
     const FINANCE_MARKET_STATES = {
       stable: { label: "平稳", aprDelta: 0, cycleScale: 0.8, orderWeight: 1 },
@@ -682,6 +687,7 @@ const getCurrentPrice = (building, ownedOffset = 0) => calcCurrentPrice({
       state.comboStreak = 0;
       state.comboTimer = 0;
       comboHeatStage = 0;
+      comboOverheatTimer = 0;
       state.financeCapital = 0;
       state.financeTier = 0;
       state.financeLastInvestAt = 0;
@@ -1354,6 +1360,13 @@ const getCurrentPrice = (building, ownedOffset = 0) => calcCurrentPrice({
         comboHeatEl.classList.toggle("is-peak", nextHeatStage === 2);
         manualBtn?.classList.toggle("heat-warn", nextHeatStage === 1);
         manualBtn?.classList.toggle("heat-peak", nextHeatStage === 2);
+        if (comboBoostStatusEl) {
+          const overheatActive = comboOverheatTimer > 0;
+          comboBoostStatusEl.classList.toggle("active", overheatActive);
+          comboBoostStatusEl.textContent = overheatActive
+            ? `过载增幅：x${COMBO_OVERHEAT_MANUAL_MULT.toFixed(2)}（${comboOverheatTimer.toFixed(1)}s）`
+            : "过载增幅：未激活";
+        }
 
         if (nextHeatStage > comboHeatStage) {
           if (nextHeatStage === 1) {
@@ -1371,8 +1384,9 @@ const getCurrentPrice = (building, ownedOffset = 0) => calcCurrentPrice({
               priority: "high",
               anchorEl: manualBtn
             });
+            comboOverheatTimer = COMBO_OVERHEAT_DURATION_SECONDS;
             triggerScreenShake(gamePanelEl, "task");
-            pushLog("连击过载：短窗口内请持续点击吃满倍率");
+            pushLog(`连击过载：${COMBO_OVERHEAT_DURATION_SECONDS.toFixed(1)}s 内手动增幅 x${COMBO_OVERHEAT_MANUAL_MULT.toFixed(2)}`);
           }
         }
         comboHeatStage = nextHeatStage;
@@ -2096,6 +2110,9 @@ const getCurrentPrice = (building, ownedOffset = 0) => calcCurrentPrice({
           if (state.comboTimer === 0 && state.comboStreak > 0) {
             state.comboStreak = 0;
           }
+        }
+        if (comboOverheatTimer > 0) {
+          comboOverheatTimer = Math.max(0, comboOverheatTimer - FIXED_STEP * state.gameSpeed);
         }
 
         if (state.financeAutoPilot) {
