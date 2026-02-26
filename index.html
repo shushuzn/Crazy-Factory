@@ -849,6 +849,15 @@
         </div>
       </div>
 
+      <div class="progress-wrap" id="prestigeBranchPanel">
+        <div class="progress-title">Prestige 2.0：传承分支</div>
+        <div class="progress-meta">
+          <span id="prestigeBranchHint">通过软重置获得 RP 后，可定向强化长期成长路线</span>
+          <span id="prestigeBranchSummary">分支：工匠 Lv.0 / 产线 Lv.0</span>
+        </div>
+        <div class="buildings" id="prestigeBranchList"></div>
+      </div>
+
       <div class="category-grid">
         <section class="category" data-category="economy">
           <div class="category-head">
@@ -900,7 +909,7 @@
     const PRESTIGE_LATE_BONUS_STEP = 2_000_000;
     const SAVE_KEY = "crazy_factory_save_v1";
     const SAVE_BACKUP_KEY = "crazy_factory_save_backup";
-    const SAVE_VERSION = 2;
+    const SAVE_VERSION = 3;
     const TICK_RATE = 60;
     const FIXED_STEP = 1 / TICK_RATE;
     const MAX_ACCUMULATED_SECONDS = 0.25;
@@ -941,6 +950,11 @@
     const FX_SHAKE_COOLDOWN_MS = 260;
     const LOW_PERF_FLOAT_SCALE = 0.55;
     const FX_HIGHLIGHT_DURATION_MS = 1250;
+
+    const PRESTIGE_BRANCHES = [
+      { id: "legacy_manual", name: "传承：工匠路线", desc: "手动产出永久 +12%", cost: 2, maxLevel: 5, type: "manual", value: 0.12 },
+      { id: "legacy_line", name: "传承：产线路线", desc: "总 GPS 永久 +10%", cost: 2, maxLevel: 5, type: "gps", value: 0.10 }
+    ];
 
     const ORDER_TEMPLATES = [
       { key: "clicks", type: "clicks", minTier: 1, weight: 3, title: "订单：人工质检", desc: "手动点击完成一次人工抽检" },
@@ -1036,7 +1050,8 @@
       financeHedgeUntil: 0,
       financeMetaPoints: 0,
       financeCreditBase: 0,
-      financeStrategySwitches: 0
+      financeStrategySwitches: 0,
+      prestigeBranches: { legacy_manual: 0, legacy_line: 0 }
     };
 
     const gearsEl = document.getElementById("gears");
@@ -1061,6 +1076,9 @@
     const achievementList = document.getElementById("achievementList");
     const skillList = document.getElementById("skillList");
     const specializationList = document.getElementById("specializationList");
+    const prestigeBranchList = document.getElementById("prestigeBranchList");
+    const prestigeBranchSummaryEl = document.getElementById("prestigeBranchSummary");
+    const prestigeBranchHintEl = document.getElementById("prestigeBranchHint");
     const goalTitleEl = document.getElementById("goalTitle");
     const goalFillEl = document.getElementById("goalFill");
     const goalHintEl = document.getElementById("goalHint");
@@ -1108,6 +1126,7 @@
     const achievementViewMap = new Map();
     const skillViewMap = new Map();
     const specializationViewMap = new Map();
+    const prestigeBranchViewMap = new Map();
 
     const format = (num) => {
       if (!Number.isFinite(num)) return "0";
@@ -1142,6 +1161,9 @@
 
     const getBaseGPS = () => buildings.reduce((sum, b) => sum + b.dps * b.owned * getBuildingOutputMultiplier(b.id), 0);
     const getResearchMultiplier = () => 1 + state.researchPoints * 0.1;
+    const getPrestigeBranchLevel = (id) => Math.max(0, Number(state.prestigeBranches?.[id]) || 0);
+    const getPrestigeManualMultiplier = () => 1 + getPrestigeBranchLevel("legacy_manual") * 0.12;
+    const getPrestigeGpsMultiplier = () => 1 + getPrestigeBranchLevel("legacy_line") * 0.10;
     const getSkillGpsMultiplier = () => 1 + getSkillLevel("line_optimizer") * 0.2;
     const getSkillManualMultiplier = () => 1 + getSkillLevel("manual_mastery") * 0.25;
     const getIndustryChainMultiplier = () => {
@@ -1156,9 +1178,9 @@
       return Math.max(1, synergy - imbalance * 0.06);
     };
 
-    const getTotalGPS = () => getBaseGPS() * state.gpsMultiplier * getResearchMultiplier() * getSkillGpsMultiplier() * getIndustryChainMultiplier();
+    const getTotalGPS = () => getBaseGPS() * state.gpsMultiplier * getResearchMultiplier() * getSkillGpsMultiplier() * getIndustryChainMultiplier() * getPrestigeGpsMultiplier();
     const getComboMultiplier = () => 1 + Math.min(COMBO_MAX_STREAK, state.comboStreak) * COMBO_BONUS_PER_STACK;
-    const getManualGain = () => state.manualPower * getSkillManualMultiplier() * getComboMultiplier();
+    const getManualGain = () => state.manualPower * getSkillManualMultiplier() * getComboMultiplier() * getPrestigeManualMultiplier();
 
     const getPrestigeGain = (lifetimeGears) => {
       const base = Math.floor(Math.sqrt(lifetimeGears / PRESTIGE_BASE_DIVISOR));
@@ -1552,6 +1574,13 @@
         }
       }
 
+      if (version < 3) {
+        data.saveVersion = 3;
+        if (!data.prestigeBranches || typeof data.prestigeBranches !== "object") {
+          data.prestigeBranches = { legacy_manual: 0, legacy_line: 0 };
+        }
+      }
+
       if (!Number.isFinite(Number(data.saveVersion))) {
         data.saveVersion = SAVE_VERSION;
       }
@@ -1590,6 +1619,7 @@
         financeMetaPoints: state.financeMetaPoints,
         financeCreditBase: state.financeCreditBase,
         financeStrategySwitches: state.financeStrategySwitches,
+        prestigeBranches: state.prestigeBranches,
         saveVersion: SAVE_VERSION,
         savedAt: Date.now()
       };
@@ -1671,6 +1701,10 @@
         state.financeMetaPoints = Math.max(0, Math.floor(Number(data.financeMetaPoints) || 0));
         state.financeCreditBase = Math.max(0, Math.floor(Number(data.financeCreditBase) || 0));
         state.financeStrategySwitches = Math.max(0, Math.floor(Number(data.financeStrategySwitches) || 0));
+        state.prestigeBranches = {
+          legacy_manual: Math.max(0, Math.min(5, Math.floor(Number(data.prestigeBranches?.legacy_manual) || 0))),
+          legacy_line: Math.max(0, Math.min(5, Math.floor(Number(data.prestigeBranches?.legacy_line) || 0)))
+        };
         if (data.categoryCollapse && typeof data.categoryCollapse === "object") {
           state.categoryCollapse.economy = Boolean(data.categoryCollapse.economy);
           state.categoryCollapse.goals = Boolean(data.categoryCollapse.goals);
@@ -1839,6 +1873,37 @@
       });
     };
 
+    const createPrestigeBranchRow = (branch) => {
+      const row = document.createElement("div");
+      row.className = "skill";
+      row.dataset.id = branch.id;
+      row.innerHTML = `
+        <div>
+          <div class="name">${branch.name}</div>
+          <div class="meta">${branch.desc}</div>
+          <div class="meta" data-branch-meta="${branch.id}"></div>
+        </div>
+        <button class="btn skill-btn" data-branch-buy="${branch.id}">升级（${branch.cost} RP）</button>
+      `;
+      prestigeBranchList.appendChild(row);
+      prestigeBranchViewMap.set(branch.id, {
+        btn: row.querySelector(`[data-branch-buy="${branch.id}"]`),
+        meta: row.querySelector(`[data-branch-meta="${branch.id}"]`)
+      });
+    };
+
+    const buyPrestigeBranch = (id) => {
+      const branch = PRESTIGE_BRANCHES.find((b) => b.id === id);
+      if (!branch) return;
+      const level = getPrestigeBranchLevel(id);
+      if (level >= branch.maxLevel || state.researchPoints < branch.cost) return;
+      state.researchPoints -= branch.cost;
+      state.prestigeBranches[id] = level + 1;
+      pushLog(`Prestige 分支升级：${branch.name} Lv.${state.prestigeBranches[id]}`);
+      saveGame();
+      render();
+    };
+
     const buySpecialization = (id) => {
       const spec = specializationUpgrades.find((sp) => sp.id === id);
       if (!spec) return;
@@ -1988,7 +2053,7 @@
     const render = () => {
       gearsEl.textContent = format(state.gears);
       gpsEl.textContent = format(getTotalGPS());
-      rpEl.textContent = `研究点 RP：${state.researchPoints}（总产出 x${getResearchMultiplier().toFixed(1)}，速度 x${state.gameSpeed}，金融 +${format(getFinanceIncomePerSecond())}/s，产业链 x${getIndustryChainMultiplier().toFixed(2)}，信用 Lv.${getFinanceCreditLevel()}，金融元进度 ${state.financeMetaPoints}）`;
+      rpEl.textContent = `研究点 RP：${state.researchPoints}（总产出 x${getResearchMultiplier().toFixed(1)}，速度 x${state.gameSpeed}，金融 +${format(getFinanceIncomePerSecond())}/s，产业链 x${getIndustryChainMultiplier().toFixed(2)}，信用 Lv.${getFinanceCreditLevel()}，金融元进度 ${state.financeMetaPoints}，Prestige 手动 x${getPrestigeManualMultiplier().toFixed(2)} / 产线 x${getPrestigeGpsMultiplier().toFixed(2)}）`;
 
       for (const building of buildings) {
         const view = buildingViewMap.get(building.id);
@@ -2059,6 +2124,24 @@
         } else {
           view.btn.disabled = state.researchPoints < spec.costRP;
           view.btn.textContent = `升级（${spec.costRP} RP）`;
+        }
+      }
+
+      const manualLegacy = getPrestigeBranchLevel("legacy_manual");
+      const lineLegacy = getPrestigeBranchLevel("legacy_line");
+      prestigeBranchSummaryEl.textContent = `分支：工匠 Lv.${manualLegacy} / 产线 Lv.${lineLegacy}`;
+      prestigeBranchHintEl.textContent = `当前永久加成：手动 x${getPrestigeManualMultiplier().toFixed(2)} / 产线 x${getPrestigeGpsMultiplier().toFixed(2)}`;
+      for (const branch of PRESTIGE_BRANCHES) {
+        const view = prestigeBranchViewMap.get(branch.id);
+        if (!view) continue;
+        const level = getPrestigeBranchLevel(branch.id);
+        view.meta.textContent = `等级 ${level}/${branch.maxLevel}`;
+        if (level >= branch.maxLevel) {
+          view.btn.disabled = true;
+          view.btn.textContent = "已满级";
+        } else {
+          view.btn.disabled = state.researchPoints < branch.cost;
+          view.btn.textContent = `升级（${branch.cost} RP）`;
         }
       }
 
@@ -2339,6 +2422,13 @@
       buySpecialization(id);
     });
 
+    prestigeBranchList.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLButtonElement)) return;
+      const id = target.dataset.branchBuy;
+      if (!id) return;
+      buyPrestigeBranch(id);
+    });
 
     exportSaveBtn.addEventListener("click", () => {
       exportSave();
@@ -2609,6 +2699,7 @@
       state.financeMetaPoints = 0;
       state.financeCreditBase = 0;
       state.financeStrategySwitches = 0;
+      state.prestigeBranches = { legacy_manual: 0, legacy_line: 0 };
       for (const b of buildings) b.owned = 0;
       for (const u of upgrades) u.purchased = false;
       for (const s of skills) s.level = 0;
@@ -2621,6 +2712,7 @@
     for (const upgrade of upgrades) createUpgradeRow(upgrade);
     for (const skill of skills) createSkillRow(skill);
     for (const spec of specializationUpgrades) createSpecializationRow(spec);
+    for (const branch of PRESTIGE_BRANCHES) createPrestigeBranchRow(branch);
     for (const achievement of achievements) createAchievementRow(achievement);
 
     loadGame();
