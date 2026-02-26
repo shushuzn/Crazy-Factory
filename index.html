@@ -872,8 +872,11 @@
     const ORDER_UNLOCK_LIFETIME_GEARS = 300;
     const ORDER_REROLL_COST = 200;
     const FINANCE_UNLOCK_LIFETIME_GEARS = 1200;
-    const FINANCE_BASE_APR = 0.06;
-    const FINANCE_CYCLE_AMPLITUDE = 0.03;
+    const FINANCE_BASE_APR = 0.045;
+    const FINANCE_TIER_APR_BONUS = 0.018;
+    const FINANCE_CYCLE_AMPLITUDE = 0.02;
+    const FINANCE_MAX_SHARE_OF_MAINLINE = 0.3;
+    const FINANCE_MIN_CAP_GPS = 2;
     const FINANCE_COOLDOWN_MS = 1800;
     const CHAIN_BONUS_PER_STAGE = 0.08;
     const CHAIN_MAX_STAGES = 10;
@@ -1109,14 +1112,19 @@
     const getFinanceAprComponents = () => {
       const base = FINANCE_BASE_APR;
       const cycle = FINANCE_CYCLE_AMPLITUDE * Math.sin(state.totalClicks / 45);
-      const riskControl = state.financeTier * 0.025;
+      const riskControl = state.financeTier * FINANCE_TIER_APR_BONUS;
       return { base, cycle, riskControl };
     };
     const getFinanceApr = () => {
       const c = getFinanceAprComponents();
       return Math.max(0.01, c.base + c.cycle + c.riskControl);
     };
-    const getFinanceIncomePerSecond = () => state.financeCapital * getFinanceApr();
+    // 金融收益做“主线占比封顶”：保证可感知增益，但不会碾压建筑主循环。
+    const getFinanceIncomePerSecond = (baseGps = getTotalGPS()) => {
+      const raw = state.financeCapital * getFinanceApr();
+      const cap = Math.max(FINANCE_MIN_CAP_GPS, baseGps * FINANCE_MAX_SHARE_OF_MAINLINE);
+      return Math.min(raw, cap);
+    };
 
     const getAffordableCount = (building, budget, mode) => {
       if (mode === "1") return budget >= getCurrentPrice(building) ? 1 : 0;
@@ -1985,7 +1993,10 @@
         const withdrawCooling = nowMs - state.financeLastWithdrawAt < FINANCE_COOLDOWN_MS;
         financeTitleEl.textContent = `金融系统：风控等级 ${state.financeTier}`;
         financeFillEl.style.width = `${Math.min(100, (state.financeTier / 8) * 100)}%`;
-        financeHintEl.textContent = `秒收益：+${format(getFinanceIncomePerSecond())} 齿轮`;
+        const mainlineGps = getTotalGPS();
+        const effectiveFinance = getFinanceIncomePerSecond(mainlineGps);
+        const cap = Math.max(FINANCE_MIN_CAP_GPS, mainlineGps * FINANCE_MAX_SHARE_OF_MAINLINE);
+        financeHintEl.textContent = `秒收益：+${format(effectiveFinance)} 齿轮（封顶 ${format(cap)}）`;
         financeYieldEl.textContent = `年化：${(apr * 100).toFixed(1)}%`;
         financeCapitalEl.textContent = `资金池：${format(state.financeCapital)}`;
         financeBreakdownEl.textContent = `构成：基础 ${(comp.base * 100).toFixed(1)}% / 波动 ${(comp.cycle * 100).toFixed(1)}% / 风控 ${(comp.riskControl * 100).toFixed(1)}%`;
@@ -2384,7 +2395,7 @@
       const gps = getTotalGPS();
       while (state.accumulator >= FIXED_STEP) {
         const gain = gps * FIXED_STEP * state.gameSpeed;
-        const financeGain = getFinanceIncomePerSecond() * FIXED_STEP * state.gameSpeed;
+        const financeGain = getFinanceIncomePerSecond(gps) * FIXED_STEP * state.gameSpeed;
         state.gears += gain + financeGain;
         state.lifetimeGears += gain + financeGain;
         state.accumulator -= FIXED_STEP;

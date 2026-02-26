@@ -17,7 +17,11 @@ const COMBO_MAX_STREAK = 40;
 const COMBO_BONUS_PER_STACK = 0.02;
 const FX_MAX_FLOATING_GAINS = 18;
 const FX_PRIORITY_SLOTS = 2;
-const FINANCE_BASE_APR = 0.06;
+const FINANCE_BASE_APR = 0.045;
+const FINANCE_TIER_APR_BONUS = 0.018;
+const FINANCE_CYCLE_AMPLITUDE = 0.02;
+const FINANCE_MAX_SHARE_OF_MAINLINE = 0.3;
+const FINANCE_MIN_CAP_GPS = 2;
 const { OFFLINE_CAP_SECONDS, CHAIN_BONUS_PER_STAGE, CHAIN_MAX_STAGES } = ECONOMY_CONFIG;
 
 const ORDER_TEMPLATES = [
@@ -53,10 +57,14 @@ const getSafeAudioProfile = (profile, audioSafeMode) => ({
 
 
 const getFinanceApr = (tier, totalClicks = 0) => {
-  const cycleBoost = 0.03 * Math.sin(totalClicks / 45);
-  return Math.max(0.01, FINANCE_BASE_APR + tier * 0.025 + cycleBoost);
+  const cycleBoost = FINANCE_CYCLE_AMPLITUDE * Math.sin(totalClicks / 45);
+  return Math.max(0.01, FINANCE_BASE_APR + tier * FINANCE_TIER_APR_BONUS + cycleBoost);
 };
-const getFinanceIncomePerSecond = (capital, tier, totalClicks = 0) => capital * getFinanceApr(tier, totalClicks);
+const getFinanceIncomePerSecond = (capital, tier, mainlineGps, totalClicks = 0) => {
+  const raw = capital * getFinanceApr(tier, totalClicks);
+  const cap = Math.max(FINANCE_MIN_CAP_GPS, mainlineGps * FINANCE_MAX_SHARE_OF_MAINLINE);
+  return Math.min(raw, cap);
+};
 
 const migrateSaveData = (rawData) => {
   if (!rawData || typeof rawData !== 'object') return null;
@@ -76,6 +84,71 @@ const migrateSaveData = (rawData) => {
     data.saveVersion = 2;
   }
   return data;
+};
+
+
+const BUILDINGS = [
+  { id: 'intern', basePrice: 15, dps: 1 },
+  { id: 'conveyor', basePrice: 100, dps: 8 },
+  { id: 'assembler', basePrice: 1100, dps: 47 }
+];
+
+const simulateFifteenMinutes = ({ withFinance }) => {
+  const state = {
+    gears: 0,
+    lifetime: 0,
+    totalClicks: 0,
+    financeCapital: 0,
+    financeTier: 0,
+    owned: { intern: 0, conveyor: 0, assembler: 0 }
+  };
+
+  const getGps = () => {
+    const base = BUILDINGS.reduce((sum, b) => sum + state.owned[b.id] * b.dps, 0);
+    return base * getIndustryChainMultiplier(state.owned.intern, state.owned.conveyor, state.owned.assembler);
+  };
+
+  const buyBest = () => {
+    let bought = true;
+    while (bought) {
+      bought = false;
+      const ranked = BUILDINGS
+        .map((b) => ({ ...b, price: getBuildingPrice(b.basePrice, state.owned[b.id]), score: b.dps / Math.max(1, getBuildingPrice(b.basePrice, state.owned[b.id])) }))
+        .sort((a, b) => b.score - a.score);
+      for (const item of ranked) {
+        if (state.gears >= item.price) {
+          state.gears -= item.price;
+          state.owned[item.id] += 1;
+          bought = true;
+        }
+      }
+    }
+  };
+
+  for (let t = 0; t < 15 * 60; t += 1) {
+    state.totalClicks += 1;
+    const mainlineGps = getGps() + 1;
+    let financeGain = 0;
+
+    if (withFinance && state.lifetime >= 1200) {
+      if (t % 12 === 0 && state.financeTier < 2) state.financeTier += 1;
+      if (t % 20 === 0) {
+        const invest = Math.floor(state.gears * 0.1);
+        if (invest >= 100) {
+          state.gears -= invest;
+          state.financeCapital += invest;
+        }
+      }
+      financeGain = getFinanceIncomePerSecond(state.financeCapital, state.financeTier, mainlineGps, state.totalClicks);
+    }
+
+    const gain = mainlineGps + financeGain;
+    state.gears += gain;
+    state.lifetime += gain;
+    buyBest();
+  }
+
+  return { lifetime: state.lifetime, financeCapital: state.financeCapital, gps: getGps() + 1 };
 };
 
 const sanitizeImportPayload = (data) => {
@@ -122,8 +195,16 @@ assert(getIndustryChainMultiplier(200, 100, 50) <= 1 + CHAIN_MAX_STAGES * CHAIN_
 // finance
 assert(getFinanceApr(0, 0) >= 0.01, 'finance apr should have lower bound');
 assert(getFinanceApr(5, 0) > getFinanceApr(0, 0), 'finance apr should grow with risk-control tier');
-assert(getFinanceIncomePerSecond(1000, 2, 120) > 0, 'finance income should be positive when capital exists');
-assert(getFinanceIncomePerSecond(0, 8, 9999) === 0, 'finance income should be zero with no capital');
+assert(getFinanceIncomePerSecond(1000, 2, 120, 120) > 0, 'finance income should be positive when capital exists');
+assert(getFinanceIncomePerSecond(0, 8, 9999, 9999) === 0, 'finance income should be zero with no capital');
+assert(getFinanceIncomePerSecond(99_999, 8, 20, 200) <= Math.max(FINANCE_MIN_CAP_GPS, 20 * FINANCE_MAX_SHARE_OF_MAINLINE), 'finance income should respect mainline cap');
+
+const financeRun = simulateFifteenMinutes({ withFinance: true });
+const noFinanceRun = simulateFifteenMinutes({ withFinance: false });
+const financeRatio = financeRun.lifetime / Math.max(1, noFinanceRun.lifetime);
+assert(financeRatio >= 1.08, 'finance branch should be perceptible within 15 minutes');
+assert(financeRatio <= 1.35, 'finance branch should not overpower the mainline within 15 minutes');
+assert(noFinanceRun.lifetime >= 20_000, 'mainline should progress stably without finance participation');
 
 // prestige
 assert(getPrestigeGain(0) === 0, 'prestige gain at zero should be 0');
