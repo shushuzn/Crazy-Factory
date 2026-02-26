@@ -73,6 +73,7 @@ price = floor(basePrice * 1.15 ^ owned)
 ```txt
 .
 ├── index.html
+├── package.json
 ├── src/
 │   ├── main.js
 │   ├── app/
@@ -111,6 +112,17 @@ price = floor(basePrice * 1.15 ^ owned)
     ├── finance_checks.js
     ├── kpi_dashboard_checks.js
     └── sim_common.js
+```
+
+
+## 工程命令（npm scripts）
+
+```bash
+npm run serve
+npm run check
+npm run sim:baseline
+npm run sim:stability
+npm run sim:balance
 ```
 
 ## 截图与调试（容器/CI）

@@ -94,6 +94,7 @@ src/
 
 ## 阶段 4：工程化收口（1 个迭代）
 - 增加 `npm scripts` 统一命令入口（check/test/sim/screenshot）。
+- ✅ 已新增 `package.json` 并提供 `serve/check/sim/screenshot` 统一命令入口。
 - 文档补齐：
   - 模块依赖图
   - 状态流转图
