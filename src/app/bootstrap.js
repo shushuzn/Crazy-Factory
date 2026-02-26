@@ -9,7 +9,9 @@ import {
   COMBO_HEAT_WARN_RATIO,
   COMBO_MAX_STREAK,
   COMBO_OVERHEAT_DURATION_SECONDS,
+  COMBO_OVERHEAT_EXTENSION_SECONDS,
   COMBO_OVERHEAT_MANUAL_MULT,
+  COMBO_OVERHEAT_MAX_SECONDS,
   DEFAULT_FINANCE_ASSETS,
   FINANCE_BASE_APR,
   FINANCE_COOLDOWN_MS,
@@ -261,6 +263,7 @@ const PRESTIGE_BRANCHES = [
     // 为什么：只在阈值跨越时触发演出，避免每帧重复触发造成噪音与性能抖动。
     let comboHeatStage = 0;
     let comboOverheatTimer = 0;
+    let comboOverheatPulseCounter = 0;
 
     const format = (num) => {
       if (!Number.isFinite(num)) return "0";
@@ -688,6 +691,7 @@ const getCurrentPrice = (building, ownedOffset = 0) => calcCurrentPrice({
       state.comboTimer = 0;
       comboHeatStage = 0;
       comboOverheatTimer = 0;
+      comboOverheatPulseCounter = 0;
       state.financeCapital = 0;
       state.financeTier = 0;
       state.financeLastInvestAt = 0;
@@ -1364,7 +1368,7 @@ const getCurrentPrice = (building, ownedOffset = 0) => calcCurrentPrice({
           const overheatActive = comboOverheatTimer > 0;
           comboBoostStatusEl.classList.toggle("active", overheatActive);
           comboBoostStatusEl.textContent = overheatActive
-            ? `过载增幅：x${COMBO_OVERHEAT_MANUAL_MULT.toFixed(2)}（${comboOverheatTimer.toFixed(1)}s）`
+            ? `过载增幅：x${COMBO_OVERHEAT_MANUAL_MULT.toFixed(2)}（${comboOverheatTimer.toFixed(1)}s，续燃+${COMBO_OVERHEAT_EXTENSION_SECONDS.toFixed(2)}s/击）`
             : "过载增幅：未激活";
         }
 
@@ -1385,6 +1389,7 @@ const getCurrentPrice = (building, ownedOffset = 0) => calcCurrentPrice({
               anchorEl: manualBtn
             });
             comboOverheatTimer = COMBO_OVERHEAT_DURATION_SECONDS;
+            comboOverheatPulseCounter = 0;
             triggerScreenShake(gamePanelEl, "task");
             pushLog(`连击过载：${COMBO_OVERHEAT_DURATION_SECONDS.toFixed(1)}s 内手动增幅 x${COMBO_OVERHEAT_MANUAL_MULT.toFixed(2)}`);
           }
@@ -1646,6 +1651,19 @@ const getCurrentPrice = (building, ownedOffset = 0) => calcCurrentPrice({
       state.gears += gain;
       state.lifetimeGears += gain;
       state.totalClicks += 1;
+      if (comboOverheatTimer > 0) {
+        comboOverheatTimer = Math.min(COMBO_OVERHEAT_MAX_SECONDS, comboOverheatTimer + COMBO_OVERHEAT_EXTENSION_SECONDS);
+        comboOverheatPulseCounter += 1;
+        if (comboOverheatPulseCounter >= 8) {
+          comboOverheatPulseCounter = 0;
+          emitFeedback(FEEDBACK_EVENTS.BIG_REWARD, {
+            text: "续燃!",
+            kind: "reward",
+            priority: "normal",
+            anchorEl: manualBtn
+          });
+        }
+      }
       if (state.totalClicks === 1) pushLog("首次手动生产");
 
       if (state.comboStreak === 10 || state.comboStreak === 25) {
@@ -2113,6 +2131,7 @@ const getCurrentPrice = (building, ownedOffset = 0) => calcCurrentPrice({
         }
         if (comboOverheatTimer > 0) {
           comboOverheatTimer = Math.max(0, comboOverheatTimer - FIXED_STEP * state.gameSpeed);
+          if (comboOverheatTimer === 0) comboOverheatPulseCounter = 0;
         }
 
         if (state.financeAutoPilot) {
