@@ -16,6 +16,8 @@
       --disabled: #4b5563;
       --border: #374151;
       --chip: #243044;
+      --accent: #22d3ee;
+      --accent-2: #a78bfa;
     }
 
     * { box-sizing: border-box; }
@@ -47,6 +49,7 @@
       grid-template-columns: 1fr auto;
       gap: 16px;
       align-items: center;
+      background: linear-gradient(180deg, rgba(34,211,238,0.08), rgba(34,211,238,0));
     }
 
     .title { margin: 0; font-size: 1.5rem; }
@@ -117,23 +120,30 @@
       display: flex;
       gap: 8px;
       align-items: center;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      padding: 8px 0 2px;
+      scrollbar-width: thin;
+      border-bottom: 1px dashed rgba(148, 163, 184, 0.25);
+      margin-bottom: 2px;
     }
 
     .chip {
       background: var(--chip);
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: 999px;
       color: var(--text);
-      padding: 6px 10px;
+      padding: 6px 12px;
       font-size: 0.8rem;
       font-weight: 600;
+      white-space: nowrap;
     }
 
     .chip.active {
-      background: #0891b2;
+      background: linear-gradient(90deg, #0891b2, #2563eb);
       color: #ecfeff;
       border-color: #22d3ee;
+      box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.2);
     }
 
     .chip.small {
@@ -149,9 +159,11 @@
     }
 
     .section-title {
-      margin: 6px 0 2px;
-      font-size: 0.95rem;
-      color: var(--muted);
+      margin: 10px 0 6px;
+      font-size: 0.9rem;
+      color: #cbd5e1;
+      padding-left: 8px;
+      border-left: 2px solid rgba(34,211,238,0.6);
     }
 
     .upgrade {
@@ -179,7 +191,7 @@
     .upgrade-btn {
       min-width: 220px;
       text-align: center;
-      background: #f59e0b;
+      background: linear-gradient(90deg, #f59e0b, #f97316);
       color: #3b2300;
     }
 
@@ -215,8 +227,8 @@
     .skill-btn {
       min-width: 180px;
       text-align: center;
-      background: #a78bfa;
-      color: #1f1147;
+      background: linear-gradient(90deg, #a78bfa, #7c3aed);
+      color: #faf5ff;
     }
 
     .skill-btn:disabled {
@@ -254,7 +266,7 @@
     .buy-btn {
       min-width: 220px;
       text-align: center;
-      background: var(--ok);
+      background: linear-gradient(90deg, #22c55e, #34d399);
       color: #052e22;
     }
 
@@ -317,6 +329,227 @@
       flex-wrap: wrap;
     }
 
+    .order-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .order-btn {
+      background: #22c55e;
+      color: #052e16;
+      border: 1px solid #16a34a;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .order-btn:disabled {
+      cursor: not-allowed;
+      background: var(--disabled);
+      color: #d1d5db;
+      border-color: var(--border);
+      opacity: 0.8;
+    }
+
+    .order-btn.secondary {
+      background: #1d4ed8;
+      color: #dbeafe;
+      border-color: #2563eb;
+    }
+
+
+
+    .fx-layer {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 50;
+    }
+
+    .highlight-layer {
+      position: fixed;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+      z-index: 65;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .event-highlight {
+      position: relative;
+      min-width: 220px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #e5e7eb;
+      background: rgba(15, 23, 42, 0.86);
+      box-shadow: 0 8px 28px rgba(2, 6, 23, 0.45);
+      transform-origin: 50% 50%;
+      animation: highlightInOut 1.25s cubic-bezier(.16,.84,.24,1) forwards;
+      backdrop-filter: blur(1.2px);
+    }
+
+    .event-highlight::after {
+      content: "";
+      position: absolute;
+      inset: -2px;
+      border-radius: 999px;
+      pointer-events: none;
+      opacity: 0;
+      filter: blur(6px);
+      animation: highlightTrail 0.45s ease-out;
+    }
+
+    .event-highlight .title {
+      display: block;
+      line-height: 1.15;
+      letter-spacing: 0.01em;
+    }
+
+    .event-highlight .subtitle {
+      display: block;
+      margin-top: 2px;
+      font-size: 0.72rem;
+      color: #cbd5e1;
+      font-weight: 600;
+      line-height: 1.1;
+      opacity: 0.92;
+    }
+
+    .event-highlight.task {
+      border-color: rgba(34, 211, 238, 0.65);
+      box-shadow: 0 10px 30px rgba(8, 145, 178, 0.35);
+    }
+    .event-highlight.task::after {
+      background: radial-gradient(circle at 50% 50%, rgba(34,211,238,0.35), rgba(34,211,238,0));
+    }
+
+    .event-highlight.order {
+      border-color: rgba(34, 197, 94, 0.7);
+      box-shadow: 0 10px 30px rgba(21, 128, 61, 0.35);
+    }
+    .event-highlight.order::after {
+      background: radial-gradient(circle at 50% 50%, rgba(34,197,94,0.32), rgba(34,197,94,0));
+    }
+
+    .event-highlight.prestige {
+      border-color: rgba(167, 139, 250, 0.78);
+      box-shadow: 0 12px 34px rgba(109, 40, 217, 0.42);
+    }
+    .event-highlight.prestige::after {
+      background: radial-gradient(circle at 50% 50%, rgba(167,139,250,0.38), rgba(167,139,250,0));
+    }
+
+    @keyframes highlightInOut {
+      0% { opacity: 0; transform: translateY(-12px) scale(0.9); }
+      35% { opacity: 1; transform: translateY(0) scale(1.06); }
+      52% { opacity: 1; transform: translateY(0) scale(0.985); }
+      68% { opacity: 1; transform: translateY(0) scale(1); }
+      84% { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-8px) scale(0.98); }
+    }
+
+    @keyframes highlightTrail {
+      0% { opacity: 0.45; transform: scale(1); }
+      100% { opacity: 0; transform: scale(1.03); }
+    }
+
+    .floating-gain {
+      position: absolute;
+      font-weight: 800;
+      font-size: 0.9rem;
+      text-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+      animation: floatUp 0.85s ease-out forwards;
+    }
+
+    .floating-gain.gear { color: #34d399; }
+    .floating-gain.rp { color: #a78bfa; }
+    .floating-gain.priority-high {
+      color: #fef08a;
+      text-shadow: 0 0 10px rgba(250, 204, 21, 0.7), 0 4px 16px rgba(0, 0, 0, 0.45);
+      -webkit-text-stroke: 0.35px #f59e0b;
+      animation: floatUpHot 0.68s ease-out forwards;
+    }
+
+    @keyframes floatUp {
+      0% { opacity: 0; transform: translate(-50%, 0) scale(0.8); }
+      15% { opacity: 1; }
+      100% { opacity: 0; transform: translate(-50%, -42px) scale(1.08); }
+    }
+
+    @keyframes floatUpHot {
+      0% { opacity: 0; transform: translate(-50%, 0) scale(0.92); }
+      20% { opacity: 1; }
+      100% { opacity: 0; transform: translate(-50%, -56px) scale(1.18); }
+    }
+
+    .btn-pop {
+      animation: btnPop 0.18s ease-out;
+    }
+
+    @keyframes btnPop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.08); }
+      100% { transform: scale(1); }
+    }
+
+    .panel-pulse {
+      animation: panelPulse 0.28s ease-out;
+    }
+
+    .panel-pulse-task { animation: panelPulseTask 0.28s ease-out; }
+    .panel-pulse-order { animation: panelPulseOrder 0.28s ease-out; }
+    .panel-pulse-prestige { animation: panelPulsePrestige 0.3s ease-out; }
+
+    @keyframes panelPulse {
+      0% { box-shadow: 0 0 0 rgba(34, 211, 238, 0); }
+      45% { box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.45); }
+      100% { box-shadow: 0 0 0 rgba(34, 211, 238, 0); }
+    }
+
+    @keyframes panelPulseTask {
+      0% { box-shadow: 0 0 0 rgba(34, 211, 238, 0); }
+      45% { box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.52); }
+      100% { box-shadow: 0 0 0 rgba(34, 211, 238, 0); }
+    }
+
+    @keyframes panelPulseOrder {
+      0% { box-shadow: 0 0 0 rgba(34, 197, 94, 0); }
+      45% { box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.5); }
+      100% { box-shadow: 0 0 0 rgba(34, 197, 94, 0); }
+    }
+
+    @keyframes panelPulsePrestige {
+      0% { box-shadow: 0 0 0 rgba(167, 139, 250, 0); }
+      45% { box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.55); }
+      100% { box-shadow: 0 0 0 rgba(167, 139, 250, 0); }
+    }
+
+
+
+    .screen-shake {
+      animation: screenShake 0.35s cubic-bezier(.36,.07,.19,.97);
+    }
+
+    @keyframes screenShake {
+      0% { transform: translate3d(0, 0, 0); }
+      20% { transform: translate3d(-3px, 2px, 0); }
+      40% { transform: translate3d(3px, -2px, 0); }
+      60% { transform: translate3d(-2px, 1px, 0); }
+      80% { transform: translate3d(2px, -1px, 0); }
+      100% { transform: translate3d(0, 0, 0); }
+    }
+
     .achievement {
       display: grid;
       grid-template-columns: 1fr auto;
@@ -364,6 +597,100 @@
       color: var(--muted);
     }
 
+
+
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .category {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      background: linear-gradient(180deg, rgba(15, 23, 42, 0.88), rgba(30, 41, 59, 0.72));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+
+
+
+    .category-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .category-toggle {
+      border: 1px solid var(--border);
+      background: #0b1220;
+      color: #cbd5e1;
+      border-radius: 8px;
+      padding: 5px 9px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .category-toggle .arrow {
+      display: inline-block;
+      transform: rotate(90deg);
+      transition: transform 120ms ease;
+      line-height: 1;
+    }
+
+    .category.collapsed .category-toggle .arrow {
+      transform: rotate(0deg);
+    }
+
+    .category-toggle .badge-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #ef4444;
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.65);
+      display: none;
+      margin-left: 2px;
+    }
+
+    .category-toggle.has-alert .badge-dot {
+      display: inline-block;
+    }
+
+    .category .category-body {
+      max-height: 2000px;
+      opacity: 1;
+      overflow: hidden;
+      transition: max-height 180ms ease, opacity 120ms ease;
+    }
+
+    .category.collapsed .category-body {
+      max-height: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .category-title {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #e2e8f0;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .category .section-title {
+      margin-top: 0;
+    }
+
+    @media (max-width: 960px) {
+      .category-grid { grid-template-columns: 1fr; }
+    }
+
     @media (max-width: 760px) {
       .header { grid-template-columns: 1fr; }
       .stats { width: 100%; }
@@ -396,7 +723,7 @@
       <div class="manual">
         <div>
           <strong>手动生产</strong>
-          <div class="subtitle" style="margin-top:4px">每次点击 +1 齿轮</div>
+          <div class="subtitle" id="manualHint" style="margin-top:4px">每次点击 +1 齿轮</div>
         </div>
         <button id="manualBtn" class="btn">+1 齿轮</button>
       </div>
@@ -412,6 +739,9 @@
         <button class="chip" data-speed="2">2x</button>
         <button class="chip" data-speed="4">4x</button>
         <button class="chip" id="autoBuyBtn">自动购买: 关</button>
+        <button class="chip" id="audioBtn">音效: 开</button>
+        <button class="chip" id="lowPerfBtn">低性能模式: 关</button>
+        <button class="chip" id="lowPerfAudioBtn">低性能音效保护: 关</button>
         <button class="chip" id="exportSaveBtn">导出存档</button>
         <button class="chip" id="importSaveBtn">导入存档</button>
         <button class="chip" id="prestigeBtn">软重置</button>
@@ -448,33 +778,131 @@
           <span id="statQuest">任务进度：0/0</span>
           <span id="statMode">自动购买：关</span>
           <span id="statLifetime">累计齿轮：0</span>
+          <span id="statChain">产业链加成：x1.00</span>
         </div>
       </div>
 
-      <h2 class="section-title">自动化建筑</h2>
-      <div class="buildings" id="buildingList"></div>
+      <div class="progress-wrap" id="orderPanel">
+        <div class="progress-title" id="orderTitle">生产订单：尚未解锁</div>
+        <div class="progress-track"><div id="orderFill" class="progress-fill"></div></div>
+        <div class="progress-meta">
+          <span id="orderHint">累计齿轮达到 300 后解锁</span>
+          <span id="orderPct">0%</span>
+          <span id="orderReward">奖励：-</span>
+        </div>
+        <div class="order-actions">
+          <button class="order-btn" id="claimOrderBtn" disabled>领取奖励</button>
+          <button class="order-btn secondary" id="rerollOrderBtn" disabled>刷新订单（200 齿轮）</button>
+        </div>
+      </div>
 
-      <h2 class="section-title">工厂升级</h2>
-      <div class="buildings" id="upgradeList"></div>
 
-      <h2 class="section-title">技能</h2>
-      <div class="buildings" id="skillList"></div>
+      <div class="progress-wrap" id="financePanel">
+        <div class="progress-title" id="financeTitle">金融系统：尚未解锁</div>
+        <div class="progress-track"><div id="financeFill" class="progress-fill"></div></div>
+        <div class="progress-meta">
+          <span id="financeHint">累计齿轮达到 1200 后解锁</span>
+          <span id="financeYield">年化：0%</span>
+          <span id="financeCapital">资金池：0</span>
+        </div>
+        <div class="order-actions">
+          <button class="order-btn" id="financeInvestBtn" disabled>投入 10% 齿轮</button>
+          <button class="order-btn secondary" id="financeWithdrawBtn" disabled>提取 25% 资金</button>
+          <button class="order-btn secondary" id="financeUpgradeBtn" disabled>风控升级（1 RP）</button>
+        </div>
+      </div>
 
-      <h2 class="section-title">成就</h2>
-      <div class="buildings" id="achievementList"></div>
+      <div class="category-grid">
+        <section class="category" data-category="economy">
+          <div class="category-head">
+            <h3 class="category-title">⚙ 经济栏目</h3>
+            <button class="category-toggle" data-toggle-category="economy"><span class="arrow">▶</span><span class="label">折叠</span><span class="badge-dot" aria-hidden="true"></span></button>
+          </div>
+          <div class="category-body">
+          <h2 class="section-title">自动化建筑</h2>
+          <div class="buildings" id="buildingList"></div>
 
-      <h2 class="section-title">事件日志</h2>
-      <div class="buildings" id="eventLog"></div>
+          <h2 class="section-title">工厂升级</h2>
+          <div class="buildings" id="upgradeList"></div>
+
+          <h2 class="section-title">技能</h2>
+          <div class="buildings" id="skillList"></div>
+
+          <h2 class="section-title">建筑专精</h2>
+          <div class="buildings" id="specializationList"></div>
+        </div>
+        </section>
+
+        <section class="category" data-category="goals">
+          <div class="category-head">
+            <h3 class="category-title">🎯 目标栏目</h3>
+            <button class="category-toggle" data-toggle-category="goals"><span class="arrow">▶</span><span class="label">折叠</span><span class="badge-dot" aria-hidden="true"></span></button>
+          </div>
+          <div class="category-body">
+          <h2 class="section-title">成就</h2>
+          <div class="buildings" id="achievementList"></div>
+
+          <h2 class="section-title">事件日志</h2>
+          <div class="buildings" id="eventLog"></div>
+          </div>
+        </section>
+      </div>
     </section>
   </main>
+  <div id="fxLayer" class="fx-layer"></div>
+  <div id="highlightLayer" class="highlight-layer"></div>
 
   <script>
     const PRICE_GROWTH = 1.15;
+    const PRICE_CURVE_MID_START = 40;
+    const PRICE_CURVE_LATE_START = 100;
+    const PRICE_CURVE_MID_FACTOR = 0.82;
+    const PRICE_CURVE_LATE_FACTOR = 0.68;
+    const PRESTIGE_BASE_DIVISOR = 2000;
+    const PRESTIGE_LATE_BONUS_START = 2_000_000;
+    const PRESTIGE_LATE_BONUS_STEP = 2_000_000;
     const SAVE_KEY = "crazy_factory_save_v1";
+    const SAVE_BACKUP_KEY = "crazy_factory_save_backup";
+    const SAVE_VERSION = 2;
     const TICK_RATE = 60;
     const FIXED_STEP = 1 / TICK_RATE;
     const MAX_ACCUMULATED_SECONDS = 0.25;
     const OFFLINE_CAP_SECONDS = 8 * 60 * 60;
+    const ORDER_UNLOCK_LIFETIME_GEARS = 300;
+    const ORDER_REROLL_COST = 200;
+    const FINANCE_UNLOCK_LIFETIME_GEARS = 1200;
+    const FINANCE_BASE_APR = 0.06;
+    const CHAIN_BONUS_PER_STAGE = 0.08;
+    const CHAIN_MAX_STAGES = 10;
+
+    // 手感参数：集中在这里，便于快速调“多汁感”。
+    const FX_FLOAT_DURATION_MS = 850;
+    const FX_PANEL_PULSE_MS = 300;
+    const FX_BTN_POP_MS = 200;
+    const ORDER_TIER_STEP = 2000;
+    const AUDIO_VOLUME = 0.03;
+    const AUDIO_ENABLED_DEFAULT = true;
+    const COMBO_DECAY_SECONDS = 2.5;
+    const COMBO_MAX_STREAK = 40;
+    const COMBO_BONUS_PER_STACK = 0.02;
+    const FX_SHAKE_DURATION_MS = 360;
+    const FX_MAX_FLOATING_GAINS = 18;
+    const FX_PRIORITY_SLOTS = 2;
+    const FX_SHAKE_COOLDOWN_MS = 260;
+    const LOW_PERF_FLOAT_SCALE = 0.55;
+    const FX_HIGHLIGHT_DURATION_MS = 1250;
+
+    const ORDER_TEMPLATES = [
+      { key: "clicks", type: "clicks", minTier: 1, weight: 3, title: "订单：人工质检", desc: "手动点击完成一次人工抽检" },
+      { key: "lifetime", type: "lifetime", minTier: 1, weight: 3, title: "订单：加急出货", desc: "在当前阶段额外生产齿轮" },
+      { key: "conveyor", type: "building", buildingId: "conveyor", minTier: 1, weight: 2, title: "订单：扩展传送线", desc: "新增传送带以提升物流效率" },
+      { key: "assembler", type: "building", buildingId: "assembler", minTier: 2, weight: 1, title: "订单：精密组装", desc: "扩充组装机以提升高阶产线" },
+      { key: "intern", type: "building", buildingId: "intern", minTier: 3, weight: 2, title: "订单：培训冲刺", desc: "扩招实习生补充基础产线" },
+      // Week3 扩展模板：限时、组合、高风险高收益。通过 target/reward 系数复用已有流程，避免增加状态复杂度。
+      { key: "rush_clicks", type: "clicks", minTier: 2, weight: 2, title: "限时单：质检冲刺", desc: "短平快点击冲刺，适合补短线收益", targetScale: 0.75, rewardScale: 0.9 },
+      { key: "hybrid_line", type: "building", buildingId: "conveyor", minTier: 3, weight: 2, title: "组合单：物流联动", desc: "同步扩建传送与基础人力，强调中期联动", targetScale: 1.25, rewardScale: 1.45 },
+      { key: "all_in_prestige", type: "lifetime", minTier: 4, weight: 1, title: "高风险单：全压出货", desc: "重载长单，完成后直接给 RP，适合冲 Prestige 前夕", targetScale: 1.85, rewardType: "rp", rewardScale: 1.8 }
+    ];
 
     const upgrades = [
       { id: "training", name: "员工培训", price: 250, desc: "手动生产 +1", type: "manual", value: 1, purchased: false, unlockRP: 0, requires: null },
@@ -486,6 +914,17 @@
       { id: "manual_mastery", name: "手动精通", desc: "手动产出每级 +25%", maxLevel: 5, level: 0, costRP: 1 },
       { id: "line_optimizer", name: "产线优化", desc: "总 GPS 每级 +20%", maxLevel: 5, level: 0, costRP: 1 },
       { id: "bulk_discount", name: "采购折扣", desc: "建筑价格每级 -3%", maxLevel: 5, level: 0, costRP: 1 }
+    ];
+
+
+
+    const specializationUpgrades = [
+      { id: "intern_output", buildingId: "intern", branch: "output", name: "实习生训练计划", desc: "实习生产出每级 +20%", costRP: 1, maxLevel: 5, level: 0 },
+      { id: "intern_cost", buildingId: "intern", branch: "cost", name: "实习生批量招募", desc: "实习生价格每级 -4%", costRP: 1, maxLevel: 5, level: 0 },
+      { id: "conveyor_output", buildingId: "conveyor", branch: "output", name: "传送带高效马达", desc: "传送带产出每级 +20%", costRP: 2, maxLevel: 5, level: 0 },
+      { id: "conveyor_cost", buildingId: "conveyor", branch: "cost", name: "传送带标准化采购", desc: "传送带价格每级 -4%", costRP: 2, maxLevel: 5, level: 0 },
+      { id: "assembler_output", buildingId: "assembler", branch: "output", name: "组装机精密校准", desc: "组装机产出每级 +20%", costRP: 3, maxLevel: 5, level: 0 },
+      { id: "assembler_cost", buildingId: "assembler", branch: "cost", name: "组装机供应链优化", desc: "组装机价格每级 -4%", costRP: 3, maxLevel: 5, level: 0 }
     ];
 
     const achievements = [
@@ -526,16 +965,31 @@
       questIndex: 0,
       logs: [],
       autoBuy: false,
-      autoBuyAccumulator: 0
+      autoBuyAccumulator: 0,
+      activeOrder: null,
+      audioEnabled: AUDIO_ENABLED_DEFAULT,
+      comboStreak: 0,
+      comboTimer: 0,
+      activeFloatingGains: 0,
+      lastShakeAt: 0,
+      lowPerfMode: false,
+      lowPerfAudioSafe: false,
+      categoryCollapse: { economy: false, goals: false },
+      financeCapital: 0,
+      financeTier: 0
     };
 
     const gearsEl = document.getElementById("gears");
     const gpsEl = document.getElementById("gps");
     const manualBtn = document.getElementById("manualBtn");
+    const manualHintEl = document.getElementById("manualHint");
     const buildingList = document.getElementById("buildingList");
     const modeButtons = [...document.querySelectorAll("[data-mode]")];
     const speedButtons = [...document.querySelectorAll("[data-speed]")];
     const autoBuyBtn = document.getElementById("autoBuyBtn");
+    const audioBtn = document.getElementById("audioBtn");
+    const lowPerfBtn = document.getElementById("lowPerfBtn");
+    const lowPerfAudioBtn = document.getElementById("lowPerfAudioBtn");
     const exportSaveBtn = document.getElementById("exportSaveBtn");
     const importSaveBtn = document.getElementById("importSaveBtn");
     const prestigeBtn = document.getElementById("prestigeBtn");
@@ -546,6 +1000,7 @@
     const upgradeList = document.getElementById("upgradeList");
     const achievementList = document.getElementById("achievementList");
     const skillList = document.getElementById("skillList");
+    const specializationList = document.getElementById("specializationList");
     const goalTitleEl = document.getElementById("goalTitle");
     const goalFillEl = document.getElementById("goalFill");
     const goalHintEl = document.getElementById("goalHint");
@@ -560,11 +1015,31 @@
     const statQuestEl = document.getElementById("statQuest");
     const statModeEl = document.getElementById("statMode");
     const statLifetimeEl = document.getElementById("statLifetime");
+    const statChainEl = document.getElementById("statChain");
+    const orderTitleEl = document.getElementById("orderTitle");
+    const orderFillEl = document.getElementById("orderFill");
+    const orderHintEl = document.getElementById("orderHint");
+    const orderPctEl = document.getElementById("orderPct");
+    const orderRewardEl = document.getElementById("orderReward");
+    const claimOrderBtn = document.getElementById("claimOrderBtn");
+    const rerollOrderBtn = document.getElementById("rerollOrderBtn");
+    const financeTitleEl = document.getElementById("financeTitle");
+    const financeFillEl = document.getElementById("financeFill");
+    const financeHintEl = document.getElementById("financeHint");
+    const financeYieldEl = document.getElementById("financeYield");
+    const financeCapitalEl = document.getElementById("financeCapital");
+    const financeInvestBtn = document.getElementById("financeInvestBtn");
+    const financeWithdrawBtn = document.getElementById("financeWithdrawBtn");
+    const financeUpgradeBtn = document.getElementById("financeUpgradeBtn");
+    const fxLayerEl = document.getElementById("fxLayer");
+    const highlightLayerEl = document.getElementById("highlightLayer");
+    const gamePanelEl = document.querySelector(".game");
 
     const buildingViewMap = new Map();
     const upgradeViewMap = new Map();
     const achievementViewMap = new Map();
     const skillViewMap = new Map();
+    const specializationViewMap = new Map();
 
     const format = (num) => {
       if (!Number.isFinite(num)) return "0";
@@ -576,16 +1051,60 @@
     };
 
     const getSkillLevel = (id) => skills.find((s) => s.id === id)?.level || 0;
-    const getDiscountMultiplier = () => Math.max(0.7, 1 - getSkillLevel("bulk_discount") * 0.03);
-    const getCurrentPrice = (building, ownedOffset = 0) =>
-      Math.floor(building.basePrice * Math.pow(PRICE_GROWTH, building.owned + ownedOffset) * getDiscountMultiplier());
+    const getSpecializationLevel = (buildingId, branch) => specializationUpgrades.find((s) => s.buildingId === buildingId && s.branch === branch)?.level || 0;
+    const getBuildingCostMultiplier = (buildingId) => Math.max(0.65, 1 - getSpecializationLevel(buildingId, "cost") * 0.04);
+    const getBuildingOutputMultiplier = (buildingId) => 1 + getSpecializationLevel(buildingId, "output") * 0.2;
+    const getDiscountMultiplier = (buildingId) => Math.max(0.7, 1 - getSkillLevel("bulk_discount") * 0.03) * getBuildingCostMultiplier(buildingId);
 
-    const getBaseGPS = () => buildings.reduce((sum, b) => sum + b.dps * b.owned, 0);
+    // 经济曲线二次调优：中后期把“拥有数量”映射为更平缓的有效指数，避免增长斜率过陡造成停滞。
+    const getEffectiveOwnedForPrice = (owned) => {
+      if (owned <= PRICE_CURVE_MID_START) return owned;
+      if (owned <= PRICE_CURVE_LATE_START) {
+        return PRICE_CURVE_MID_START + (owned - PRICE_CURVE_MID_START) * PRICE_CURVE_MID_FACTOR;
+      }
+      const midSegment = (PRICE_CURVE_LATE_START - PRICE_CURVE_MID_START) * PRICE_CURVE_MID_FACTOR;
+      const lateSegment = (owned - PRICE_CURVE_LATE_START) * PRICE_CURVE_LATE_FACTOR;
+      return PRICE_CURVE_MID_START + midSegment + lateSegment;
+    };
+
+    const getCurrentPrice = (building, ownedOffset = 0) => {
+      const effectiveOwned = getEffectiveOwnedForPrice(building.owned + ownedOffset);
+      return Math.floor(building.basePrice * Math.pow(PRICE_GROWTH, effectiveOwned) * getDiscountMultiplier(building.id));
+    };
+
+    const getBaseGPS = () => buildings.reduce((sum, b) => sum + b.dps * b.owned * getBuildingOutputMultiplier(b.id), 0);
     const getResearchMultiplier = () => 1 + state.researchPoints * 0.1;
     const getSkillGpsMultiplier = () => 1 + getSkillLevel("line_optimizer") * 0.2;
     const getSkillManualMultiplier = () => 1 + getSkillLevel("manual_mastery") * 0.25;
-    const getTotalGPS = () => getBaseGPS() * state.gpsMultiplier * getResearchMultiplier() * getSkillGpsMultiplier();
-    const getManualGain = () => state.manualPower * getSkillManualMultiplier();
+    const getIndustryChainMultiplier = () => {
+      const internOwned = buildings.find((b) => b.id === "intern")?.owned || 0;
+      const conveyorOwned = buildings.find((b) => b.id === "conveyor")?.owned || 0;
+      const assemblerOwned = buildings.find((b) => b.id === "assembler")?.owned || 0;
+      // 工业产业链联动：只有“人力-运输-组装”都跟上时才给高效增益，鼓励平衡扩张而非单点堆叠。
+      const chainStage = Math.min(internOwned / 20, conveyorOwned / 10, assemblerOwned / 5);
+      const clampedStage = Math.max(0, Math.min(CHAIN_MAX_STAGES, chainStage));
+      const imbalance = Math.max(0, (Math.max(internOwned, conveyorOwned, assemblerOwned) - Math.min(internOwned, conveyorOwned, assemblerOwned)) / 120);
+      const synergy = 1 + clampedStage * CHAIN_BONUS_PER_STAGE;
+      return Math.max(1, synergy - imbalance * 0.06);
+    };
+
+    const getTotalGPS = () => getBaseGPS() * state.gpsMultiplier * getResearchMultiplier() * getSkillGpsMultiplier() * getIndustryChainMultiplier();
+    const getComboMultiplier = () => 1 + Math.min(COMBO_MAX_STREAK, state.comboStreak) * COMBO_BONUS_PER_STACK;
+    const getManualGain = () => state.manualPower * getSkillManualMultiplier() * getComboMultiplier();
+
+    const getPrestigeGain = (lifetimeGears) => {
+      const base = Math.floor(Math.sqrt(lifetimeGears / PRESTIGE_BASE_DIVISOR));
+      if (lifetimeGears < PRESTIGE_LATE_BONUS_START) return base;
+      const lateBonus = Math.floor((lifetimeGears - PRESTIGE_LATE_BONUS_START) / PRESTIGE_LATE_BONUS_STEP) + 1;
+      return base + lateBonus;
+    };
+
+    // 金融系统：用资金池产息作为中期策略分支，强度可通过 APR 与风控等级快速调参。
+    const getFinanceApr = () => {
+      const cycleBoost = 0.03 * Math.sin(state.totalClicks / 45);
+      return Math.max(0.01, FINANCE_BASE_APR + state.financeTier * 0.025 + cycleBoost);
+    };
+    const getFinanceIncomePerSecond = () => state.financeCapital * getFinanceApr();
 
     const getAffordableCount = (building, budget, mode) => {
       if (mode === "1") return budget >= getCurrentPrice(building) ? 1 : 0;
@@ -617,6 +1136,254 @@
       return cost;
     };
 
+
+
+    const triggerButtonPop = (el) => {
+      if (!el) return;
+      el.classList.remove("btn-pop");
+      // 强制重排，确保连续触发也能看到动画。
+      void el.offsetWidth;
+      el.classList.add("btn-pop");
+      window.setTimeout(() => el.classList.remove("btn-pop"), FX_BTN_POP_MS);
+    };
+
+    const triggerPanelPulse = (el) => {
+      if (!el) return;
+      el.classList.remove("panel-pulse");
+      void el.offsetWidth;
+      el.classList.add("panel-pulse");
+      window.setTimeout(() => el.classList.remove("panel-pulse"), FX_PANEL_PULSE_MS);
+    };
+
+    const triggerTypedPanelPulse = (type, el = gamePanelEl) => {
+      if (!el) return;
+      const map = {
+        task: "panel-pulse-task",
+        order: "panel-pulse-order",
+        prestige: "panel-pulse-prestige"
+      };
+      const className = map[type] || "panel-pulse";
+      el.classList.remove("panel-pulse-task", "panel-pulse-order", "panel-pulse-prestige", "panel-pulse");
+      void el.offsetWidth;
+      el.classList.add(className);
+      window.setTimeout(() => el.classList.remove(className), FX_PANEL_PULSE_MS + 40);
+    };
+
+    const triggerScreenShake = (el = gamePanelEl, fallbackType = "task") => {
+      if (!el) return;
+      if (state.lowPerfMode) {
+        triggerTypedPanelPulse(fallbackType, el);
+        return;
+      }
+      const now = performance.now();
+      // 限制高频震屏；冷却期内自动降级为边框脉冲，保证反馈连续但不过载。
+      if (now - state.lastShakeAt < FX_SHAKE_COOLDOWN_MS) {
+        triggerTypedPanelPulse(fallbackType, el);
+        return;
+      }
+      state.lastShakeAt = now;
+      el.classList.remove("screen-shake");
+      void el.offsetWidth;
+      el.classList.add("screen-shake");
+      window.setTimeout(() => el.classList.remove("screen-shake"), FX_SHAKE_DURATION_MS);
+    };
+
+    // 高价值事件使用统一高光模板：视觉层统一，后续只改这里即可完成风格迭代。
+    const triggerEventHighlight = (type, text, subtitle = "") => {
+      if (!highlightLayerEl || !text) return;
+      const item = document.createElement("div");
+      item.className = `event-highlight ${type || "task"}`;
+      const titleEl = document.createElement("span");
+      titleEl.className = "title";
+      titleEl.textContent = text;
+      item.appendChild(titleEl);
+      if (subtitle) {
+        const subtitleEl = document.createElement("span");
+        subtitleEl.className = "subtitle";
+        subtitleEl.textContent = subtitle;
+        item.appendChild(subtitleEl);
+      }
+      highlightLayerEl.appendChild(item);
+      window.setTimeout(() => item.remove(), FX_HIGHLIGHT_DURATION_MS);
+    };
+
+    const spawnFloatingGain = (anchorEl, text, kind = "gear", priority = "normal") => {
+      if (!fxLayerEl || !anchorEl) return;
+      const hardCap = FX_MAX_FLOATING_GAINS + FX_PRIORITY_SLOTS;
+      const normalCap = FX_MAX_FLOATING_GAINS;
+      const canSpawn = priority === "high"
+        ? state.activeFloatingGains < hardCap
+        : state.activeFloatingGains < normalCap;
+      if (!canSpawn) return;
+      state.activeFloatingGains += 1;
+
+      const rect = anchorEl.getBoundingClientRect();
+      const item = document.createElement("div");
+      item.className = `floating-gain ${kind}${priority === "high" ? " priority-high" : ""}`;
+      item.textContent = text;
+      item.style.left = `${rect.left + rect.width / 2}px`;
+      item.style.top = `${rect.top - 6}px`;
+      fxLayerEl.appendChild(item);
+      const duration = Math.floor((FX_FLOAT_DURATION_MS + 80) * (state.lowPerfMode ? LOW_PERF_FLOAT_SCALE : 1));
+      window.setTimeout(() => {
+        item.remove();
+        state.activeFloatingGains = Math.max(0, state.activeFloatingGains - 1);
+      }, duration);
+    };
+
+    let audioContext = null;
+
+    const getAudioContext = () => {
+      if (audioContext) return audioContext;
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return null;
+      audioContext = new Ctx();
+      return audioContext;
+    };
+
+    // 统一音效入口：后续可替换为 sample 播放，当前用合成音保证零资源依赖。
+    const playSfx = (kind) => {
+      if (!state.audioEnabled) return;
+      const ctx = getAudioContext();
+      if (!ctx) return;
+      if (ctx.state === "suspended") ctx.resume();
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const now = ctx.currentTime;
+      const profile = {
+        click: { f0: 680, f1: 520, t: 0.06 },
+        reward: { f0: 900, f1: 1200, t: 0.1 },
+        order: { f0: 480, f1: 720, t: 0.12 },
+        prestige: { f0: 320, f1: 860, t: 0.18 }
+      }[kind] || { f0: 600, f1: 700, t: 0.08 };
+
+      const audioSafeMode = state.lowPerfMode || state.lowPerfAudioSafe;
+      const safeF0 = audioSafeMode ? Math.min(profile.f0, 700) : profile.f0;
+      const safeF1 = audioSafeMode ? Math.min(profile.f1, 780) : profile.f1;
+      const safeT = audioSafeMode ? Math.min(profile.t, 0.07) : profile.t;
+
+      osc.type = audioSafeMode ? "sine" : "triangle";
+      osc.frequency.setValueAtTime(safeF0, now);
+      osc.frequency.exponentialRampToValueAtTime(safeF1, now + safeT);
+
+      gain.gain.setValueAtTime(AUDIO_VOLUME, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + safeT);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + safeT);
+    };
+
+    const getOrderProgress = (order = state.activeOrder) => {
+      if (!order) return 0;
+      if (order.type === "clicks") return Math.max(0, state.totalClicks - order.startValue);
+      if (order.type === "lifetime") return Math.max(0, state.lifetimeGears - order.startValue);
+      if (order.type === "building") {
+        const building = buildings.find((b) => b.id === order.buildingId);
+        return Math.max(0, (building?.owned || 0) - order.startValue);
+      }
+      return 0;
+    };
+
+    const pickWeightedOrderTemplate = (tier) => {
+      const unlocked = ORDER_TEMPLATES.filter((template) => template.minTier <= tier);
+      const totalWeight = unlocked.reduce((sum, item) => sum + item.weight, 0);
+      let roll = Math.random() * totalWeight;
+      for (const template of unlocked) {
+        roll -= template.weight;
+        if (roll <= 0) return template;
+      }
+      return unlocked[unlocked.length - 1] || ORDER_TEMPLATES[0];
+    };
+
+    const createOrder = () => {
+      const tier = Math.max(1, Math.floor(state.lifetimeGears / ORDER_TIER_STEP) + 1);
+      const rewardGear = 150 * tier;
+      const rewardRP = 1 + Math.floor(tier / 3);
+      const template = pickWeightedOrderTemplate(tier);
+      const timestamp = Date.now();
+      const targetScale = Math.max(0.6, Number(template.targetScale) || 1);
+      const rewardScale = Math.max(0.5, Number(template.rewardScale) || 1);
+
+      if (template.type === "clicks") {
+        state.activeOrder = {
+          id: `order_${template.key}_${timestamp}`,
+          type: "clicks",
+          title: template.title,
+          desc: template.desc,
+          target: Math.max(10, Math.floor((25 + tier * 5) * targetScale)),
+          startValue: state.totalClicks,
+          reward: { type: template.rewardType || "gear", value: Math.max(1, Math.floor(rewardGear * rewardScale)) }
+        };
+      }
+
+      if (template.type === "lifetime") {
+        state.activeOrder = {
+          id: `order_${template.key}_${timestamp}`,
+          type: "lifetime",
+          title: template.title,
+          desc: template.desc,
+          target: Math.max(400, Math.floor((800 + tier * 250) * targetScale)),
+          startValue: state.lifetimeGears,
+          reward: {
+            type: template.rewardType || "gear",
+            value: Math.max(1, Math.floor((template.rewardType === "rp" ? rewardRP : rewardGear * 2) * rewardScale))
+          }
+        };
+      }
+
+      if (template.type === "building") {
+        const buildingId = template.buildingId;
+        const baseTarget = buildingId === "assembler" ? 2 : 3;
+        state.activeOrder = {
+          id: `order_${template.key}_${timestamp}`,
+          type: "building",
+          buildingId,
+          title: template.title,
+          desc: template.desc,
+          target: Math.max(1, Math.floor((baseTarget + Math.floor(tier / 2)) * targetScale)),
+          startValue: buildings.find((b) => b.id === buildingId)?.owned || 0,
+          reward: {
+            type: template.rewardType || (buildingId === "assembler" ? "rp" : "gear"),
+            value: Math.max(1, Math.floor((buildingId === "assembler" ? rewardRP : rewardGear) * rewardScale))
+          }
+        };
+      }
+
+      saveGame();
+    };
+
+    const ensureOrder = () => {
+      const unlocked = state.lifetimeGears >= ORDER_UNLOCK_LIFETIME_GEARS;
+      if (!unlocked) return;
+      if (!state.activeOrder) createOrder();
+    };
+
+    const migrateSaveData = (rawData) => {
+      if (!rawData || typeof rawData !== "object") return null;
+      const data = { ...rawData };
+      const version = Number(data.saveVersion) || 1;
+
+      // v1 -> v2：补齐版本号并修正无效订单数据，避免后续渲染阶段出现脏状态。
+      if (version < 2) {
+        data.saveVersion = 2;
+        if (data.activeOrder && typeof data.activeOrder === "object") {
+          const hasType = ["clicks", "lifetime", "building"].includes(data.activeOrder.type);
+          const hasTarget = Number.isFinite(Number(data.activeOrder.target));
+          if (!hasType || !hasTarget) {
+            data.activeOrder = null;
+          }
+        }
+      }
+
+      if (!Number.isFinite(Number(data.saveVersion))) {
+        data.saveVersion = SAVE_VERSION;
+      }
+      return data;
+    };
+
     const saveGame = () => {
       const payload = {
         gears: state.gears,
@@ -633,7 +1400,16 @@
         lifetimeGears: state.lifetimeGears,
         achievements: achievements.map((a) => ({ id: a.id, done: a.done, claimed: a.claimed })),
         skills: skills.map((s) => ({ id: s.id, level: s.level })),
+        specializationUpgrades: specializationUpgrades.map((sp) => ({ id: sp.id, level: sp.level })),
         researchPoints: state.researchPoints,
+        activeOrder: state.activeOrder,
+        audioEnabled: state.audioEnabled,
+        lowPerfMode: state.lowPerfMode,
+        lowPerfAudioSafe: state.lowPerfAudioSafe,
+        categoryCollapse: state.categoryCollapse,
+        financeCapital: state.financeCapital,
+        financeTier: state.financeTier,
+        saveVersion: SAVE_VERSION,
         savedAt: Date.now()
       };
       localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
@@ -654,18 +1430,36 @@
       }
     };
 
+    // 导入前做结构白名单校验，避免脏字段直写主存档；失败可自动回滚到备份。
+    const sanitizeImportPayload = (data) => {
+      if (!data || typeof data !== "object") return null;
+      if (!Array.isArray(data.buildings) || !Array.isArray(data.upgrades)) return null;
+      if (!Array.isArray(data.skills) || !Array.isArray(data.achievements)) return null;
+      return data;
+    };
+
     const importSave = () => {
       const raw = window.prompt("粘贴存档文本以导入（会覆盖当前进度）");
       if (!raw) return;
+      const previousRaw = localStorage.getItem(SAVE_KEY);
+      if (previousRaw) localStorage.setItem(SAVE_BACKUP_KEY, previousRaw);
       try {
-        const data = JSON.parse(raw);
-        if (!data || typeof data !== "object") throw new Error("invalid payload");
-        localStorage.setItem(SAVE_KEY, raw);
+        const data = sanitizeImportPayload(migrateSaveData(JSON.parse(raw)));
+        if (!data) throw new Error("invalid payload");
+        localStorage.setItem(SAVE_KEY, JSON.stringify(data));
         pushLog("已导入存档，正在刷新状态");
         loadGame();
         render();
       } catch {
-        window.alert("存档格式无效，导入失败。");
+        const backupRaw = localStorage.getItem(SAVE_BACKUP_KEY);
+        if (backupRaw) {
+          localStorage.setItem(SAVE_KEY, backupRaw);
+          loadGame();
+          render();
+          window.alert("导入失败，已自动回滚到导入前存档。");
+        } else {
+          window.alert("存档格式无效，导入失败。");
+        }
       }
     };
 
@@ -673,7 +1467,7 @@
       try {
         const raw = localStorage.getItem(SAVE_KEY);
         if (!raw) return;
-        const data = JSON.parse(raw);
+        const data = migrateSaveData(JSON.parse(raw));
         if (!data || typeof data !== "object") return;
 
         state.gears = Number(data.gears) || 0;
@@ -684,6 +1478,19 @@
           state.gameSpeed = Number(data.gameSpeed);
         }
         state.autoBuy = Boolean(data.autoBuy);
+        state.audioEnabled = data.audioEnabled !== false;
+        state.lowPerfMode = Boolean(data.lowPerfMode);
+        state.lowPerfAudioSafe = Boolean(data.lowPerfAudioSafe);
+        state.financeCapital = Math.max(0, Number(data.financeCapital) || 0);
+        state.financeTier = Math.max(0, Math.min(8, Math.floor(Number(data.financeTier) || 0)));
+        if (data.categoryCollapse && typeof data.categoryCollapse === "object") {
+          state.categoryCollapse.economy = Boolean(data.categoryCollapse.economy);
+          state.categoryCollapse.goals = Boolean(data.categoryCollapse.goals);
+        }
+        state.comboStreak = 0;
+        state.comboTimer = 0;
+        state.activeFloatingGains = 0;
+        state.lastShakeAt = 0;
         state.questIndex = Math.max(0, Math.min(Number(data.questIndex) || 0, questChain.length));
         if (Array.isArray(data.logs)) state.logs = data.logs.slice(0, 20);
 
@@ -700,6 +1507,9 @@
         state.totalClicks = Math.max(0, Number(data.totalClicks) || 0);
         state.lifetimeGears = Math.max(0, Number(data.lifetimeGears) || 0);
         state.researchPoints = Math.max(0, Math.floor(Number(data.researchPoints) || 0));
+        if (data.activeOrder && typeof data.activeOrder === "object") {
+          state.activeOrder = data.activeOrder;
+        }
 
         if (Array.isArray(data.upgrades)) {
           for (const saved of data.upgrades) {
@@ -712,6 +1522,14 @@
         if (Array.isArray(data.skills)) {
           for (const saved of data.skills) {
             const target = skills.find((s) => s.id === saved.id);
+            if (!target) continue;
+            target.level = Math.max(0, Math.min(target.maxLevel, Math.floor(Number(saved.level) || 0)));
+          }
+        }
+
+        if (Array.isArray(data.specializationUpgrades)) {
+          for (const saved of data.specializationUpgrades) {
+            const target = specializationUpgrades.find((sp) => sp.id === saved.id);
             if (!target) continue;
             target.level = Math.max(0, Math.min(target.maxLevel, Math.floor(Number(saved.level) || 0)));
           }
@@ -732,8 +1550,19 @@
         if (offlineGears > 0) {
           state.pendingOfflineGears = offlineGears;
         }
+
+        ensureOrder();
+
+        if ((Number(data.saveVersion) || 1) !== SAVE_VERSION) {
+          saveGame();
+        }
       } catch (error) {
         console.warn("存档读取失败，已忽略：", error);
+        const backupRaw = localStorage.getItem(SAVE_BACKUP_KEY);
+        if (backupRaw) {
+          localStorage.setItem(SAVE_KEY, backupRaw);
+          window.alert("当前存档读取失败，已回滚到最近一次备份。");
+        }
       }
     };
 
@@ -803,6 +1632,37 @@
       });
     };
 
+    const createSpecializationRow = (spec) => {
+      const row = document.createElement("div");
+      row.className = "skill";
+      row.dataset.id = spec.id;
+      row.innerHTML = `
+        <div>
+          <div class="name">${spec.name}</div>
+          <div class="meta">${spec.desc}</div>
+          <div class="meta" data-spec-meta="${spec.id}"></div>
+        </div>
+        <button class="btn skill-btn" data-spec-buy="${spec.id}">升级（${spec.costRP} RP）</button>
+      `;
+      specializationList.appendChild(row);
+      specializationViewMap.set(spec.id, {
+        btn: row.querySelector(`[data-spec-buy="${spec.id}"]`),
+        meta: row.querySelector(`[data-spec-meta="${spec.id}"]`)
+      });
+    };
+
+    const buySpecialization = (id) => {
+      const spec = specializationUpgrades.find((sp) => sp.id === id);
+      if (!spec) return;
+      if (spec.level >= spec.maxLevel) return;
+      if (state.researchPoints < spec.costRP) return;
+      state.researchPoints -= spec.costRP;
+      spec.level += 1;
+      pushLog(`专精升级：${spec.name} Lv.${spec.level}`);
+      saveGame();
+      render();
+    };
+
     const createAchievementRow = (achievement) => {
       const row = document.createElement("div");
       row.className = "achievement";
@@ -824,7 +1684,7 @@
     const claimAchievementReward = (achievement) => {
       if (!achievement.reward || achievement.claimed) return;
       achievement.claimed = true;
-      grantReward(achievement.reward, `成就奖励（${achievement.name}）`);
+      grantReward(achievement.reward, `成就奖励（${achievement.name}）`, "high");
       saveGame();
     };
 
@@ -849,18 +1709,24 @@
       state.logs = state.logs.slice(0, 20);
     };
 
-    const grantReward = (reward, label) => {
+    const grantReward = (reward, label, priority = "normal") => {
       if (!reward) return;
       if (reward.type === "gear") {
         state.gears += reward.value;
         state.lifetimeGears += reward.value;
         state.lastRewardText = `${label}：+${format(reward.value)} 齿轮`;
         pushLog(state.lastRewardText);
+        spawnFloatingGain(gamePanelEl, `+${format(reward.value)} 齿轮`, "gear", priority);
+        triggerPanelPulse(gamePanelEl);
+        playSfx("reward");
       }
       if (reward.type === "rp") {
         state.researchPoints += reward.value;
         state.lastRewardText = `${label}：+${reward.value} RP`;
         pushLog(state.lastRewardText);
+        spawnFloatingGain(gamePanelEl, `+${reward.value} RP`, "rp", priority);
+        triggerPanelPulse(gamePanelEl);
+        playSfx("reward");
       }
     };
 
@@ -884,10 +1750,34 @@
       questRewardEl.textContent = `奖励：${quest.rewardText}`;
 
       if (current >= quest.target) {
-        grantReward(quest.reward, `任务奖励（${quest.title}）`);
+        grantReward(quest.reward, `任务奖励（${quest.title}）`, "high");
+        triggerEventHighlight("task", `任务完成：${quest.title}`);
+        triggerScreenShake(gamePanelEl, "task");
+        playSfx("order");
         state.questIndex += 1;
         saveGame();
       }
+    };
+
+    const renderCategoryCollapse = () => {
+      for (const section of document.querySelectorAll(".category[data-category]")) {
+        const key = section.getAttribute("data-category");
+        const collapsed = Boolean(state.categoryCollapse?.[key]);
+        section.classList.toggle("collapsed", collapsed);
+        const btn = section.querySelector("[data-toggle-category]");
+        if (btn) {
+          const label = btn.querySelector(".label");
+          if (label) label.textContent = collapsed ? "展开" : "折叠";
+        }
+      }
+    };
+
+    const renderCategoryAlerts = () => {
+      const goalToggle = document.querySelector("[data-toggle-category=\"goals\"]");
+      if (!goalToggle) return;
+      const hasUnclaimedOrder = Boolean(state.activeOrder) && getOrderProgress(state.activeOrder) >= state.activeOrder.target;
+      const hasClaimableAchievement = achievements.some((a) => !a.done && a.check());
+      goalToggle.classList.toggle("has-alert", hasUnclaimedOrder || hasClaimableAchievement);
     };
 
     const renderMode = () => {
@@ -899,12 +1789,18 @@
       }
       autoBuyBtn.classList.toggle("active", state.autoBuy);
       autoBuyBtn.textContent = `自动购买: ${state.autoBuy ? "开" : "关"}`;
+      audioBtn.classList.toggle("active", state.audioEnabled);
+      audioBtn.textContent = `音效: ${state.audioEnabled ? "开" : "关"}`;
+      lowPerfBtn.classList.toggle("active", state.lowPerfMode);
+      lowPerfBtn.textContent = `低性能模式: ${state.lowPerfMode ? "开" : "关"}`;
+      lowPerfAudioBtn.classList.toggle("active", state.lowPerfAudioSafe);
+      lowPerfAudioBtn.textContent = `低性能音效保护: ${state.lowPerfAudioSafe ? "开" : "关"}`;
     };
 
     const render = () => {
       gearsEl.textContent = format(state.gears);
       gpsEl.textContent = format(getTotalGPS());
-      rpEl.textContent = `研究点 RP：${state.researchPoints}（总产出 x${getResearchMultiplier().toFixed(1)}，速度 x${state.gameSpeed}）`;
+      rpEl.textContent = `研究点 RP：${state.researchPoints}（总产出 x${getResearchMultiplier().toFixed(1)}，速度 x${state.gameSpeed}，金融 +${format(getFinanceIncomePerSecond())}/s，产业链 x${getIndustryChainMultiplier().toFixed(2)}）`;
 
       for (const building of buildings) {
         const view = buildingViewMap.get(building.id);
@@ -965,6 +1861,19 @@
         }
       }
 
+      for (const spec of specializationUpgrades) {
+        const view = specializationViewMap.get(spec.id);
+        if (!view) continue;
+        view.meta.textContent = `等级 ${spec.level}/${spec.maxLevel}`;
+        if (spec.level >= spec.maxLevel) {
+          view.btn.disabled = true;
+          view.btn.textContent = "已满级";
+        } else {
+          view.btn.disabled = state.researchPoints < spec.costRP;
+          view.btn.textContent = `升级（${spec.costRP} RP）`;
+        }
+      }
+
       for (const achievement of achievements) {
         if (!achievement.done && achievement.check()) {
           achievement.done = true;
@@ -998,14 +1907,75 @@
       const doneAchievements = achievements.filter((a) => a.done).length;
       const doneUpgrades = upgrades.filter((u) => u.purchased).length;
       const totalSkillLevels = skills.reduce((sum, s) => sum + s.level, 0);
+      const totalSpecLevels = specializationUpgrades.reduce((sum, sp) => sum + sp.level, 0);
       statBuildingsEl.textContent = `建筑总数：${totalBuildings}`;
-      statUpgradesEl.textContent = `升级已研发：${doneUpgrades}/${upgrades.length} | 技能等级：${totalSkillLevels}`;
+      statUpgradesEl.textContent = `升级已研发：${doneUpgrades}/${upgrades.length} | 技能等级：${totalSkillLevels} | 专精等级：${totalSpecLevels}`;
       statAchievementsEl.textContent = `成就完成：${doneAchievements}/${achievements.length}`;
       statQuestEl.textContent = `任务进度：${Math.min(state.questIndex, questChain.length)}/${questChain.length}`;
       statModeEl.textContent = `自动购买：${state.autoBuy ? "开" : "关"}`;
       statLifetimeEl.textContent = `累计齿轮：${format(state.lifetimeGears)}`;
+      statChainEl.textContent = `产业链加成：x${getIndustryChainMultiplier().toFixed(2)}`;
+
+      if (manualHintEl) {
+        manualHintEl.textContent = `连击 x${(getComboMultiplier()).toFixed(2)}（${state.comboStreak} 连，${COMBO_DECAY_SECONDS}s 衰减）`;
+      }
+
+      const orderUnlocked = state.lifetimeGears >= ORDER_UNLOCK_LIFETIME_GEARS;
+      if (!orderUnlocked) {
+        orderTitleEl.textContent = "生产订单：尚未解锁";
+        orderFillEl.style.width = "0%";
+        orderHintEl.textContent = `累计齿轮达到 ${ORDER_UNLOCK_LIFETIME_GEARS} 后解锁`;
+        orderPctEl.textContent = "0%";
+        orderRewardEl.textContent = "奖励：-";
+        claimOrderBtn.disabled = true;
+        rerollOrderBtn.disabled = true;
+      } else {
+        ensureOrder();
+
+        if ((Number(data.saveVersion) || 1) !== SAVE_VERSION) {
+          saveGame();
+        }
+        const order = state.activeOrder;
+        const progress = order ? Math.min(getOrderProgress(order), order.target) : 0;
+        const pct = order ? Math.min(100, (progress / order.target) * 100) : 0;
+        orderTitleEl.textContent = order?.title || "生产订单";
+        orderFillEl.style.width = `${pct}%`;
+        orderHintEl.textContent = order ? `${order.desc}（${format(progress)} / ${format(order.target)}）` : "暂无订单";
+        orderPctEl.textContent = `${pct.toFixed(0)}%`;
+        orderRewardEl.textContent = order
+          ? `奖励：${order.reward.type === "gear" ? `+${format(order.reward.value)} 齿轮` : `+${order.reward.value} RP`}`
+          : "奖励：-";
+        claimOrderBtn.disabled = !(order && progress >= order.target);
+        rerollOrderBtn.disabled = state.gears < ORDER_REROLL_COST;
+      }
+
+      const financeUnlocked = state.lifetimeGears >= FINANCE_UNLOCK_LIFETIME_GEARS;
+      if (!financeUnlocked) {
+        const pct = Math.min(100, (state.lifetimeGears / FINANCE_UNLOCK_LIFETIME_GEARS) * 100);
+        financeTitleEl.textContent = "金融系统：尚未解锁";
+        financeFillEl.style.width = `${pct}%`;
+        financeHintEl.textContent = `累计齿轮达到 ${FINANCE_UNLOCK_LIFETIME_GEARS} 后解锁`;
+        financeYieldEl.textContent = "年化：0%";
+        financeCapitalEl.textContent = "资金池：0";
+        financeInvestBtn.disabled = true;
+        financeWithdrawBtn.disabled = true;
+        financeUpgradeBtn.disabled = true;
+      } else {
+        const apr = getFinanceApr();
+        financeTitleEl.textContent = `金融系统：风控等级 ${state.financeTier}`;
+        financeFillEl.style.width = `${Math.min(100, (state.financeTier / 8) * 100)}%`;
+        financeHintEl.textContent = `秒收益：+${format(getFinanceIncomePerSecond())} 齿轮`;
+        financeYieldEl.textContent = `年化：${(apr * 100).toFixed(1)}%`;
+        financeCapitalEl.textContent = `资金池：${format(state.financeCapital)}`;
+        financeInvestBtn.disabled = state.gears < 100;
+        financeWithdrawBtn.disabled = state.financeCapital < 1;
+        financeUpgradeBtn.disabled = state.researchPoints < (1 + state.financeTier) || state.financeTier >= 8;
+        financeUpgradeBtn.textContent = state.financeTier >= 8 ? "风控已满级" : `风控升级（${1 + state.financeTier} RP）`;
+      }
 
       renderMode();
+      renderCategoryCollapse();
+      renderCategoryAlerts();
     };
 
     const tryAutoBuy = () => {
@@ -1083,11 +2053,24 @@
     };
 
     manualBtn.addEventListener("click", () => {
+      state.comboStreak = Math.min(COMBO_MAX_STREAK, state.comboStreak + 1);
+      state.comboTimer = COMBO_DECAY_SECONDS;
+
       const gain = getManualGain();
       state.gears += gain;
       state.lifetimeGears += gain;
       state.totalClicks += 1;
       if (state.totalClicks === 1) pushLog("首次手动生产");
+
+      if (state.comboStreak === 10 || state.comboStreak === 25) {
+        triggerPanelPulse(gamePanelEl);
+        playSfx("order");
+        pushLog(`连击加速：${state.comboStreak} 连击`);
+      }
+
+      triggerButtonPop(manualBtn);
+      spawnFloatingGain(manualBtn, `+${format(gain)}`, "gear");
+      playSfx("click");
       saveGame();
       render();
     });
@@ -1114,6 +2097,14 @@
       const id = target.dataset.skillBuy;
       if (!id) return;
       buySkill(id);
+    });
+
+    specializationList.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLButtonElement)) return;
+      const id = target.dataset.specBuy;
+      if (!id) return;
+      buySpecialization(id);
     });
 
 
@@ -1152,7 +2143,44 @@
         pushLog(`自动购买已${state.autoBuy ? "开启" : "关闭"}`);
         saveGame();
         render();
+        return;
       }
+
+      if (target.id === "audioBtn") {
+        state.audioEnabled = !state.audioEnabled;
+        if (state.audioEnabled) playSfx("click");
+        pushLog(`音效已${state.audioEnabled ? "开启" : "关闭"}`);
+        saveGame();
+        render();
+        return;
+      }
+
+      if (target.id === "lowPerfBtn") {
+        state.lowPerfMode = !state.lowPerfMode;
+        if (state.lowPerfMode) state.lowPerfAudioSafe = true;
+        pushLog(`低性能模式已${state.lowPerfMode ? "开启" : "关闭"}`);
+        saveGame();
+        render();
+        return;
+      }
+
+      if (target.id === "lowPerfAudioBtn") {
+        state.lowPerfAudioSafe = !state.lowPerfAudioSafe;
+        pushLog(`低性能音效保护已${state.lowPerfAudioSafe ? "开启" : "关闭"}`);
+        saveGame();
+        render();
+      }
+    });
+
+
+    document.querySelector('.category-grid').addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLButtonElement)) return;
+      const key = target.dataset.toggleCategory;
+      if (!key) return;
+      state.categoryCollapse[key] = !state.categoryCollapse[key];
+      saveGame();
+      renderCategoryCollapse();
     });
 
     claimOfflineBtn.addEventListener("click", () => {
@@ -1164,8 +2192,80 @@
       render();
     });
 
+    claimOrderBtn.addEventListener("click", () => {
+      const order = state.activeOrder;
+      if (!order) return;
+      const progress = getOrderProgress(order);
+      if (progress < order.target) return;
+      grantReward(order.reward, `订单完成（${order.title}）`, "high");
+      triggerEventHighlight("order", `订单达成：${order.title}`);
+      triggerPanelPulse(document.getElementById("orderPanel"));
+      triggerScreenShake(gamePanelEl, "order");
+      playSfx("order");
+      state.activeOrder = null;
+      ensureOrder();
+      saveGame();
+      render();
+    });
+
+    rerollOrderBtn.addEventListener("click", () => {
+      if (state.lifetimeGears < ORDER_UNLOCK_LIFETIME_GEARS) return;
+      if (state.gears < ORDER_REROLL_COST) return;
+      state.gears -= ORDER_REROLL_COST;
+      createOrder();
+      pushLog("已刷新生产订单");
+      spawnFloatingGain(rerollOrderBtn, `-${ORDER_REROLL_COST} 齿轮`, "gear");
+      triggerPanelPulse(document.getElementById("orderPanel"));
+      triggerScreenShake(gamePanelEl, "order");
+      playSfx("order");
+      render();
+    });
+    financeInvestBtn.addEventListener("click", () => {
+      if (state.lifetimeGears < FINANCE_UNLOCK_LIFETIME_GEARS) return;
+      const invest = Math.floor(state.gears * 0.1);
+      if (invest < 100) return;
+      state.gears -= invest;
+      state.financeCapital += invest;
+      triggerButtonPop(financeInvestBtn);
+      triggerTypedPanelPulse("order", document.getElementById("financePanel"));
+      spawnFloatingGain(financeInvestBtn, `-${format(invest)} 齿轮`, "gear");
+      pushLog(`金融投入 ${format(invest)} 齿轮`);
+      playSfx("click");
+      saveGame();
+      render();
+    });
+
+    financeWithdrawBtn.addEventListener("click", () => {
+      if (state.lifetimeGears < FINANCE_UNLOCK_LIFETIME_GEARS) return;
+      const withdraw = Math.floor(state.financeCapital * 0.25);
+      if (withdraw <= 0) return;
+      state.financeCapital -= withdraw;
+      state.gears += withdraw;
+      state.lifetimeGears += withdraw;
+      triggerButtonPop(financeWithdrawBtn);
+      spawnFloatingGain(financeWithdrawBtn, `+${format(withdraw)} 齿轮`, "gear");
+      pushLog(`金融提取 ${format(withdraw)} 齿轮`);
+      playSfx("reward");
+      saveGame();
+      render();
+    });
+
+    financeUpgradeBtn.addEventListener("click", () => {
+      if (state.lifetimeGears < FINANCE_UNLOCK_LIFETIME_GEARS) return;
+      const cost = 1 + state.financeTier;
+      if (state.financeTier >= 8 || state.researchPoints < cost) return;
+      state.researchPoints -= cost;
+      state.financeTier += 1;
+      triggerEventHighlight("order", `风控升级 Lv.${state.financeTier}`);
+      triggerTypedPanelPulse("order", document.getElementById("financePanel"));
+      pushLog(`金融风控升级至 Lv.${state.financeTier}`);
+      playSfx("order");
+      saveGame();
+      render();
+    });
+
     prestigeBtn.addEventListener("click", () => {
-      const gain = Math.floor(Math.sqrt(state.lifetimeGears / 2000));
+      const gain = getPrestigeGain(state.lifetimeGears);
       if (gain <= 0) {
         window.alert("累计齿轮不足，无法获得研究点。继续扩张产线吧！");
         return;
@@ -1174,7 +2274,10 @@
       if (!ok) return;
 
       state.researchPoints += gain;
+      triggerEventHighlight("prestige", `Prestige +${gain} RP`, "本轮效率重塑完成");
       pushLog(`执行 Prestige，获得 RP +${gain}`);
+      playSfx("prestige");
+      triggerScreenShake(gamePanelEl, "prestige");
       state.gears = 0;
       state.purchaseMode = "1";
       state.pendingOfflineGears = 0;
@@ -1188,9 +2291,15 @@
       state.questIndex = 0;
       state.autoBuy = false;
       state.autoBuyAccumulator = 0;
+      state.activeOrder = null;
+      state.comboStreak = 0;
+      state.comboTimer = 0;
+      state.financeCapital = 0;
+      state.financeTier = 0;
       for (const b of buildings) b.owned = 0;
       for (const u of upgrades) u.purchased = false;
       for (const s of skills) s.level = 0;
+      for (const sp of specializationUpgrades) sp.level = 0;
       for (const a of achievements) { a.done = false; a.claimed = false; }
       saveGame();
       render();
@@ -1215,9 +2324,15 @@
       state.questIndex = 0;
       state.autoBuy = false;
       state.autoBuyAccumulator = 0;
+      state.activeOrder = null;
+      state.comboStreak = 0;
+      state.comboTimer = 0;
+      state.financeCapital = 0;
+      state.financeTier = 0;
       for (const b of buildings) b.owned = 0;
       for (const u of upgrades) u.purchased = false;
       for (const s of skills) s.level = 0;
+      for (const sp of specializationUpgrades) sp.level = 0;
       for (const a of achievements) { a.done = false; a.claimed = false; }
       render();
     });
@@ -1225,6 +2340,7 @@
     for (const building of buildings) createBuildingRow(building);
     for (const upgrade of upgrades) createUpgradeRow(upgrade);
     for (const skill of skills) createSkillRow(skill);
+    for (const spec of specializationUpgrades) createSpecializationRow(spec);
     for (const achievement of achievements) createAchievementRow(achievement);
 
     loadGame();
@@ -1238,9 +2354,17 @@
       const gps = getTotalGPS();
       while (state.accumulator >= FIXED_STEP) {
         const gain = gps * FIXED_STEP * state.gameSpeed;
-        state.gears += gain;
-        state.lifetimeGears += gain;
+        const financeGain = getFinanceIncomePerSecond() * FIXED_STEP * state.gameSpeed;
+        state.gears += gain + financeGain;
+        state.lifetimeGears += gain + financeGain;
         state.accumulator -= FIXED_STEP;
+
+        if (state.comboTimer > 0) {
+          state.comboTimer = Math.max(0, state.comboTimer - FIXED_STEP * state.gameSpeed);
+          if (state.comboTimer === 0 && state.comboStreak > 0) {
+            state.comboStreak = 0;
+          }
+        }
 
         if (state.autoBuy) {
           state.autoBuyAccumulator += FIXED_STEP * state.gameSpeed;
