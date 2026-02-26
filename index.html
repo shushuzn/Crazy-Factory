@@ -861,6 +861,11 @@
           <span id="financeMarket">市场：平稳</span>
           <span id="financeStrategy">策略：平衡</span>
           <span id="financeSwitches">切换：0 次</span>
+          <span id="financeSeason">赛季：高通胀</span>
+          <span id="financeIntel">情报：下一步市场 -</span>
+          <span id="financeLeaderboard">赛季榜：暂无</span>
+          <span id="financeAssets">资产：债 34% / 股 33% / 衍 33%</span>
+          <span id="financeLiquidity">流动性：正常</span>
         </div>
         <div class="subtitle finance-advice info" id="financeAdvice">建议：解锁后会在这里显示下一步操作</div>
         <div class="order-actions" id="financeStrategyActions">
@@ -873,6 +878,12 @@
           <button class="order-btn secondary" id="financeWithdrawBtn" disabled>提取 25% 资金</button>
           <button class="order-btn secondary" id="financeUpgradeBtn" disabled>风控升级（1 RP）</button>
           <button class="order-btn secondary" id="financeHedgeBtn" disabled>对冲（6%资金，12s）</button>
+          <button class="order-btn secondary" id="financeSettleBtn" disabled>赛季结算</button>
+        </div>
+        <div class="order-actions">
+          <button class="order-btn secondary" id="financeAssetBondBtn" disabled>债券 +10%</button>
+          <button class="order-btn secondary" id="financeAssetEquityBtn" disabled>股权 +10%</button>
+          <button class="order-btn secondary" id="financeAssetDerivativeBtn" disabled>衍生 +10%</button>
         </div>
       </div>
 
@@ -1081,7 +1092,11 @@
       prestigeBranches: { legacy_manual: 0, legacy_line: 0 },
       debugPanelOpen: false,
       debugManualMult: 1,
-      debugGpsMult: 1
+      debugGpsMult: 1,
+      financeSeasonIndex: 0,
+      financeLeaderboard: [],
+      financeAssets: { bond: 0.34, equity: 0.33, derivative: 0.33 },
+      financeLineage: 0
     };
 
     const gearsEl = document.getElementById("gears");
@@ -1149,6 +1164,11 @@
     const financeMarketEl = document.getElementById("financeMarket");
     const financeStrategyEl = document.getElementById("financeStrategy");
     const financeSwitchesEl = document.getElementById("financeSwitches");
+    const financeSeasonEl = document.getElementById("financeSeason");
+    const financeIntelEl = document.getElementById("financeIntel");
+    const financeLeaderboardEl = document.getElementById("financeLeaderboard");
+    const financeAssetsEl = document.getElementById("financeAssets");
+    const financeLiquidityEl = document.getElementById("financeLiquidity");
     const financeAdviceEl = document.getElementById("financeAdvice");
     const financeStrategyConservativeBtn = document.getElementById("financeStrategyConservativeBtn");
     const financeStrategyBalancedBtn = document.getElementById("financeStrategyBalancedBtn");
@@ -1157,6 +1177,10 @@
     const financeWithdrawBtn = document.getElementById("financeWithdrawBtn");
     const financeUpgradeBtn = document.getElementById("financeUpgradeBtn");
     const financeHedgeBtn = document.getElementById("financeHedgeBtn");
+    const financeSettleBtn = document.getElementById("financeSettleBtn");
+    const financeAssetBondBtn = document.getElementById("financeAssetBondBtn");
+    const financeAssetEquityBtn = document.getElementById("financeAssetEquityBtn");
+    const financeAssetDerivativeBtn = document.getElementById("financeAssetDerivativeBtn");
     const fxLayerEl = document.getElementById("fxLayer");
     const highlightLayerEl = document.getElementById("highlightLayer");
     const gamePanelEl = document.querySelector(".game");
@@ -1241,12 +1265,33 @@
       aggressive: { label: "激进", aprMult: 1.22, mainlineMult: 0.92, orderRewardMult: 1.12 }
     };
     const FINANCE_MARKET_TIMELINE = ["stable", "overheat", "pullback", "panic"];
+    const FINANCE_SEASONS = [
+      { key: "inflation", label: "高通胀", aprShift: 0.012, capMult: 1.05, aiPressure: 0.18 },
+      { key: "tightening", label: "紧缩", aprShift: -0.009, capMult: 0.9, aiPressure: 0.38 },
+      { key: "supply_shock", label: "供给冲击", aprShift: -0.003, capMult: 0.95, aiPressure: 0.46 }
+    ];
 
     const getCurrentMarketKey = () => {
       const idx = Math.floor(state.totalClicks / 75) % FINANCE_MARKET_TIMELINE.length;
       return FINANCE_MARKET_TIMELINE[idx];
     };
     const getCurrentMarketState = () => FINANCE_MARKET_STATES[getCurrentMarketKey()];
+    const getCurrentSeason = () => FINANCE_SEASONS[state.financeSeasonIndex % FINANCE_SEASONS.length];
+    const getIntelPreview = (steps = 2) => {
+      const start = Math.floor(state.totalClicks / 75);
+      const arr = [];
+      for (let i = 1; i <= steps; i += 1) {
+        const key = FINANCE_MARKET_TIMELINE[(start + i) % FINANCE_MARKET_TIMELINE.length];
+        arr.push(FINANCE_MARKET_STATES[key].label);
+      }
+      return arr.join(" → ");
+    };
+    const getAssetRiskBudget = () => state.financeAssets.bond * 0.6 + state.financeAssets.equity * 1 + state.financeAssets.derivative * 1.45;
+    const getAiLiquidityPressure = () => {
+      const season = getCurrentSeason();
+      const wave = (Math.sin(state.totalClicks / 38) + 1) / 2;
+      return Math.min(1, season.aiPressure * 0.7 + wave * 0.45);
+    };
     const getCurrentStrategyProfile = () => FINANCE_STRATEGIES[state.financeStrategy] || FINANCE_STRATEGIES.balanced;
     const isHedgeActive = (nowMs = Date.now()) => state.financeHedgeUntil > nowMs;
     const getFinanceCreditLevel = () => {
@@ -1265,27 +1310,31 @@
       const strategy = getCurrentStrategyProfile();
       const market = getCurrentMarketState();
       const hedgeOn = isHedgeActive(nowMs);
+      const season = getCurrentSeason();
+      const aiPressure = getAiLiquidityPressure();
       const base = FINANCE_BASE_APR;
       const cycle = FINANCE_CYCLE_AMPLITUDE * Math.sin(state.totalClicks / 45) * market.cycleScale * (hedgeOn ? FINANCE_HEDGE_VOL_MULT : 1);
       const creditLevel = getFinanceCreditLevel();
       const sprintOn = isPrestigeSprintWindow();
       const riskControl = state.financeTier * FINANCE_TIER_APR_BONUS;
-      const marketShift = market.aprDelta + creditLevel * 0.003;
+      const marketShift = market.aprDelta + creditLevel * 0.003 + season.aprShift;
       const strategyShift = base * (strategy.aprMult - 1);
-      const metaShift = state.financeMetaPoints * FINANCE_META_APR_PER_POINT;
+      const metaShift = state.financeMetaPoints * FINANCE_META_APR_PER_POINT + state.financeLineage * 0.002;
       const sprintShift = sprintOn ? FINANCE_PRESTIGE_SPRINT_APR_BONUS : 0;
       const hedgeShift = hedgeOn ? (base * FINANCE_HEDGE_APR_MULT - base) : 0;
+      const assetShift = (getAssetRiskBudget() - 1) * 0.01;
+      const liquidityShift = -aiPressure * 0.012;
       const cycleBoost = sprintOn ? FINANCE_PRESTIGE_SPRINT_VOL_MULT : 1;
-      return { base, cycle: cycle * cycleBoost, riskControl, marketShift, strategyShift, metaShift, sprintShift, hedgeShift, creditLevel, sprintOn };
+      return { base, cycle: cycle * cycleBoost, riskControl, marketShift, strategyShift, metaShift, sprintShift, hedgeShift, assetShift, liquidityShift, creditLevel, sprintOn, season, aiPressure };
     };
     const getFinanceApr = (nowMs = Date.now()) => {
       const c = getFinanceAprComponents(nowMs);
-      return Math.max(0.01, c.base + c.cycle + c.riskControl + c.marketShift + c.strategyShift + c.metaShift + c.sprintShift + c.hedgeShift);
+      return Math.max(0.01, c.base + c.cycle + c.riskControl + c.marketShift + c.strategyShift + c.metaShift + c.sprintShift + c.hedgeShift + c.assetShift + c.liquidityShift);
     };
     // 金融收益做“主线占比封顶”：避免单一路线碾压，同时策略会影响主线权重。
     const getFinanceIncomePerSecond = (baseGps = getTotalGPS(), nowMs = Date.now()) => {
       const raw = state.financeCapital * getFinanceApr(nowMs);
-      const cap = Math.max(FINANCE_MIN_CAP_GPS, baseGps * FINANCE_MAX_SHARE_OF_MAINLINE);
+      const cap = Math.max(FINANCE_MIN_CAP_GPS, baseGps * FINANCE_MAX_SHARE_OF_MAINLINE * getCurrentSeason().capMult * (1 - getAiLiquidityPressure() * 0.25));
       return Math.min(raw, cap);
     };
 
@@ -1659,6 +1708,10 @@
         financeMetaPoints: state.financeMetaPoints,
         financeCreditBase: state.financeCreditBase,
         financeStrategySwitches: state.financeStrategySwitches,
+        financeSeasonIndex: state.financeSeasonIndex,
+        financeLeaderboard: state.financeLeaderboard,
+        financeAssets: state.financeAssets,
+        financeLineage: state.financeLineage,
         prestigeBranches: state.prestigeBranches,
         debugPanelOpen: state.debugPanelOpen,
         debugManualMult: state.debugManualMult,
@@ -1744,6 +1797,15 @@
         state.financeMetaPoints = Math.max(0, Math.floor(Number(data.financeMetaPoints) || 0));
         state.financeCreditBase = Math.max(0, Math.floor(Number(data.financeCreditBase) || 0));
         state.financeStrategySwitches = Math.max(0, Math.floor(Number(data.financeStrategySwitches) || 0));
+        state.financeSeasonIndex = Math.max(0, Math.floor(Number(data.financeSeasonIndex) || 0)) % FINANCE_SEASONS.length;
+        state.financeLeaderboard = Array.isArray(data.financeLeaderboard) ? data.financeLeaderboard.slice(0, 5).map((x) => Number(x) || 0) : [];
+        const fa = data.financeAssets && typeof data.financeAssets === "object" ? data.financeAssets : {};
+        const b = Math.max(0, Number(fa.bond) || 0.34);
+        const e = Math.max(0, Number(fa.equity) || 0.33);
+        const d = Math.max(0, Number(fa.derivative) || 0.33);
+        const sum = b + e + d || 1;
+        state.financeAssets = { bond: b/sum, equity: e/sum, derivative: d/sum };
+        state.financeLineage = Math.max(0, Math.floor(Number(data.financeLineage) || 0));
         state.prestigeBranches = {
           legacy_manual: Math.max(0, Math.min(5, Math.floor(Number(data.prestigeBranches?.legacy_manual) || 0))),
           legacy_line: Math.max(0, Math.min(5, Math.floor(Number(data.prestigeBranches?.legacy_line) || 0)))
@@ -2286,6 +2348,11 @@
         financeMarketEl.textContent = "市场：平稳";
         financeStrategyEl.textContent = "策略：平衡";
         financeSwitchesEl.textContent = "切换：0 次";
+        financeSeasonEl.textContent = "赛季：-";
+        financeIntelEl.textContent = "情报：下一步市场 -";
+        financeLeaderboardEl.textContent = "赛季榜：暂无";
+        financeAssetsEl.textContent = "资产：债 34% / 股 33% / 衍 33%";
+        financeLiquidityEl.textContent = "流动性：正常";
         financeStrategyConservativeBtn.disabled = true;
         financeStrategyBalancedBtn.disabled = true;
         financeStrategyAggressiveBtn.disabled = true;
@@ -2296,6 +2363,10 @@
         financeWithdrawBtn.disabled = true;
         financeUpgradeBtn.disabled = true;
         financeHedgeBtn.disabled = true;
+        financeSettleBtn.disabled = true;
+        financeAssetBondBtn.disabled = true;
+        financeAssetEquityBtn.disabled = true;
+        financeAssetDerivativeBtn.disabled = true;
         const advice = getFinanceAdvice({ unlocked: false, mainlineGps: 0, financeIncome: 0, investCooling: false, withdrawCooling: false });
         financeAdviceEl.textContent = advice.text;
         financeAdviceEl.className = `subtitle finance-advice ${advice.tone}`;
@@ -2320,6 +2391,12 @@
         financeMarketEl.textContent = `市场：${market.label}`;
         financeStrategyEl.textContent = `策略：${strategy.label}`;
         financeSwitchesEl.textContent = `切换：${state.financeStrategySwitches} 次`;
+        financeSeasonEl.textContent = `赛季：${comp.season.label}`;
+        financeIntelEl.textContent = `情报：下一步市场 ${getIntelPreview(2)}`;
+        const lb = state.financeLeaderboard.slice(0, 3).map((x, i) => `#${i+1} ${x}`).join(" | ");
+        financeLeaderboardEl.textContent = `赛季榜：${lb || "暂无"}`;
+        financeAssetsEl.textContent = `资产：债 ${(state.financeAssets.bond*100).toFixed(0)}% / 股 ${(state.financeAssets.equity*100).toFixed(0)}% / 衍 ${(state.financeAssets.derivative*100).toFixed(0)}%`;
+        financeLiquidityEl.textContent = comp.aiPressure > 0.6 ? "流动性：紧张" : (comp.aiPressure > 0.35 ? "流动性：偏紧" : "流动性：正常");
         financeStrategyConservativeBtn.classList.toggle("active", state.financeStrategy === "conservative");
         financeStrategyBalancedBtn.classList.toggle("active", state.financeStrategy === "balanced");
         financeStrategyAggressiveBtn.classList.toggle("active", state.financeStrategy === "aggressive");
@@ -2337,6 +2414,10 @@
         const hedgeCost = Math.max(1, Math.floor(state.financeCapital * FINANCE_HEDGE_COST_RATIO));
         financeHedgeBtn.disabled = isHedgeActive() || state.financeCapital < hedgeCost;
         financeHedgeBtn.textContent = isHedgeActive() ? "对冲生效中..." : `对冲（${format(hedgeCost)} 资金，12s）`;
+        financeSettleBtn.disabled = state.financeCapital < 100;
+        financeAssetBondBtn.disabled = false;
+        financeAssetEquityBtn.disabled = false;
+        financeAssetDerivativeBtn.disabled = false;
         const advice = getFinanceAdvice({
           unlocked: true,
           mainlineGps,
@@ -2676,6 +2757,37 @@
     financeStrategyBalancedBtn.addEventListener("click", () => setFinanceStrategy("balanced"));
     financeStrategyAggressiveBtn.addEventListener("click", () => setFinanceStrategy("aggressive"));
 
+    financeSettleBtn.addEventListener("click", () => {
+      if (state.lifetimeGears < FINANCE_UNLOCK_LIFETIME_GEARS || state.financeCapital < 100) return;
+      const riskBudget = getAssetRiskBudget();
+      const score = Math.max(1, Math.floor((state.financeCapital * getFinanceApr()) / Math.max(0.6, riskBudget)));
+      state.financeLeaderboard.push(score);
+      state.financeLeaderboard = state.financeLeaderboard.sort((a,b) => b-a).slice(0,5);
+      state.researchPoints += Math.max(1, Math.floor(score / 8000));
+      state.financeSeasonIndex = (state.financeSeasonIndex + 1) % FINANCE_SEASONS.length;
+      pushLog(`[Finance/赛季结算] 风险调整评分 ${score}`);
+      triggerEventHighlight("order", `赛季结算评分 ${score}`);
+      saveGame();
+      render();
+    });
+
+    const rebalanceAssets = (target) => {
+      const keys = ["bond", "equity", "derivative"];
+      for (const k of keys) state.financeAssets[k] = Math.max(0.1, state.financeAssets[k] - 0.05);
+      state.financeAssets[target] = Math.min(0.8, state.financeAssets[target] + 0.1);
+      const sum = state.financeAssets.bond + state.financeAssets.equity + state.financeAssets.derivative;
+      state.financeAssets.bond /= sum;
+      state.financeAssets.equity /= sum;
+      state.financeAssets.derivative /= sum;
+      pushLog(`[Finance/资产] 调整至偏${target === "bond" ? "债券" : target === "equity" ? "股权" : "衍生"}`);
+      saveGame();
+      render();
+    };
+
+    financeAssetBondBtn.addEventListener("click", () => rebalanceAssets("bond"));
+    financeAssetEquityBtn.addEventListener("click", () => rebalanceAssets("equity"));
+    financeAssetDerivativeBtn.addEventListener("click", () => rebalanceAssets("derivative"));
+
     financeHedgeBtn.addEventListener("click", () => {
       if (state.lifetimeGears < FINANCE_UNLOCK_LIFETIME_GEARS) return;
       const nowMs = Date.now();
@@ -2751,8 +2863,9 @@
       const retainedMeta = Math.max(1, Math.floor(state.financeTier / 2) + Math.floor(getFinanceCreditLevel() / 2));
       state.financeMetaPoints += retainedMeta;
       state.financeCreditBase = Math.max(0, Math.floor(getFinanceCreditLevel() * 0.5));
+      state.financeLineage += Math.max(1, Math.floor(getFinanceCreditLevel() / 2));
       triggerEventHighlight("prestige", `Prestige +${gain} RP`, "本轮效率重塑完成");
-      pushLog(`执行 Prestige，获得 RP +${gain}（保留金融元进度 +${retainedMeta}）`);
+      pushLog(`执行 Prestige，获得 RP +${gain}（保留金融元进度 +${retainedMeta}，金融谱系 +${Math.max(1, Math.floor(getFinanceCreditLevel() / 2))}）`);
       playSfx("prestige");
       triggerScreenShake(gamePanelEl, "prestige");
       state.gears = 0;
@@ -2778,6 +2891,10 @@
       state.financeStrategy = "balanced";
       state.financeHedgeUntil = 0;
       state.financeStrategySwitches = 0;
+      state.financeSeasonIndex = 0;
+      state.financeLeaderboard = [];
+      state.financeAssets = { bond: 0.34, equity: 0.33, derivative: 0.33 };
+      state.financeLineage = 0;
       for (const b of buildings) b.owned = 0;
       for (const u of upgrades) u.purchased = false;
       for (const s of skills) s.level = 0;
@@ -2818,6 +2935,10 @@
       state.financeMetaPoints = 0;
       state.financeCreditBase = 0;
       state.financeStrategySwitches = 0;
+      state.financeSeasonIndex = 0;
+      state.financeLeaderboard = [];
+      state.financeAssets = { bond: 0.34, equity: 0.33, derivative: 0.33 };
+      state.financeLineage = 0;
       state.prestigeBranches = { legacy_manual: 0, legacy_line: 0 };
       state.debugPanelOpen = false;
       state.debugManualMult = 1;
