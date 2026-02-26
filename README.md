@@ -79,7 +79,7 @@ price = floor(basePrice * 1.15 ^ owned)
 
 ## 截图与调试（容器/CI）
 
-当 Chromium 在容器里不稳定时，可使用截图脚本：
+当 Chromium 在容器里不稳定时，可使用截图脚本（支持 Python Playwright 与 npx 自动回退）：
 
 ```bash
 python3 scripts/capture_screenshot.py
@@ -91,7 +91,11 @@ python3 scripts/capture_screenshot.py
 SCREENSHOT_ENGINES=firefox,webkit,chromium SCREENSHOT_URL=http://127.0.0.1:4173 SCREENSHOT_OUT=artifacts/factory-screenshot.png python3 scripts/capture_screenshot.py
 ```
 
+若当前环境未安装 `playwright` Python 包，脚本会自动回退到 `npx playwright`（首次执行需要联网拉取依赖）。
+
 > 在容器中若 Chromium 不稳定（SIGSEGV），建议保持 Firefox 优先。
+
+> 若环境同时缺少 Python Playwright 与 npx，脚本会尝试自动安装 Python Playwright（可用 `SCREENSHOT_BOOTSTRAP=0` 关闭）。
 
 ## 路线图
 
