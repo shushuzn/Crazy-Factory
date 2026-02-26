@@ -525,10 +525,47 @@
       font-size: 0.78rem;
       cursor: pointer;
       font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .category-toggle .arrow {
+      display: inline-block;
+      transform: rotate(90deg);
+      transition: transform 120ms ease;
+      line-height: 1;
+    }
+
+    .category.collapsed .category-toggle .arrow {
+      transform: rotate(0deg);
+    }
+
+    .category-toggle .badge-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #ef4444;
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.65);
+      display: none;
+      margin-left: 2px;
+    }
+
+    .category-toggle.has-alert .badge-dot {
+      display: inline-block;
+    }
+
+    .category .category-body {
+      max-height: 2000px;
+      opacity: 1;
+      overflow: hidden;
+      transition: max-height 180ms ease, opacity 120ms ease;
     }
 
     .category.collapsed .category-body {
-      display: none;
+      max-height: 0;
+      opacity: 0;
+      pointer-events: none;
     }
 
     .category-title {
@@ -654,7 +691,7 @@
         <section class="category" data-category="economy">
           <div class="category-head">
             <h3 class="category-title">经济栏目</h3>
-            <button class="category-toggle" data-toggle-category="economy">折叠</button>
+            <button class="category-toggle" data-toggle-category="economy"><span class="arrow">▶</span><span class="label">折叠</span><span class="badge-dot" aria-hidden="true"></span></button>
           </div>
           <div class="category-body">
           <h2 class="section-title">自动化建筑</h2>
@@ -674,7 +711,7 @@
         <section class="category" data-category="goals">
           <div class="category-head">
             <h3 class="category-title">目标栏目</h3>
-            <button class="category-toggle" data-toggle-category="goals">折叠</button>
+            <button class="category-toggle" data-toggle-category="goals"><span class="arrow">▶</span><span class="label">折叠</span><span class="badge-dot" aria-hidden="true"></span></button>
           </div>
           <div class="category-body">
           <h2 class="section-title">成就</h2>
@@ -1506,8 +1543,19 @@
         const collapsed = Boolean(state.categoryCollapse?.[key]);
         section.classList.toggle("collapsed", collapsed);
         const btn = section.querySelector("[data-toggle-category]");
-        if (btn) btn.textContent = collapsed ? "展开" : "折叠";
+        if (btn) {
+          const label = btn.querySelector(".label");
+          if (label) label.textContent = collapsed ? "展开" : "折叠";
+        }
       }
+    };
+
+    const renderCategoryAlerts = () => {
+      const goalToggle = document.querySelector("[data-toggle-category=\"goals\"]");
+      if (!goalToggle) return;
+      const hasUnclaimedOrder = Boolean(state.activeOrder) && getOrderProgress(state.activeOrder) >= state.activeOrder.target;
+      const hasClaimableAchievement = achievements.some((a) => !a.done && a.check());
+      goalToggle.classList.toggle("has-alert", hasUnclaimedOrder || hasClaimableAchievement);
     };
 
     const renderMode = () => {
@@ -1680,6 +1728,7 @@
 
       renderMode();
       renderCategoryCollapse();
+      renderCategoryAlerts();
     };
 
     const tryAutoBuy = () => {
