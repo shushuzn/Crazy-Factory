@@ -348,6 +348,53 @@
       border-color: #2563eb;
     }
 
+
+
+    .fx-layer {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 50;
+    }
+
+    .floating-gain {
+      position: absolute;
+      font-weight: 800;
+      font-size: 0.9rem;
+      text-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+      animation: floatUp 0.85s ease-out forwards;
+    }
+
+    .floating-gain.gear { color: #34d399; }
+    .floating-gain.rp { color: #a78bfa; }
+
+    @keyframes floatUp {
+      0% { opacity: 0; transform: translate(-50%, 0) scale(0.8); }
+      15% { opacity: 1; }
+      100% { opacity: 0; transform: translate(-50%, -42px) scale(1.08); }
+    }
+
+    .btn-pop {
+      animation: btnPop 0.18s ease-out;
+    }
+
+    @keyframes btnPop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.08); }
+      100% { transform: scale(1); }
+    }
+
+    .panel-pulse {
+      animation: panelPulse 0.28s ease-out;
+    }
+
+    @keyframes panelPulse {
+      0% { box-shadow: 0 0 0 rgba(34, 211, 238, 0); }
+      45% { box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.45); }
+      100% { box-shadow: 0 0 0 rgba(34, 211, 238, 0); }
+    }
+
     .achievement {
       display: grid;
       grid-template-columns: 1fr auto;
@@ -512,6 +559,7 @@
       <div class="buildings" id="eventLog"></div>
     </section>
   </main>
+  <div id="fxLayer" class="fx-layer"></div>
 
   <script>
     const PRICE_GROWTH = 1.15;
@@ -522,6 +570,11 @@
     const OFFLINE_CAP_SECONDS = 8 * 60 * 60;
     const ORDER_UNLOCK_LIFETIME_GEARS = 300;
     const ORDER_REROLL_COST = 200;
+
+    // 手感参数：集中在这里，便于快速调“多汁感”。
+    const FX_FLOAT_DURATION_MS = 850;
+    const FX_PANEL_PULSE_MS = 300;
+    const FX_BTN_POP_MS = 200;
 
     const upgrades = [
       { id: "training", name: "员工培训", price: 250, desc: "手动生产 +1", type: "manual", value: 1, purchased: false, unlockRP: 0, requires: null },
@@ -615,6 +668,8 @@
     const orderRewardEl = document.getElementById("orderReward");
     const claimOrderBtn = document.getElementById("claimOrderBtn");
     const rerollOrderBtn = document.getElementById("rerollOrderBtn");
+    const fxLayerEl = document.getElementById("fxLayer");
+    const gamePanelEl = document.querySelector(".game");
 
     const buildingViewMap = new Map();
     const upgradeViewMap = new Map();
@@ -670,6 +725,37 @@
         cost += getCurrentPrice(building, i);
       }
       return cost;
+    };
+
+
+
+    const triggerButtonPop = (el) => {
+      if (!el) return;
+      el.classList.remove("btn-pop");
+      // 强制重排，确保连续触发也能看到动画。
+      void el.offsetWidth;
+      el.classList.add("btn-pop");
+      window.setTimeout(() => el.classList.remove("btn-pop"), FX_BTN_POP_MS);
+    };
+
+    const triggerPanelPulse = (el) => {
+      if (!el) return;
+      el.classList.remove("panel-pulse");
+      void el.offsetWidth;
+      el.classList.add("panel-pulse");
+      window.setTimeout(() => el.classList.remove("panel-pulse"), FX_PANEL_PULSE_MS);
+    };
+
+    const spawnFloatingGain = (anchorEl, text, kind = "gear") => {
+      if (!fxLayerEl || !anchorEl) return;
+      const rect = anchorEl.getBoundingClientRect();
+      const item = document.createElement("div");
+      item.className = `floating-gain ${kind}`;
+      item.textContent = text;
+      item.style.left = `${rect.left + rect.width / 2}px`;
+      item.style.top = `${rect.top - 6}px`;
+      fxLayerEl.appendChild(item);
+      window.setTimeout(() => item.remove(), FX_FLOAT_DURATION_MS + 80);
     };
 
     const getOrderProgress = (order = state.activeOrder) => {
@@ -972,11 +1058,15 @@
         state.lifetimeGears += reward.value;
         state.lastRewardText = `${label}：+${format(reward.value)} 齿轮`;
         pushLog(state.lastRewardText);
+        spawnFloatingGain(gamePanelEl, `+${format(reward.value)} 齿轮`, "gear");
+        triggerPanelPulse(gamePanelEl);
       }
       if (reward.type === "rp") {
         state.researchPoints += reward.value;
         state.lastRewardText = `${label}：+${reward.value} RP`;
         pushLog(state.lastRewardText);
+        spawnFloatingGain(gamePanelEl, `+${reward.value} RP`, "rp");
+        triggerPanelPulse(gamePanelEl);
       }
     };
 
@@ -1229,6 +1319,8 @@
       state.lifetimeGears += gain;
       state.totalClicks += 1;
       if (state.totalClicks === 1) pushLog("首次手动生产");
+      triggerButtonPop(manualBtn);
+      spawnFloatingGain(manualBtn, `+${format(gain)}`, "gear");
       saveGame();
       render();
     });
@@ -1311,6 +1403,7 @@
       const progress = getOrderProgress(order);
       if (progress < order.target) return;
       grantReward(order.reward, `订单完成（${order.title}）`);
+      triggerPanelPulse(document.getElementById("orderPanel"));
       state.activeOrder = null;
       ensureOrder();
       saveGame();
@@ -1323,6 +1416,8 @@
       state.gears -= ORDER_REROLL_COST;
       createOrder();
       pushLog("已刷新生产订单");
+      spawnFloatingGain(rerollOrderBtn, `-${ORDER_REROLL_COST} 齿轮`, "gear");
+      triggerPanelPulse(document.getElementById("orderPanel"));
       render();
     });
 
