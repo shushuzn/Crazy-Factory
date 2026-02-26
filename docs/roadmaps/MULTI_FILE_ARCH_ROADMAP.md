@@ -72,6 +72,7 @@ src/
 
 ### 反馈架构
 - 使用 `feedbackBus` 统一事件：
+- ✅ 已在 bootstrap 中落地 `onManualClick/onBigReward/onTaskComplete/onOrderComplete/onPrestige` 事件分发与订阅。
   - `onManualClick`
   - `onBigReward`
   - `onOrderComplete`

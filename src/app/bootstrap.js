@@ -604,6 +604,40 @@ const getCurrentPrice = (building, ownedOffset = 0) => calcCurrentPrice({
     };
     const migrateSaveData = (rawData) => migrateSavePayload(rawData, SAVE_VERSION);
 
+    // 阶段3：反馈事件化。逻辑层发事件，表现层统一订阅，后续可替换成独立 fx 模块实现。
+    const emitFeedback = (eventName, payload = {}) => feedbackBus.emit(eventName, payload);
+
+    feedbackBus.on("onManualClick", ({ gain }) => {
+      triggerButtonPop(manualBtn);
+      spawnFloatingGain(manualBtn, `+${format(gain)}`, "gear");
+      audioSystem.playSfx("click");
+    });
+
+    feedbackBus.on("onBigReward", ({ text, kind = "gear", priority = "normal", anchorEl = gamePanelEl }) => {
+      spawnFloatingGain(anchorEl, text, kind, priority);
+      triggerPanelPulse(gamePanelEl);
+      audioSystem.playSfx("reward");
+    });
+
+    feedbackBus.on("onTaskComplete", ({ title }) => {
+      triggerEventHighlight("task", `任务完成：${title}`);
+      triggerScreenShake(gamePanelEl, "task");
+      audioSystem.playSfx("order");
+    });
+
+    feedbackBus.on("onOrderComplete", ({ title }) => {
+      triggerEventHighlight("order", `订单达成：${title}`);
+      triggerPanelPulse(document.getElementById("orderPanel"));
+      triggerScreenShake(gamePanelEl, "order");
+      audioSystem.playSfx("order");
+    });
+
+    feedbackBus.on("onPrestige", ({ gain }) => {
+      triggerEventHighlight("prestige", `Prestige +${gain} RP`, "本轮效率重塑完成");
+      triggerScreenShake(gamePanelEl, "prestige");
+      audioSystem.playSfx("prestige");
+    });
+
     const resetCollectionProgress = () => {
       for (const b of buildings) b.owned = 0;
       for (const u of upgrades) u.purchased = false;
@@ -1090,17 +1124,13 @@ const getCurrentPrice = (building, ownedOffset = 0) => calcCurrentPrice({
         state.lifetimeGears += reward.value;
         state.lastRewardText = `${label}：+${format(reward.value)} 齿轮`;
         pushLog(state.lastRewardText);
-        spawnFloatingGain(gamePanelEl, `+${format(reward.value)} 齿轮`, "gear", priority);
-        triggerPanelPulse(gamePanelEl);
-        audioSystem.playSfx("reward");
+        emitFeedback("onBigReward", { text: `+${format(reward.value)} 齿轮`, kind: "gear", priority, anchorEl: gamePanelEl });
       }
       if (reward.type === "rp") {
         state.researchPoints += reward.value;
         state.lastRewardText = `${label}：+${reward.value} RP`;
         pushLog(state.lastRewardText);
-        spawnFloatingGain(gamePanelEl, `+${reward.value} RP`, "rp", priority);
-        triggerPanelPulse(gamePanelEl);
-        audioSystem.playSfx("reward");
+        emitFeedback("onBigReward", { text: `+${reward.value} RP`, kind: "rp", priority, anchorEl: gamePanelEl });
       }
     };
 
@@ -1125,9 +1155,7 @@ const getCurrentPrice = (building, ownedOffset = 0) => calcCurrentPrice({
 
       if (current >= quest.target) {
         grantReward(quest.reward, `任务奖励（${quest.title}）`, "high");
-        triggerEventHighlight("task", `任务完成：${quest.title}`);
-        triggerScreenShake(gamePanelEl, "task");
-        audioSystem.playSfx("order");
+        emitFeedback("onTaskComplete", { title: quest.title });
         state.questIndex += 1;
         saveGame();
       }
@@ -1580,9 +1608,7 @@ const getCurrentPrice = (building, ownedOffset = 0) => calcCurrentPrice({
         pushLog(`连击加速：${state.comboStreak} 连击`);
       }
 
-      triggerButtonPop(manualBtn);
-      spawnFloatingGain(manualBtn, `+${format(gain)}`, "gear");
-      audioSystem.playSfx("click");
+      emitFeedback("onManualClick", { gain });
       saveGame();
       render();
     });
@@ -1772,10 +1798,7 @@ const getCurrentPrice = (building, ownedOffset = 0) => calcCurrentPrice({
       const progress = getOrderProgress(order);
       if (progress < order.target) return;
       grantReward(order.reward, `订单完成（${order.title}）`, "high");
-      triggerEventHighlight("order", `订单达成：${order.title}`);
-      triggerPanelPulse(document.getElementById("orderPanel"));
-      triggerScreenShake(gamePanelEl, "order");
-      audioSystem.playSfx("order");
+      emitFeedback("onOrderComplete", { title: order.title });
       state.activeOrder = null;
       ensureOrder();
       saveGame();
@@ -1980,11 +2003,8 @@ const getCurrentPrice = (building, ownedOffset = 0) => calcCurrentPrice({
       state.financeMetaPoints += retainedMeta;
       state.financeCreditBase = Math.max(0, Math.floor(getFinanceCreditLevel() * 0.5));
       state.financeLineage += Math.max(1, Math.floor(getFinanceCreditLevel() / 2));
-      triggerEventHighlight("prestige", `Prestige +${gain} RP`, "本轮效率重塑完成");
+      emitFeedback("onPrestige", { gain });
       pushLog(`执行 Prestige，获得 RP +${gain}（保留金融元进度 +${retainedMeta}，金融谱系 +${Math.max(1, Math.floor(getFinanceCreditLevel() / 2))}）`);
-      audioSystem.playSfx("prestige");
-      triggerScreenShake(gamePanelEl, "prestige");
-      feedbackBus.emit("prestige", { gain });
       resetRunState();
       saveGame();
       render();
