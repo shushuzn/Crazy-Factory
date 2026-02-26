@@ -2,7 +2,7 @@
 
 const { execFileSync } = require('node:child_process');
 const { getPrestigeGain } = require('./economy_pure');
-const { BUILDINGS, createOwnedState, getPrice, getGps, autoBuyDescending, runSimulationSeconds } = require('./sim_common');
+const { BUILDINGS_DESC, createOwnedState, getPrice, getGps, autoBuyDescending, runSimulationSeconds } = require('./sim_common');
 
 const state = { gears: 0, lifetime: 0, clicks: 0, owned: createOwnedState() };
 
@@ -11,6 +11,7 @@ let firstHighValueSec = null;
 let firstPrestigeTargetSec = null;
 let longestIdle = 0;
 let currentIdle = 0;
+let ownedBeforeBuy = 0;
 
 runSimulationSeconds({
   seconds: 30 * 60,
@@ -18,15 +19,15 @@ runSimulationSeconds({
   autoBuy: autoBuyDescending,
   beforeAutoBuy: (_, runState) => {
     runState.clicks += 1;
-    runState.__beforeOwned = BUILDINGS.reduce((sum, b) => sum + runState.owned[b.id], 0);
+    ownedBeforeBuy = Object.values(runState.owned).reduce((sum, v) => sum + v, 0);
   },
   onTick: (sec, runState) => {
     if (firstTaskSec === null && runState.clicks >= 20) firstTaskSec = sec;
     if (firstHighValueSec === null && getGps(runState.owned) >= 50) firstHighValueSec = sec;
     if (firstPrestigeTargetSec === null && getPrestigeGain(runState.lifetime) >= 28) firstPrestigeTargetSec = sec;
 
-    const postOwned = BUILDINGS.reduce((sum, b) => sum + runState.owned[b.id], 0);
-    if (postOwned === runState.__beforeOwned) {
+    const postOwned = Object.values(runState.owned).reduce((sum, v) => sum + v, 0);
+    if (postOwned === ownedBeforeBuy) {
       currentIdle += 1;
       longestIdle = Math.max(longestIdle, currentIdle);
     } else {
@@ -45,7 +46,7 @@ runSimulationSeconds({
   state: reset,
   perSecondGain: (gps) => gps * (1 + rpGain * 0.1) + 1,
   autoBuy: (runState) => {
-    for (const b of [...BUILDINGS].reverse()) {
+    for (const b of BUILDINGS_DESC) {
       while (runState.gears >= getPrice(runState.owned, b.id)) {
         runState.gears -= getPrice(runState.owned, b.id);
         runState.owned[b.id] += 1;

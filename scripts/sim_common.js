@@ -7,6 +7,7 @@ const BUILDINGS = Object.freeze([
   { id: 'conveyor', basePrice: 100, dps: 8 },
   { id: 'assembler', basePrice: 1100, dps: 47 }
 ]);
+const BUILDINGS_DESC = Object.freeze([...BUILDINGS].reverse());
 
 const createOwnedState = () => ({ intern: 0, conveyor: 0, assembler: 0 });
 
@@ -32,7 +33,7 @@ const autoBuyDescending = (state) => {
   let bought = true;
   while (bought) {
     bought = false;
-    for (const b of [...BUILDINGS].reverse()) {
+    for (const b of BUILDINGS_DESC) {
       const price = getPrice(state.owned, b.id);
       if (state.gears >= price) {
         state.gears -= price;
@@ -52,9 +53,15 @@ const runSimulationSeconds = ({
   autoBuy = autoBuyDescending,
   onTick
 }) => {
-  for (let sec = 1; sec <= seconds; sec += 1) {
+  const normalizedSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
+  if (!state || typeof state !== 'object' || !state.owned || typeof state.owned !== 'object') {
+    throw new Error('runSimulationSeconds requires a state object with owned map');
+  }
+
+  for (let sec = 1; sec <= normalizedSeconds; sec += 1) {
     const gps = getGps(state.owned);
-    const gain = perSecondGain(gps, sec, state);
+    const gain = Number(perSecondGain(gps, sec, state));
+    if (!Number.isFinite(gain)) throw new Error(`non-finite gain at sec=${sec}`);
     state.gears += gain;
     if (typeof state.lifetimeGears === 'number') state.lifetimeGears += gain;
     if (typeof state.lifetime === 'number') state.lifetime += gain;
@@ -68,6 +75,7 @@ const runSimulationSeconds = ({
 
 module.exports = {
   BUILDINGS,
+  BUILDINGS_DESC,
   createOwnedState,
   getPrice,
   getChain,
