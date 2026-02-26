@@ -24,7 +24,7 @@
 
 ## 3. 六次迭代规划（建议）
 
-## Iteration 1：经济核心与存档安全
+## Iteration 1：经济核心与存档安全 ✅
 **目标**：夯实经济计算与存档迁移基础。
 
 **交付项**
@@ -43,6 +43,7 @@
 - 本迭代最小验证命令执行成功：
   - `node scripts/economy_checks.js`
   - `node scripts/baseline_15m.js`
+- [报告] `ITERATION_1_REPORT.md`
 
 ## Iteration 2：Prestige 2.0 与成长分支
 **目标**：将 Prestige 从“重置”升级为“策略决策”。
