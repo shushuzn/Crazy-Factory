@@ -370,6 +370,54 @@
       z-index: 50;
     }
 
+    .highlight-layer {
+      position: fixed;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+      z-index: 65;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .event-highlight {
+      min-width: 220px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #e5e7eb;
+      background: rgba(15, 23, 42, 0.86);
+      box-shadow: 0 8px 28px rgba(2, 6, 23, 0.45);
+      animation: highlightInOut 1.25s cubic-bezier(.2,.8,.2,1) forwards;
+    }
+
+    .event-highlight.task {
+      border-color: rgba(34, 211, 238, 0.65);
+      box-shadow: 0 10px 30px rgba(8, 145, 178, 0.35);
+    }
+
+    .event-highlight.order {
+      border-color: rgba(34, 197, 94, 0.7);
+      box-shadow: 0 10px 30px rgba(21, 128, 61, 0.35);
+    }
+
+    .event-highlight.prestige {
+      border-color: rgba(167, 139, 250, 0.78);
+      box-shadow: 0 12px 34px rgba(109, 40, 217, 0.42);
+    }
+
+    @keyframes highlightInOut {
+      0% { opacity: 0; transform: translateY(-10px) scale(0.96); }
+      16% { opacity: 1; transform: translateY(0) scale(1); }
+      78% { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-8px) scale(0.98); }
+    }
+
     .floating-gain {
       position: absolute;
       font-weight: 800;
@@ -739,6 +787,7 @@
     </section>
   </main>
   <div id="fxLayer" class="fx-layer"></div>
+  <div id="highlightLayer" class="highlight-layer"></div>
 
   <script>
     const PRICE_GROWTH = 1.15;
@@ -773,6 +822,7 @@
     const FX_PRIORITY_SLOTS = 2;
     const FX_SHAKE_COOLDOWN_MS = 260;
     const LOW_PERF_FLOAT_SCALE = 0.55;
+    const FX_HIGHLIGHT_DURATION_MS = 1250;
 
     const ORDER_TEMPLATES = [
       { key: "clicks", type: "clicks", minTier: 1, weight: 3, title: "订单：人工质检", desc: "手动点击完成一次人工抽检" },
@@ -899,6 +949,7 @@
     const claimOrderBtn = document.getElementById("claimOrderBtn");
     const rerollOrderBtn = document.getElementById("rerollOrderBtn");
     const fxLayerEl = document.getElementById("fxLayer");
+    const highlightLayerEl = document.getElementById("highlightLayer");
     const gamePanelEl = document.querySelector(".game");
 
     const buildingViewMap = new Map();
@@ -1033,6 +1084,16 @@
       void el.offsetWidth;
       el.classList.add("screen-shake");
       window.setTimeout(() => el.classList.remove("screen-shake"), FX_SHAKE_DURATION_MS);
+    };
+
+    // 高价值事件使用统一高光模板：视觉层统一，后续只改这里即可完成风格迭代。
+    const triggerEventHighlight = (type, text) => {
+      if (!highlightLayerEl || !text) return;
+      const item = document.createElement("div");
+      item.className = `event-highlight ${type || "task"}`;
+      item.textContent = text;
+      highlightLayerEl.appendChild(item);
+      window.setTimeout(() => item.remove(), FX_HIGHLIGHT_DURATION_MS);
     };
 
     const spawnFloatingGain = (anchorEl, text, kind = "gear", priority = "normal") => {
@@ -1544,6 +1605,7 @@
 
       if (current >= quest.target) {
         grantReward(quest.reward, `任务奖励（${quest.title}）`, "high");
+        triggerEventHighlight("task", `任务完成：${quest.title}`);
         triggerScreenShake(gamePanelEl, "task");
         playSfx("order");
         state.questIndex += 1;
@@ -1965,6 +2027,7 @@
       const progress = getOrderProgress(order);
       if (progress < order.target) return;
       grantReward(order.reward, `订单完成（${order.title}）`, "high");
+      triggerEventHighlight("order", `订单达成：${order.title}`);
       triggerPanelPulse(document.getElementById("orderPanel"));
       triggerScreenShake(gamePanelEl, "order");
       playSfx("order");
@@ -1997,6 +2060,7 @@
       if (!ok) return;
 
       state.researchPoints += gain;
+      triggerEventHighlight("prestige", `Prestige +${gain} RP`);
       pushLog(`执行 Prestige，获得 RP +${gain}`);
       playSfx("prestige");
       triggerScreenShake(gamePanelEl, "prestige");
