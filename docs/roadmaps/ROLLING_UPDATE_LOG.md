@@ -26,6 +26,13 @@
 - 校验：`npm run check`。
 - 回滚点：保留仅 README 路线索引。
 
+
+## 2026-02-26 / Iteration E
+- 目标：沉淀可复用的仓库迭代 skill。
+- 改动：新增 `skills/crazy-factory-iteration/`（SKILL + checks 脚本 + checklist 参考）。
+- 校验：`bash skills/crazy-factory-iteration/scripts/run_iteration_checks.sh` + skill validate/package。
+- 回滚点：仅保留路线图文档，不使用本地 skill。
+
 ## 模板（后续复用）
 ```md
 ## YYYY-MM-DD / Iteration X
