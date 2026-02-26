@@ -51,6 +51,7 @@ src/
 - ✅ 已落地 `src/systems/economySystem.js` 纯计算函数（价格曲线/当前价格/Prestige收益），并由 bootstrap 调用。
 - ✅ 已落地 `src/systems/taskSystem.js` 纯函数（订单加权选择/订单生成/进度计算），并由 bootstrap 调用。
 - ✅ 已落地 `src/systems/audioSystem.js` 音效合成与低性能保护逻辑，并由 bootstrap 调用。
+- ✅ 已落地 `src/ui/renderTopbar.js` 顶部资源与摘要渲染，bootstrap 改为传参与调用。
 - 将“纯计算”与“副作用”分离：
   - 纯函数：价格计算、奖励结算、订单生成。
   - 副作用：DOM 更新、音频播放、localStorage。

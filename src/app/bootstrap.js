@@ -60,6 +60,7 @@ import { createFeedbackBus } from "../fx/feedbackBus.js";
 import { getCurrentPrice as calcCurrentPrice, getPrestigeGain as calcPrestigeGain } from "../systems/economySystem.js";
 import { createOrderFromTemplate, getOrderProgress as calcOrderProgress, pickWeightedOrderTemplate as pickWeightedTemplate } from "../systems/taskSystem.js";
 import { createAudioSystem } from "../systems/audioSystem.js";
+import { renderTopbar } from "../ui/renderTopbar.js";
 
 export function boot() {
 const PRESTIGE_BRANCHES = [
@@ -1216,9 +1217,32 @@ const getCurrentPrice = (building, ownedOffset = 0) => calcCurrentPrice({
     };
 
     const render = () => {
-      gearsEl.textContent = format(state.gears);
-      gpsEl.textContent = format(getTotalGPS());
-      rpEl.textContent = `研究点 RP：${state.researchPoints}（总产出 x${getResearchMultiplier().toFixed(1)}，速度 x${state.gameSpeed}，金融 +${format(getFinanceIncomePerSecond())}/s，产业链 x${getIndustryChainMultiplier().toFixed(2)}，信用 Lv.${getFinanceCreditLevel()}，金融元进度 ${state.financeMetaPoints}，Prestige 手动 x${getPrestigeManualMultiplier().toFixed(2)} / 产线 x${getPrestigeGpsMultiplier().toFixed(2)}）`;
+      renderTopbar({
+        elements: {
+          gearsEl,
+          gpsEl,
+          rpEl,
+          statModeEl,
+          statLifetimeEl,
+          statChainEl
+        },
+        values: {
+          gears: state.gears,
+          totalGPS: getTotalGPS(),
+          researchPoints: state.researchPoints,
+          researchMultiplier: getResearchMultiplier(),
+          gameSpeed: state.gameSpeed,
+          financeIncomePerSecond: getFinanceIncomePerSecond(),
+          industryChainMultiplier: getIndustryChainMultiplier(),
+          financeCreditLevel: getFinanceCreditLevel(),
+          financeMetaPoints: state.financeMetaPoints,
+          prestigeManualMultiplier: getPrestigeManualMultiplier(),
+          prestigeGpsMultiplier: getPrestigeGpsMultiplier(),
+          autoBuy: state.autoBuy,
+          lifetimeGears: state.lifetimeGears
+        },
+        format
+      });
 
       for (const building of buildings) {
         const view = buildingViewMap.get(building.id);
@@ -1353,9 +1377,6 @@ const getCurrentPrice = (building, ownedOffset = 0) => calcCurrentPrice({
       statUpgradesEl.textContent = `升级已研发：${doneUpgrades}/${upgrades.length} | 技能等级：${totalSkillLevels} | 专精等级：${totalSpecLevels}`;
       statAchievementsEl.textContent = `成就完成：${doneAchievements}/${achievements.length}`;
       statQuestEl.textContent = `任务进度：${Math.min(state.questIndex, questChain.length)}/${questChain.length}`;
-      statModeEl.textContent = `自动购买：${state.autoBuy ? "开" : "关"}`;
-      statLifetimeEl.textContent = `累计齿轮：${format(state.lifetimeGears)}`;
-      statChainEl.textContent = `产业链加成：x${getIndustryChainMultiplier().toFixed(2)}`;
 
       if (manualHintEl) {
         manualHintEl.textContent = `连击 x${(getComboMultiplier()).toFixed(2)}（${state.comboStreak} 连，${COMBO_DECAY_SECONDS}s 衰减）`;
