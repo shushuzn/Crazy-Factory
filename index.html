@@ -491,6 +491,36 @@
       color: var(--muted);
     }
 
+
+
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .category {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      background: rgba(31, 41, 55, 0.45);
+    }
+
+    .category-title {
+      margin: 0 0 10px;
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      letter-spacing: 0.02em;
+    }
+
+    .category .section-title {
+      margin-top: 0;
+    }
+
+    @media (max-width: 960px) {
+      .category-grid { grid-template-columns: 1fr; }
+    }
+
     @media (max-width: 760px) {
       .header { grid-template-columns: 1fr; }
       .stats { width: 100%; }
@@ -595,23 +625,31 @@
         </div>
       </div>
 
-      <h2 class="section-title">自动化建筑</h2>
-      <div class="buildings" id="buildingList"></div>
+      <div class="category-grid">
+        <section class="category">
+          <h3 class="category-title">经济栏目</h3>
+          <h2 class="section-title">自动化建筑</h2>
+          <div class="buildings" id="buildingList"></div>
 
-      <h2 class="section-title">工厂升级</h2>
-      <div class="buildings" id="upgradeList"></div>
+          <h2 class="section-title">工厂升级</h2>
+          <div class="buildings" id="upgradeList"></div>
 
-      <h2 class="section-title">技能</h2>
-      <div class="buildings" id="skillList"></div>
+          <h2 class="section-title">技能</h2>
+          <div class="buildings" id="skillList"></div>
 
-      <h2 class="section-title">建筑专精</h2>
-      <div class="buildings" id="specializationList"></div>
+          <h2 class="section-title">建筑专精</h2>
+          <div class="buildings" id="specializationList"></div>
+        </section>
 
-      <h2 class="section-title">成就</h2>
-      <div class="buildings" id="achievementList"></div>
+        <section class="category">
+          <h3 class="category-title">目标栏目</h3>
+          <h2 class="section-title">成就</h2>
+          <div class="buildings" id="achievementList"></div>
 
-      <h2 class="section-title">事件日志</h2>
-      <div class="buildings" id="eventLog"></div>
+          <h2 class="section-title">事件日志</h2>
+          <div class="buildings" id="eventLog"></div>
+        </section>
+      </div>
     </section>
   </main>
   <div id="fxLayer" class="fx-layer"></div>
