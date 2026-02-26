@@ -75,6 +75,7 @@ price = floor(basePrice * 1.15 ^ owned)
 ├── docs/
 │   └── roadmaps/
 │       ├── MASTER_ROADMAP.md
+│       ├── ITERATION_ROADMAP.md
 │       ├── ROADMAP.md
 │       ├── WORKPLAN.md
 │       ├── FINANCE_ROADMAP.md
@@ -106,6 +107,7 @@ SCREENSHOT_ENGINES=firefox,webkit,chromium SCREENSHOT_URL=http://127.0.0.1:4173 
 ## 路线图
 
 - 总览整合版：`docs/roadmaps/MASTER_ROADMAP.md`（建议优先阅读）
+- 程序迭代路线：`docs/roadmaps/ITERATION_ROADMAP.md`
 - 产品年度路线：`docs/roadmaps/ROADMAP.md`
 - 执行节奏路线：`docs/roadmaps/WORKPLAN.md`
 - 金融专项路线：`docs/roadmaps/FINANCE_ROADMAP.md`

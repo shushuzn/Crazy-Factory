@@ -84,6 +84,7 @@ node scripts/finance_checks.js
 ## 5. 文档使用规则（避免分散维护）
 
 - `MASTER_ROADMAP.md`：**唯一对齐入口**（团队周会、月会、对外沟通先看这里）。
+- `ITERATION_ROADMAP.md`：维护程序迭代周期、分期交付与 DoD 验收标准。
 - `ROADMAP.md`：维护产品年度目标与季度进展。
 - `WORKPLAN.md`：维护冲刺节奏、复盘模板与执行规则。
 - `FINANCE_ROADMAP.md`：维护金融策略与参数治理。
