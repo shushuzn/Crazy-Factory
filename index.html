@@ -3132,14 +3132,23 @@
     loadGame();
 
     let lastAutoSave = performance.now();
-    const tick = (now) => {
-      const frameDelta = Math.min((now - state.lastTimestamp) / 1000, MAX_ACCUMULATED_SECONDS);
-      state.lastTimestamp = now;
+    let lastSimTimestamp = performance.now();
+
+    const stepSimulation = (deltaSeconds) => {
+      const rawDelta = Math.max(0, deltaSeconds);
+      const frameDelta = Math.min(rawDelta, MAX_ACCUMULATED_SECONDS);
       state.accumulator += frameDelta;
 
       const gps = getTotalGPS();
+      const strategyAdjustedGps = getMainlineGpsWithFinanceStrategy(gps);
+      if (rawDelta > MAX_ACCUMULATED_SECONDS) {
+        const overflowSeconds = rawDelta - MAX_ACCUMULATED_SECONDS;
+        const overflowGain = (strategyAdjustedGps + getFinanceIncomePerSecond(strategyAdjustedGps)) * overflowSeconds * state.gameSpeed;
+        state.gears += overflowGain;
+        state.lifetimeGears += overflowGain;
+      }
+
       while (state.accumulator >= FIXED_STEP) {
-        const strategyAdjustedGps = getMainlineGpsWithFinanceStrategy(gps);
         const gain = strategyAdjustedGps * FIXED_STEP * state.gameSpeed;
         const financeGain = getFinanceIncomePerSecond(strategyAdjustedGps) * FIXED_STEP * state.gameSpeed;
         state.gears += gain + financeGain;
@@ -3169,6 +3178,21 @@
           }
         }
       }
+    };
+
+    const simulationTimer = setInterval(() => {
+      const now = performance.now();
+      const deltaSeconds = (now - lastSimTimestamp) / 1000;
+      lastSimTimestamp = now;
+      stepSimulation(deltaSeconds);
+    }, 1000 / TICK_RATE);
+
+    window.addEventListener("beforeunload", () => {
+      clearInterval(simulationTimer);
+    });
+
+    const tick = (now) => {
+      state.lastTimestamp = now;
 
       if (now - lastAutoSave > 5000) {
         saveGame();
