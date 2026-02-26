@@ -1,6 +1,6 @@
 ---
 name: crazy-factory-iteration
-description: "Use when iterating on the Crazy-Factory repo with modular refactors, roadmap-driven decomposition, and required commit+PR flow. Trigger for requests like 迭代, 按照路线图发展, 更新路线图, 创建/扩展 systems-ui-fx-core modules, adding checks, and keeping docs/roadmaps synchronized with implementation progress."
+description: "Use when iterating on the Crazy-Factory repo with modular refactors, roadmap-driven decomposition, and required commit+PR flow. Trigger for requests like 迭代, 迭代skill, 按照路线图发展, 更新路线图, 创建/扩展 systems-ui-fx-core modules, adding checks, and keeping docs/roadmaps synchronized with implementation progress."
 ---
 
 # Crazy Factory Iteration
@@ -11,7 +11,7 @@ description: "Use when iterating on the Crazy-Factory repo with modular refactor
 
 1. 读取当前路线图：`docs/roadmaps/MULTI_FILE_ARCH_ROADMAP.md`。
 2. 选择一个垂直切片（系统 / UI / FX / 文档闭环），只做一件事。
-3. 同步更新对应文档（至少更新路线图进度）。
+3. 更新路线图文档；必要时用脚本追加 `ROLLING_UPDATE_LOG.md`。
 4. 运行校验命令（优先执行 `npm run check`）。
 5. 提交 commit，并创建 PR。
 
@@ -28,7 +28,7 @@ description: "Use when iterating on the Crazy-Factory repo with modular refactor
   3. `docs/roadmaps/FEEDBACK_EVENT_CATALOG.md`
 - 路线图同步必须落地：
   - `docs/roadmaps/MULTI_FILE_ARCH_ROADMAP.md`
-  - `docs/roadmaps/ROLLING_UPDATE_LOG.md`（迭代记录）
+  - `docs/roadmaps/ROLLING_UPDATE_LOG.md`
 
 ## Execution Commands
 
@@ -46,7 +46,11 @@ node scripts/economy_checks.js
 node scripts/kpi_dashboard_checks.js
 ```
 
-可直接使用脚本：`scripts/run_iteration_checks.sh`。
+复用脚本：
+
+- `scripts/run_iteration_checks.sh`
+- `scripts/add_iteration_log.py`
+- 参考命令：`references/command-snippets.md`
 
 ## Output Contract
 

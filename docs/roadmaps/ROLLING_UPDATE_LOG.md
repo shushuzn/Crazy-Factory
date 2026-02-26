@@ -33,6 +33,13 @@
 - 校验：`bash skills/crazy-factory-iteration/scripts/run_iteration_checks.sh` + skill validate/package。
 - 回滚点：仅保留路线图文档，不使用本地 skill。
 
+
+## 2026-02-26 / Iteration F
+- 目标：迭代skill能力
+- 改动：新增日志追加脚本与命令片段参考
+- 校验：npm run check + skill validate/package
+- 回滚点：回退到手工维护日志
+
 ## 模板（后续复用）
 ```md
 ## YYYY-MM-DD / Iteration X
