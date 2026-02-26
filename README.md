@@ -77,6 +77,7 @@ price = floor(basePrice * 1.15 ^ owned)
 │       ├── ROADMAP.md
 │       ├── WORKPLAN.md
 │       ├── FINANCE_ROADMAP.md
+│       ├── ROLLING_UPDATE_MONITORING_ROADMAP.md
 │       └── SEED_ROUND_ROADMAP.md
 └── scripts/
     └── capture_screenshot.py
@@ -107,6 +108,7 @@ SCREENSHOT_ENGINES=firefox,webkit,chromium SCREENSHOT_URL=http://127.0.0.1:4173 
 - 产品年度路线：`docs/roadmaps/ROADMAP.md`
 - 执行节奏路线：`docs/roadmaps/WORKPLAN.md`
 - 金融专项路线：`docs/roadmaps/FINANCE_ROADMAP.md`
+- 滚动更新监控路线：`docs/roadmaps/ROLLING_UPDATE_MONITORING_ROADMAP.md`
 - 种子轮融资路线：`docs/roadmaps/SEED_ROUND_ROADMAP.md`
 
 ## 贡献方向
