@@ -375,6 +375,7 @@
           <span id="goalHint">还差 1 台实习生</span>
           <span id="goalPct">0%</span>
         </div>
+        <div class="subtitle" id="rewardFeed" style="margin-top:8px">成就奖励将显示在这里</div>
       </div>
 
       <h2 class="section-title">自动化建筑</h2>
@@ -403,10 +404,10 @@
     ];
 
     const achievements = [
-      { id: "first_click", name: "开工！", desc: "首次手动生产", check: () => state.totalClicks >= 1, done: false },
-      { id: "intern", name: "第一位员工", desc: "拥有 1 台实习生", check: () => (buildings.find((b) => b.id === "intern")?.owned || 0) >= 1, done: false },
-      { id: "hundred_gears", name: "齿轮仓储", desc: "累计获得 100 齿轮", check: () => state.lifetimeGears >= 100, done: false },
-      { id: "gps_50", name: "产线启动", desc: "总 GPS 达到 50", check: () => getTotalGPS() >= 50, done: false }
+      { id: "first_click", name: "开工！", desc: "首次手动生产", reward: { type: "gear", value: 10 }, check: () => state.totalClicks >= 1, done: false, claimed: false },
+      { id: "intern", name: "第一位员工", desc: "拥有 1 台实习生", reward: { type: "gear", value: 50 }, check: () => (buildings.find((b) => b.id === "intern")?.owned || 0) >= 1, done: false, claimed: false },
+      { id: "hundred_gears", name: "齿轮仓储", desc: "累计获得 100 齿轮", reward: { type: "gear", value: 120 }, check: () => state.lifetimeGears >= 100, done: false, claimed: false },
+      { id: "gps_50", name: "产线启动", desc: "总 GPS 达到 50", reward: { type: "rp", value: 1 }, check: () => getTotalGPS() >= 50, done: false, claimed: false }
     ];
 
     const buildings = [
@@ -425,7 +426,8 @@
       gpsMultiplier: 1,
       totalClicks: 0,
       lifetimeGears: 0,
-      researchPoints: 0
+      researchPoints: 0,
+      lastRewardText: ""
     };
 
     const gearsEl = document.getElementById("gears");
@@ -445,6 +447,7 @@
     const goalHintEl = document.getElementById("goalHint");
     const goalPctEl = document.getElementById("goalPct");
     const rpEl = document.getElementById("rp");
+    const rewardFeedEl = document.getElementById("rewardFeed");
 
     const buildingViewMap = new Map();
     const upgradeViewMap = new Map();
@@ -507,7 +510,7 @@
         gpsMultiplier: state.gpsMultiplier,
         totalClicks: state.totalClicks,
         lifetimeGears: state.lifetimeGears,
-        achievements: achievements.map((a) => ({ id: a.id, done: a.done })),
+        achievements: achievements.map((a) => ({ id: a.id, done: a.done, claimed: a.claimed })),
         researchPoints: state.researchPoints,
         savedAt: Date.now()
       };
@@ -553,6 +556,7 @@
             const target = achievements.find((a) => a.id === saved.id);
             if (!target) continue;
             target.done = Boolean(saved.done);
+            target.claimed = Boolean(saved.claimed);
           }
         }
 
@@ -627,6 +631,21 @@
       });
     };
 
+    
+    const claimAchievementReward = (achievement) => {
+      if (!achievement.reward || achievement.claimed) return;
+      achievement.claimed = true;
+      if (achievement.reward.type === "gear") {
+        state.gears += achievement.reward.value;
+        state.lifetimeGears += achievement.reward.value;
+        state.lastRewardText = `成就奖励：+${format(achievement.reward.value)} 齿轮（${achievement.name}）`;
+      } else if (achievement.reward.type === "rp") {
+        state.researchPoints += achievement.reward.value;
+        state.lastRewardText = `成就奖励：+${achievement.reward.value} RP（${achievement.name}）`;
+      }
+      saveGame();
+    };
+
     const renderMode = () => {
       for (const btn of modeButtons) {
         btn.classList.toggle("active", btn.dataset.mode === state.purchaseMode);
@@ -685,11 +704,12 @@
       for (const achievement of achievements) {
         if (!achievement.done && achievement.check()) {
           achievement.done = true;
+          claimAchievementReward(achievement);
         }
         const view = achievementViewMap.get(achievement.id);
         if (!view) continue;
         view.badge.classList.toggle("done", achievement.done);
-        view.badge.textContent = achievement.done ? "已完成" : "未完成";
+        view.badge.textContent = achievement.done ? (achievement.claimed ? "已完成+奖励" : "已完成") : "未完成";
       }
 
       if (state.pendingOfflineGears > 0) {
@@ -699,6 +719,8 @@
         offlineNoticeEl.style.display = "none";
         offlineTextEl.textContent = "";
       }
+
+      rewardFeedEl.textContent = state.lastRewardText || "成就奖励将显示在这里";
 
       renderMode();
     };
@@ -798,10 +820,10 @@
       state.gpsMultiplier = 1;
       state.totalClicks = 0;
       state.lifetimeGears = 0;
-      state.researchPoints = 0;
+      state.lastRewardText = "";
       for (const b of buildings) b.owned = 0;
       for (const u of upgrades) u.purchased = false;
-      for (const a of achievements) a.done = false;
+      for (const a of achievements) { a.done = false; a.claimed = false; }
       saveGame();
       render();
     });
@@ -818,9 +840,11 @@
       state.gpsMultiplier = 1;
       state.totalClicks = 0;
       state.lifetimeGears = 0;
+      state.researchPoints = 0;
+      state.lastRewardText = "";
       for (const b of buildings) b.owned = 0;
       for (const u of upgrades) u.purchased = false;
-      for (const a of achievements) a.done = false;
+      for (const a of achievements) { a.done = false; a.claimed = false; }
       render();
     });
 
