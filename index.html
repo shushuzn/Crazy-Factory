@@ -319,6 +319,15 @@
       border-color: #22c55e;
     }
 
+    .log-item {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
     @media (max-width: 760px) {
       .header { grid-template-columns: 1fr; }
       .stats { width: 100%; }
@@ -397,6 +406,9 @@
 
       <h2 class="section-title">成就</h2>
       <div class="buildings" id="achievementList"></div>
+
+      <h2 class="section-title">事件日志</h2>
+      <div class="buildings" id="eventLog"></div>
     </section>
   </main>
 
@@ -449,7 +461,8 @@
       researchPoints: 0,
       lastRewardText: "",
       gameSpeed: 1,
-      questIndex: 0
+      questIndex: 0,
+      logs: []
     };
 
     const gearsEl = document.getElementById("gears");
@@ -472,6 +485,7 @@
     const questRewardEl = document.getElementById("questReward");
     const rpEl = document.getElementById("rp");
     const rewardFeedEl = document.getElementById("rewardFeed");
+    const eventLogEl = document.getElementById("eventLog");
 
     const buildingViewMap = new Map();
     const upgradeViewMap = new Map();
@@ -530,6 +544,7 @@
         purchaseMode: state.purchaseMode,
         gameSpeed: state.gameSpeed,
         questIndex: state.questIndex,
+        logs: state.logs.slice(0, 20),
         buildings: buildings.map((b) => ({ id: b.id, owned: b.owned })),
         upgrades: upgrades.map((u) => ({ id: u.id, purchased: u.purchased })),
         manualPower: state.manualPower,
@@ -558,6 +573,7 @@
           state.gameSpeed = Number(data.gameSpeed);
         }
         state.questIndex = Math.max(0, Math.min(Number(data.questIndex) || 0, questChain.length));
+        if (Array.isArray(data.logs)) state.logs = data.logs.slice(0, 20);
 
         if (Array.isArray(data.buildings)) {
           for (const saved of data.buildings) {
@@ -688,16 +704,24 @@
     };
 
     
+    const pushLog = (message) => {
+      const line = `[${new Date().toLocaleTimeString("zh-CN", { hour12: false })}] ${message}`;
+      state.logs.unshift(line);
+      state.logs = state.logs.slice(0, 20);
+    };
+
     const grantReward = (reward, label) => {
       if (!reward) return;
       if (reward.type === "gear") {
         state.gears += reward.value;
         state.lifetimeGears += reward.value;
         state.lastRewardText = `${label}：+${format(reward.value)} 齿轮`;
+        pushLog(state.lastRewardText);
       }
       if (reward.type === "rp") {
         state.researchPoints += reward.value;
         state.lastRewardText = `${label}：+${reward.value} RP`;
+        pushLog(state.lastRewardText);
       }
     };
 
@@ -808,6 +832,14 @@
 
       rewardFeedEl.textContent = state.lastRewardText || "成就奖励将显示在这里";
 
+      eventLogEl.innerHTML = "";
+      for (const line of state.logs.slice(0, 6)) {
+        const el = document.createElement("div");
+        el.className = "log-item";
+        el.textContent = line;
+        eventLogEl.appendChild(el);
+      }
+
       renderMode();
     };
 
@@ -826,6 +858,7 @@
 
       state.gears -= cost;
       building.owned += purchaseCount;
+      pushLog(`购买 ${building.name} x${purchaseCount}`);
       saveGame();
       render();
     };
@@ -842,6 +875,7 @@
 
       if (upgrade.type === "manual") state.manualPower += upgrade.value;
       if (upgrade.type === "gps") state.gpsMultiplier *= upgrade.value;
+      pushLog(`研发升级：${upgrade.name}`);
 
       saveGame();
       render();
@@ -852,6 +886,7 @@
       state.gears += gain;
       state.lifetimeGears += gain;
       state.totalClicks += 1;
+      if (state.totalClicks === 1) pushLog("首次手动生产");
       saveGame();
       render();
     });
@@ -911,6 +946,7 @@
       if (!ok) return;
 
       state.researchPoints += gain;
+      pushLog(`执行 Prestige，获得 RP +${gain}`);
       state.gears = 0;
       state.purchaseMode = "1";
       state.pendingOfflineGears = 0;
@@ -933,6 +969,7 @@
       const ok = window.confirm("确认重置所有进度吗？");
       if (!ok) return;
       localStorage.removeItem(SAVE_KEY);
+      state.logs = ["[--:--:--] 执行硬重置"];
       state.gears = 0;
       state.purchaseMode = "1";
       state.pendingOfflineGears = 0;
