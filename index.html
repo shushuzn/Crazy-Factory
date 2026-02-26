@@ -1806,6 +1806,29 @@
       }
     };
 
+    const normalizeFinanceAssets = () => {
+      const b = Math.max(0, Number(state.financeAssets?.bond) || DEFAULT_FINANCE_ASSETS.bond);
+      const e = Math.max(0, Number(state.financeAssets?.equity) || DEFAULT_FINANCE_ASSETS.equity);
+      const d = Math.max(0, Number(state.financeAssets?.derivative) || DEFAULT_FINANCE_ASSETS.derivative);
+      const sum = b + e + d;
+      if (sum <= 0) {
+        state.financeAssets = { ...DEFAULT_FINANCE_ASSETS };
+        return;
+      }
+      state.financeAssets = { bond: b / sum, equity: e / sum, derivative: d / sum };
+    };
+
+    const normalizeRuntimeState = () => {
+      state.gears = Math.max(0, Number(state.gears) || 0);
+      state.lifetimeGears = Math.max(0, Number(state.lifetimeGears) || 0);
+      state.financeCapital = Math.max(0, Number(state.financeCapital) || 0);
+      state.researchPoints = Math.max(0, Math.floor(Number(state.researchPoints) || 0));
+      state.overdriveUntil = Math.max(0, Number(state.overdriveUntil) || 0);
+      state.overdriveCooldownUntil = Math.max(0, Number(state.overdriveCooldownUntil) || 0);
+      state.overdriveActivations = Math.max(0, Math.floor(Number(state.overdriveActivations) || 0));
+      normalizeFinanceAssets();
+    };
+
     const resetRunState = () => {
       state.gears = 0;
       state.purchaseMode = "1";
@@ -1843,6 +1866,7 @@
     };
 
     const saveGame = () => {
+      normalizeRuntimeState();
       const payload = {
         gears: state.gears,
         purchaseMode: state.purchaseMode,
@@ -2050,6 +2074,8 @@
             target.claimed = Boolean(saved.claimed);
           }
         }
+
+        normalizeRuntimeState();
 
         const savedAt = Number(data.savedAt) || Date.now();
         const offlineSeconds = Math.max(0, Math.min((Date.now() - savedAt) / 1000, OFFLINE_CAP_SECONDS));
@@ -3244,6 +3270,8 @@
           }
         }
       }
+
+      normalizeRuntimeState();
     };
 
     const simulationTimer = setInterval(() => {
