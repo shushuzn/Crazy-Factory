@@ -804,6 +804,7 @@
           <span id="financeHint">累计齿轮达到 1200 后解锁</span>
           <span id="financeYield">年化：0%</span>
           <span id="financeCapital">资金池：0</span>
+          <span id="financeBreakdown">构成：基础 0% / 波动 0% / 风控 0%</span>
         </div>
         <div class="order-actions">
           <button class="order-btn" id="financeInvestBtn" disabled>投入 10% 齿轮</button>
@@ -872,6 +873,8 @@
     const ORDER_REROLL_COST = 200;
     const FINANCE_UNLOCK_LIFETIME_GEARS = 1200;
     const FINANCE_BASE_APR = 0.06;
+    const FINANCE_CYCLE_AMPLITUDE = 0.03;
+    const FINANCE_COOLDOWN_MS = 1800;
     const CHAIN_BONUS_PER_STAGE = 0.08;
     const CHAIN_MAX_STAGES = 10;
 
@@ -976,7 +979,9 @@
       lowPerfAudioSafe: false,
       categoryCollapse: { economy: false, goals: false },
       financeCapital: 0,
-      financeTier: 0
+      financeTier: 0,
+      financeLastInvestAt: 0,
+      financeLastWithdrawAt: 0
     };
 
     const gearsEl = document.getElementById("gears");
@@ -1028,6 +1033,7 @@
     const financeHintEl = document.getElementById("financeHint");
     const financeYieldEl = document.getElementById("financeYield");
     const financeCapitalEl = document.getElementById("financeCapital");
+    const financeBreakdownEl = document.getElementById("financeBreakdown");
     const financeInvestBtn = document.getElementById("financeInvestBtn");
     const financeWithdrawBtn = document.getElementById("financeWithdrawBtn");
     const financeUpgradeBtn = document.getElementById("financeUpgradeBtn");
@@ -1100,9 +1106,15 @@
     };
 
     // 金融系统：用资金池产息作为中期策略分支，强度可通过 APR 与风控等级快速调参。
+    const getFinanceAprComponents = () => {
+      const base = FINANCE_BASE_APR;
+      const cycle = FINANCE_CYCLE_AMPLITUDE * Math.sin(state.totalClicks / 45);
+      const riskControl = state.financeTier * 0.025;
+      return { base, cycle, riskControl };
+    };
     const getFinanceApr = () => {
-      const cycleBoost = 0.03 * Math.sin(state.totalClicks / 45);
-      return Math.max(0.01, FINANCE_BASE_APR + state.financeTier * 0.025 + cycleBoost);
+      const c = getFinanceAprComponents();
+      return Math.max(0.01, c.base + c.cycle + c.riskControl);
     };
     const getFinanceIncomePerSecond = () => state.financeCapital * getFinanceApr();
 
@@ -1409,6 +1421,8 @@
         categoryCollapse: state.categoryCollapse,
         financeCapital: state.financeCapital,
         financeTier: state.financeTier,
+        financeLastInvestAt: state.financeLastInvestAt,
+        financeLastWithdrawAt: state.financeLastWithdrawAt,
         saveVersion: SAVE_VERSION,
         savedAt: Date.now()
       };
@@ -1483,6 +1497,8 @@
         state.lowPerfAudioSafe = Boolean(data.lowPerfAudioSafe);
         state.financeCapital = Math.max(0, Number(data.financeCapital) || 0);
         state.financeTier = Math.max(0, Math.min(8, Math.floor(Number(data.financeTier) || 0)));
+        state.financeLastInvestAt = Math.max(0, Number(data.financeLastInvestAt) || 0);
+        state.financeLastWithdrawAt = Math.max(0, Number(data.financeLastWithdrawAt) || 0);
         if (data.categoryCollapse && typeof data.categoryCollapse === "object") {
           state.categoryCollapse.economy = Boolean(data.categoryCollapse.economy);
           state.categoryCollapse.goals = Boolean(data.categoryCollapse.goals);
@@ -1957,19 +1973,27 @@
         financeHintEl.textContent = `累计齿轮达到 ${FINANCE_UNLOCK_LIFETIME_GEARS} 后解锁`;
         financeYieldEl.textContent = "年化：0%";
         financeCapitalEl.textContent = "资金池：0";
+        financeBreakdownEl.textContent = "构成：基础 0% / 波动 0% / 风控 0%";
         financeInvestBtn.disabled = true;
         financeWithdrawBtn.disabled = true;
         financeUpgradeBtn.disabled = true;
       } else {
         const apr = getFinanceApr();
+        const comp = getFinanceAprComponents();
+        const nowMs = Date.now();
+        const investCooling = nowMs - state.financeLastInvestAt < FINANCE_COOLDOWN_MS;
+        const withdrawCooling = nowMs - state.financeLastWithdrawAt < FINANCE_COOLDOWN_MS;
         financeTitleEl.textContent = `金融系统：风控等级 ${state.financeTier}`;
         financeFillEl.style.width = `${Math.min(100, (state.financeTier / 8) * 100)}%`;
         financeHintEl.textContent = `秒收益：+${format(getFinanceIncomePerSecond())} 齿轮`;
         financeYieldEl.textContent = `年化：${(apr * 100).toFixed(1)}%`;
         financeCapitalEl.textContent = `资金池：${format(state.financeCapital)}`;
-        financeInvestBtn.disabled = state.gears < 100;
-        financeWithdrawBtn.disabled = state.financeCapital < 1;
+        financeBreakdownEl.textContent = `构成：基础 ${(comp.base * 100).toFixed(1)}% / 波动 ${(comp.cycle * 100).toFixed(1)}% / 风控 ${(comp.riskControl * 100).toFixed(1)}%`;
+        financeInvestBtn.disabled = state.gears < 100 || investCooling;
+        financeWithdrawBtn.disabled = state.financeCapital < 1 || withdrawCooling;
         financeUpgradeBtn.disabled = state.researchPoints < (1 + state.financeTier) || state.financeTier >= 8;
+        financeInvestBtn.textContent = investCooling ? "投入冷却中..." : "投入 10% 齿轮";
+        financeWithdrawBtn.textContent = withdrawCooling ? "提取冷却中..." : "提取 25% 资金";
         financeUpgradeBtn.textContent = state.financeTier >= 8 ? "风控已满级" : `风控升级（${1 + state.financeTier} RP）`;
       }
 
@@ -2229,7 +2253,8 @@
       triggerButtonPop(financeInvestBtn);
       triggerTypedPanelPulse("order", document.getElementById("financePanel"));
       spawnFloatingGain(financeInvestBtn, `-${format(invest)} 齿轮`, "gear");
-      pushLog(`金融投入 ${format(invest)} 齿轮`);
+      state.financeLastInvestAt = Date.now();
+      pushLog(`[Finance/投入] ${format(invest)} 齿轮`);
       playSfx("click");
       saveGame();
       render();
@@ -2244,7 +2269,8 @@
       state.lifetimeGears += withdraw;
       triggerButtonPop(financeWithdrawBtn);
       spawnFloatingGain(financeWithdrawBtn, `+${format(withdraw)} 齿轮`, "gear");
-      pushLog(`金融提取 ${format(withdraw)} 齿轮`);
+      state.financeLastWithdrawAt = Date.now();
+      pushLog(`[Finance/提取] ${format(withdraw)} 齿轮`);
       playSfx("reward");
       saveGame();
       render();
@@ -2258,7 +2284,7 @@
       state.financeTier += 1;
       triggerEventHighlight("order", `风控升级 Lv.${state.financeTier}`);
       triggerTypedPanelPulse("order", document.getElementById("financePanel"));
-      pushLog(`金融风控升级至 Lv.${state.financeTier}`);
+      pushLog(`[Finance/升级] 风控 Lv.${state.financeTier}`);
       playSfx("order");
       saveGame();
       render();
@@ -2296,6 +2322,8 @@
       state.comboTimer = 0;
       state.financeCapital = 0;
       state.financeTier = 0;
+      state.financeLastInvestAt = 0;
+      state.financeLastWithdrawAt = 0;
       for (const b of buildings) b.owned = 0;
       for (const u of upgrades) u.purchased = false;
       for (const s of skills) s.level = 0;
@@ -2329,6 +2357,8 @@
       state.comboTimer = 0;
       state.financeCapital = 0;
       state.financeTier = 0;
+      state.financeLastInvestAt = 0;
+      state.financeLastWithdrawAt = 0;
       for (const b of buildings) b.owned = 0;
       for (const u of upgrades) u.purchased = false;
       for (const s of skills) s.level = 0;
