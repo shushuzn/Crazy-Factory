@@ -236,6 +236,15 @@
         <button class="chip" data-mode="10">x10</button>
         <button class="chip" data-mode="100">x100</button>
         <button class="chip" data-mode="max">Max</button>
+        <button class="chip" id="resetSaveBtn">重置存档</button>
+      </div>
+
+      <div id="offlineNotice" class="manual" style="display:none">
+        <div>
+          <strong>离线收益</strong>
+          <div class="subtitle" id="offlineText" style="margin-top:4px"></div>
+        </div>
+        <button id="claimOfflineBtn" class="btn">领取</button>
       </div>
 
       <div class="buildings" id="buildingList"></div>
@@ -248,6 +257,7 @@
     const TICK_RATE = 60;
     const FIXED_STEP = 1 / TICK_RATE;
     const MAX_ACCUMULATED_SECONDS = 0.25;
+    const OFFLINE_CAP_SECONDS = 8 * 60 * 60;
 
     const buildings = [
       { id: "intern", name: "实习生", basePrice: 15, dps: 1, owned: 0 },
@@ -259,7 +269,8 @@
       gears: 0,
       purchaseMode: "1",
       lastTimestamp: performance.now(),
-      accumulator: 0
+      accumulator: 0,
+      pendingOfflineGears: 0
     };
 
     const gearsEl = document.getElementById("gears");
@@ -267,6 +278,10 @@
     const manualBtn = document.getElementById("manualBtn");
     const buildingList = document.getElementById("buildingList");
     const modeButtons = [...document.querySelectorAll("[data-mode]")];
+    const resetSaveBtn = document.getElementById("resetSaveBtn");
+    const offlineNoticeEl = document.getElementById("offlineNotice");
+    const offlineTextEl = document.getElementById("offlineText");
+    const claimOfflineBtn = document.getElementById("claimOfflineBtn");
 
     const buildingViewMap = new Map();
 
@@ -343,6 +358,13 @@
             target.owned = Math.max(0, Math.floor(Number(saved.owned) || 0));
           }
         }
+
+        const savedAt = Number(data.savedAt) || Date.now();
+        const offlineSeconds = Math.max(0, Math.min((Date.now() - savedAt) / 1000, OFFLINE_CAP_SECONDS));
+        const offlineGears = getTotalGPS() * offlineSeconds;
+        if (offlineGears > 0) {
+          state.pendingOfflineGears = offlineGears;
+        }
       } catch (error) {
         console.warn("存档读取失败，已忽略：", error);
       }
@@ -407,6 +429,14 @@
         }
       }
 
+      if (state.pendingOfflineGears > 0) {
+        offlineNoticeEl.style.display = "flex";
+        offlineTextEl.textContent = `你离开期间积累了 ${format(state.pendingOfflineGears)} 齿轮`;
+      } else {
+        offlineNoticeEl.style.display = "none";
+        offlineTextEl.textContent = "";
+      }
+
       renderMode();
     };
 
@@ -449,6 +479,26 @@
       if (!mode) return;
       state.purchaseMode = mode;
       saveGame();
+      render();
+    });
+
+    claimOfflineBtn.addEventListener("click", () => {
+      if (state.pendingOfflineGears <= 0) return;
+      state.gears += state.pendingOfflineGears;
+      state.pendingOfflineGears = 0;
+      saveGame();
+      render();
+    });
+
+    resetSaveBtn.addEventListener("click", () => {
+      const ok = window.confirm("确认重置所有进度吗？");
+      if (!ok) return;
+      localStorage.removeItem(SAVE_KEY);
+      state.gears = 0;
+      state.purchaseMode = "1";
+      state.pendingOfflineGears = 0;
+      state.accumulator = 0;
+      for (const b of buildings) b.owned = 0;
       render();
     });
 
