@@ -1051,6 +1051,7 @@
     const OVERDRIVE_DURATION_MS = 12_000;
     const OVERDRIVE_COOLDOWN_MS = 30_000;
     const OVERDRIVE_GPS_MULT = 2;
+    const DEFAULT_FINANCE_ASSETS = Object.freeze({ bond: 0.34, equity: 0.33, derivative: 0.33 });
 
     // 手感参数：集中在这里，便于快速调“多汁感”。
     const FX_FLOAT_DURATION_MS = 850;
@@ -1175,7 +1176,7 @@
       debugGpsMult: 1,
       financeSeasonIndex: 0,
       financeLeaderboard: [],
-      financeAssets: { bond: 0.34, equity: 0.33, derivative: 0.33 },
+      financeAssets: { ...DEFAULT_FINANCE_ASSETS },
       financeLineage: 0,
       financeAutoPilot: false,
       financeAutoAccumulator: 0,
@@ -1792,6 +1793,53 @@
         data.saveVersion = SAVE_VERSION;
       }
       return data;
+    };
+
+    const resetCollectionProgress = () => {
+      for (const b of buildings) b.owned = 0;
+      for (const u of upgrades) u.purchased = false;
+      for (const s of skills) s.level = 0;
+      for (const sp of specializationUpgrades) sp.level = 0;
+      for (const a of achievements) {
+        a.done = false;
+        a.claimed = false;
+      }
+    };
+
+    const resetRunState = () => {
+      state.gears = 0;
+      state.purchaseMode = "1";
+      state.pendingOfflineGears = 0;
+      state.accumulator = 0;
+      state.manualPower = 1;
+      state.gpsMultiplier = 1;
+      state.totalClicks = 0;
+      state.lifetimeGears = 0;
+      state.lastRewardText = "";
+      state.gameSpeed = 1;
+      state.questIndex = 0;
+      state.autoBuy = false;
+      state.autoBuyAccumulator = 0;
+      state.activeOrder = null;
+      state.comboStreak = 0;
+      state.comboTimer = 0;
+      state.financeCapital = 0;
+      state.financeTier = 0;
+      state.financeLastInvestAt = 0;
+      state.financeLastWithdrawAt = 0;
+      state.financeStrategy = "balanced";
+      state.financeHedgeUntil = 0;
+      state.financeStrategySwitches = 0;
+      state.financeSeasonIndex = 0;
+      state.financeLeaderboard = [];
+      state.financeAssets = { ...DEFAULT_FINANCE_ASSETS };
+      state.financeLineage = 0;
+      state.financeAutoPilot = false;
+      state.financeAutoAccumulator = 0;
+      state.overdriveUntil = 0;
+      state.overdriveCooldownUntil = 0;
+      state.overdriveActivations = 0;
+      resetCollectionProgress();
     };
 
     const saveGame = () => {
@@ -3119,43 +3167,7 @@
       pushLog(`执行 Prestige，获得 RP +${gain}（保留金融元进度 +${retainedMeta}，金融谱系 +${Math.max(1, Math.floor(getFinanceCreditLevel() / 2))}）`);
       playSfx("prestige");
       triggerScreenShake(gamePanelEl, "prestige");
-      state.gears = 0;
-      state.purchaseMode = "1";
-      state.pendingOfflineGears = 0;
-      state.accumulator = 0;
-      state.manualPower = 1;
-      state.gpsMultiplier = 1;
-      state.totalClicks = 0;
-      state.lifetimeGears = 0;
-      state.lastRewardText = "";
-      state.gameSpeed = 1;
-      state.questIndex = 0;
-      state.autoBuy = false;
-      state.autoBuyAccumulator = 0;
-      state.activeOrder = null;
-      state.comboStreak = 0;
-      state.comboTimer = 0;
-      state.financeCapital = 0;
-      state.financeTier = 0;
-      state.financeLastInvestAt = 0;
-      state.financeLastWithdrawAt = 0;
-      state.financeStrategy = "balanced";
-      state.financeHedgeUntil = 0;
-      state.financeStrategySwitches = 0;
-      state.financeSeasonIndex = 0;
-      state.financeLeaderboard = [];
-      state.financeAssets = { bond: 0.34, equity: 0.33, derivative: 0.33 };
-      state.financeLineage = 0;
-      state.financeAutoPilot = false;
-      state.financeAutoAccumulator = 0;
-      state.overdriveUntil = 0;
-      state.overdriveCooldownUntil = 0;
-      state.overdriveActivations = 0;
-      for (const b of buildings) b.owned = 0;
-      for (const u of upgrades) u.purchased = false;
-      for (const s of skills) s.level = 0;
-      for (const sp of specializationUpgrades) sp.level = 0;
-      for (const a of achievements) { a.done = false; a.claimed = false; }
+      resetRunState();
       saveGame();
       render();
     });
@@ -3165,50 +3177,14 @@
       if (!ok) return;
       localStorage.removeItem(SAVE_KEY);
       state.logs = ["[--:--:--] 执行硬重置"];
-      state.gears = 0;
-      state.purchaseMode = "1";
-      state.pendingOfflineGears = 0;
-      state.accumulator = 0;
-      state.manualPower = 1;
-      state.gpsMultiplier = 1;
-      state.totalClicks = 0;
-      state.lifetimeGears = 0;
+      resetRunState();
       state.researchPoints = 0;
-      state.lastRewardText = "";
-      state.gameSpeed = 1;
-      state.questIndex = 0;
-      state.autoBuy = false;
-      state.autoBuyAccumulator = 0;
-      state.activeOrder = null;
-      state.comboStreak = 0;
-      state.comboTimer = 0;
-      state.financeCapital = 0;
-      state.financeTier = 0;
-      state.financeLastInvestAt = 0;
-      state.financeLastWithdrawAt = 0;
-      state.financeStrategy = "balanced";
-      state.financeHedgeUntil = 0;
       state.financeMetaPoints = 0;
       state.financeCreditBase = 0;
-      state.financeStrategySwitches = 0;
-      state.financeSeasonIndex = 0;
-      state.financeLeaderboard = [];
-      state.financeAssets = { bond: 0.34, equity: 0.33, derivative: 0.33 };
-      state.financeLineage = 0;
-      state.financeAutoPilot = false;
-      state.financeAutoAccumulator = 0;
       state.prestigeBranches = { legacy_manual: 0, legacy_line: 0 };
       state.debugPanelOpen = false;
       state.debugManualMult = 1;
       state.debugGpsMult = 1;
-      state.overdriveUntil = 0;
-      state.overdriveCooldownUntil = 0;
-      state.overdriveActivations = 0;
-      for (const b of buildings) b.owned = 0;
-      for (const u of upgrades) u.purchased = false;
-      for (const s of skills) s.level = 0;
-      for (const sp of specializationUpgrades) sp.level = 0;
-      for (const a of achievements) { a.done = false; a.claimed = false; }
       render();
     });
 
