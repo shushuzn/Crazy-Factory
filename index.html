@@ -55,6 +55,33 @@
     .title { margin: 0; font-size: 1.5rem; }
     .subtitle { margin: 6px 0 0; color: var(--muted); font-size: 0.95rem; }
 
+    .finance-advice {
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.45);
+      transition: border-color 140ms ease, background 140ms ease, color 140ms ease;
+    }
+
+    .finance-advice.good {
+      color: #bbf7d0;
+      border-color: rgba(34, 197, 94, 0.45);
+      background: rgba(22, 101, 52, 0.22);
+    }
+
+    .finance-advice.warn {
+      color: #fde68a;
+      border-color: rgba(245, 158, 11, 0.45);
+      background: rgba(120, 53, 15, 0.2);
+    }
+
+    .finance-advice.info {
+      color: #bfdbfe;
+      border-color: rgba(59, 130, 246, 0.45);
+      background: rgba(30, 58, 138, 0.22);
+    }
+
     .stats {
       display: grid;
       grid-template-columns: repeat(2, minmax(140px, 1fr));
@@ -806,6 +833,7 @@
           <span id="financeCapital">资金池：0</span>
           <span id="financeBreakdown">构成：基础 0% / 波动 0% / 风控 0%</span>
         </div>
+        <div class="subtitle finance-advice info" id="financeAdvice">建议：解锁后会在这里显示下一步操作</div>
         <div class="order-actions">
           <button class="order-btn" id="financeInvestBtn" disabled>投入 10% 齿轮</button>
           <button class="order-btn secondary" id="financeWithdrawBtn" disabled>提取 25% 资金</button>
@@ -1037,6 +1065,7 @@
     const financeYieldEl = document.getElementById("financeYield");
     const financeCapitalEl = document.getElementById("financeCapital");
     const financeBreakdownEl = document.getElementById("financeBreakdown");
+    const financeAdviceEl = document.getElementById("financeAdvice");
     const financeInvestBtn = document.getElementById("financeInvestBtn");
     const financeWithdrawBtn = document.getElementById("financeWithdrawBtn");
     const financeUpgradeBtn = document.getElementById("financeUpgradeBtn");
@@ -1124,6 +1153,33 @@
       const raw = state.financeCapital * getFinanceApr();
       const cap = Math.max(FINANCE_MIN_CAP_GPS, baseGps * FINANCE_MAX_SHARE_OF_MAINLINE);
       return Math.min(raw, cap);
+    };
+
+    // 金融建议器：把下一步动作显式化，减少玩家在多个按钮间试错。
+    const getFinanceAdvice = ({ unlocked, mainlineGps, financeIncome, investCooling, withdrawCooling }) => {
+      if (!unlocked) return { tone: "info", text: `建议：先把累计齿轮推到 ${FINANCE_UNLOCK_LIFETIME_GEARS} 解锁金融。` };
+
+      const upgradeCost = 1 + state.financeTier;
+      const cap = Math.max(FINANCE_MIN_CAP_GPS, mainlineGps * FINANCE_MAX_SHARE_OF_MAINLINE);
+      const capRatio = cap > 0 ? financeIncome / cap : 0;
+
+      if (state.financeTier < 8 && state.researchPoints >= upgradeCost) {
+        return { tone: "good", text: `建议：可升级风控（消耗 ${upgradeCost} RP），直接抬升长期年化。` };
+      }
+
+      if (!investCooling && state.gears >= 100 && capRatio < 0.75) {
+        return { tone: "good", text: "建议：当前未接近收益封顶，优先投入 10% 齿轮提高资金池。" };
+      }
+
+      if (!withdrawCooling && capRatio >= 0.95 && state.financeCapital > 0) {
+        return { tone: "warn", text: "建议：金融收益接近封顶，可提取 25% 回流主线扩产。" };
+      }
+
+      if (investCooling || withdrawCooling) {
+        return { tone: "info", text: "建议：处于冷却窗口，先购买建筑/推进订单再回金融操作。" };
+      }
+
+      return { tone: "info", text: "建议：维持当前配置，观察波动窗口后再决定投入或提取。" };
     };
 
     const getAffordableCount = (building, budget, mode) => {
@@ -1985,6 +2041,9 @@
         financeInvestBtn.disabled = true;
         financeWithdrawBtn.disabled = true;
         financeUpgradeBtn.disabled = true;
+        const advice = getFinanceAdvice({ unlocked: false, mainlineGps: 0, financeIncome: 0, investCooling: false, withdrawCooling: false });
+        financeAdviceEl.textContent = advice.text;
+        financeAdviceEl.className = `subtitle finance-advice ${advice.tone}`;
       } else {
         const apr = getFinanceApr();
         const comp = getFinanceAprComponents();
@@ -2006,6 +2065,15 @@
         financeInvestBtn.textContent = investCooling ? "投入冷却中..." : "投入 10% 齿轮";
         financeWithdrawBtn.textContent = withdrawCooling ? "提取冷却中..." : "提取 25% 资金";
         financeUpgradeBtn.textContent = state.financeTier >= 8 ? "风控已满级" : `风控升级（${1 + state.financeTier} RP）`;
+        const advice = getFinanceAdvice({
+          unlocked: true,
+          mainlineGps,
+          financeIncome: effectiveFinance,
+          investCooling,
+          withdrawCooling
+        });
+        financeAdviceEl.textContent = advice.text;
+        financeAdviceEl.className = `subtitle finance-advice ${advice.tone}`;
       }
 
       renderMode();
