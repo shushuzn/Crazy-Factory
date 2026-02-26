@@ -255,6 +255,8 @@ const PRESTIGE_BRANCHES = [
     const skillViewMap = new Map();
     const specializationViewMap = new Map();
     const prestigeBranchViewMap = new Map();
+    // 为什么：只在阈值跨越时触发演出，避免每帧重复触发造成噪音与性能抖动。
+    let comboHeatStage = 0;
 
     const format = (num) => {
       if (!Number.isFinite(num)) return "0";
@@ -679,6 +681,7 @@ const getCurrentPrice = (building, ownedOffset = 0) => calcCurrentPrice({
       state.activeOrder = null;
       state.comboStreak = 0;
       state.comboTimer = 0;
+      comboHeatStage = 0;
       state.financeCapital = 0;
       state.financeTier = 0;
       state.financeLastInvestAt = 0;
@@ -1340,14 +1343,39 @@ const getCurrentPrice = (building, ownedOffset = 0) => calcCurrentPrice({
         comboHeatFillEl.style.width = `${(comboRatio * 100).toFixed(1)}%`;
         comboHeatMetaEl.textContent = `${state.comboStreak} / ${COMBO_MAX_STREAK}`;
         const decayLeft = Math.max(0, state.comboTimer).toFixed(1);
-        const heatText = comboRatio >= COMBO_HEAT_PEAK_RATIO
+        const nextHeatStage = comboRatio >= COMBO_HEAT_PEAK_RATIO ? 2 : comboRatio >= COMBO_HEAT_WARN_RATIO ? 1 : 0;
+        const heatText = nextHeatStage === 2
           ? `连击热度：过载（${decayLeft}s）`
-          : comboRatio >= COMBO_HEAT_WARN_RATIO
+          : nextHeatStage === 1
             ? `连击热度：升温（${decayLeft}s）`
             : `连击热度：冷却中（${decayLeft}s）`;
         comboHeatLabelEl.textContent = heatText;
-        comboHeatEl.classList.toggle("is-warn", comboRatio >= COMBO_HEAT_WARN_RATIO && comboRatio < COMBO_HEAT_PEAK_RATIO);
-        comboHeatEl.classList.toggle("is-peak", comboRatio >= COMBO_HEAT_PEAK_RATIO);
+        comboHeatEl.classList.toggle("is-warn", nextHeatStage === 1);
+        comboHeatEl.classList.toggle("is-peak", nextHeatStage === 2);
+        manualBtn?.classList.toggle("heat-warn", nextHeatStage === 1);
+        manualBtn?.classList.toggle("heat-peak", nextHeatStage === 2);
+
+        if (nextHeatStage > comboHeatStage) {
+          if (nextHeatStage === 1) {
+            feedbackBus.emit(FEEDBACK_EVENTS.BIG_REWARD, {
+              text: "连击升温!",
+              kind: "reward",
+              priority: "normal",
+              anchorEl: manualBtn
+            });
+          }
+          if (nextHeatStage === 2) {
+            feedbackBus.emit(FEEDBACK_EVENTS.BIG_REWARD, {
+              text: "连击过载!",
+              kind: "critical",
+              priority: "high",
+              anchorEl: manualBtn
+            });
+            triggerScreenShake(gamePanelEl, "task");
+            pushLog("连击过载：短窗口内请持续点击吃满倍率");
+          }
+        }
+        comboHeatStage = nextHeatStage;
       }
 
       const orderUnlocked = state.lifetimeGears >= ORDER_UNLOCK_LIFETIME_GEARS;
