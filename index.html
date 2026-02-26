@@ -148,6 +148,48 @@
       gap: 10px;
     }
 
+    .section-title {
+      margin: 6px 0 2px;
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
+
+    .upgrade {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 10px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .upgrade .name {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .upgrade .meta {
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .upgrade-btn {
+      min-width: 220px;
+      text-align: center;
+      background: #f59e0b;
+      color: #3b2300;
+    }
+
+    .upgrade-btn:disabled {
+      cursor: not-allowed;
+      background: var(--disabled);
+      color: #d1d5db;
+      opacity: 0.8;
+    }
+
     .building {
       display: grid;
       grid-template-columns: 1fr auto;
@@ -247,7 +289,11 @@
         <button id="claimOfflineBtn" class="btn">领取</button>
       </div>
 
+      <h2 class="section-title">自动化建筑</h2>
       <div class="buildings" id="buildingList"></div>
+
+      <h2 class="section-title">工厂升级</h2>
+      <div class="buildings" id="upgradeList"></div>
     </section>
   </main>
 
@@ -258,6 +304,12 @@
     const FIXED_STEP = 1 / TICK_RATE;
     const MAX_ACCUMULATED_SECONDS = 0.25;
     const OFFLINE_CAP_SECONDS = 8 * 60 * 60;
+
+    const upgrades = [
+      { id: "training", name: "员工培训", price: 250, desc: "手动生产 +1", type: "manual", value: 1, purchased: false },
+      { id: "lubricant", name: "润滑油优化", price: 800, desc: "总 GPS x1.5", type: "gps", value: 1.5, purchased: false },
+      { id: "ai", name: "调度 AI", price: 5000, desc: "总 GPS x2", type: "gps", value: 2, purchased: false }
+    ];
 
     const buildings = [
       { id: "intern", name: "实习生", basePrice: 15, dps: 1, owned: 0 },
@@ -270,7 +322,9 @@
       purchaseMode: "1",
       lastTimestamp: performance.now(),
       accumulator: 0,
-      pendingOfflineGears: 0
+      pendingOfflineGears: 0,
+      manualPower: 1,
+      gpsMultiplier: 1
     };
 
     const gearsEl = document.getElementById("gears");
@@ -282,8 +336,10 @@
     const offlineNoticeEl = document.getElementById("offlineNotice");
     const offlineTextEl = document.getElementById("offlineText");
     const claimOfflineBtn = document.getElementById("claimOfflineBtn");
+    const upgradeList = document.getElementById("upgradeList");
 
     const buildingViewMap = new Map();
+    const upgradeViewMap = new Map();
 
     const format = (num) => {
       if (!Number.isFinite(num)) return "0";
@@ -297,7 +353,9 @@
     const getCurrentPrice = (building, ownedOffset = 0) =>
       Math.floor(building.basePrice * Math.pow(PRICE_GROWTH, building.owned + ownedOffset));
 
-    const getTotalGPS = () => buildings.reduce((sum, b) => sum + b.dps * b.owned, 0);
+    const getBaseGPS = () => buildings.reduce((sum, b) => sum + b.dps * b.owned, 0);
+    const getTotalGPS = () => getBaseGPS() * state.gpsMultiplier;
+    const getManualGain = () => state.manualPower;
 
     const getAffordableCount = (building, budget, mode) => {
       if (mode === "1") return budget >= getCurrentPrice(building) ? 1 : 0;
@@ -334,6 +392,9 @@
         gears: state.gears,
         purchaseMode: state.purchaseMode,
         buildings: buildings.map((b) => ({ id: b.id, owned: b.owned })),
+        upgrades: upgrades.map((u) => ({ id: u.id, purchased: u.purchased })),
+        manualPower: state.manualPower,
+        gpsMultiplier: state.gpsMultiplier,
         savedAt: Date.now()
       };
       localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
@@ -356,6 +417,17 @@
             const target = buildings.find((b) => b.id === saved.id);
             if (!target) continue;
             target.owned = Math.max(0, Math.floor(Number(saved.owned) || 0));
+          }
+        }
+
+        state.manualPower = Math.max(1, Number(data.manualPower) || 1);
+        state.gpsMultiplier = Math.max(1, Number(data.gpsMultiplier) || 1);
+
+        if (Array.isArray(data.upgrades)) {
+          for (const saved of data.upgrades) {
+            const target = upgrades.find((u) => u.id === saved.id);
+            if (!target) continue;
+            target.purchased = Boolean(saved.purchased);
           }
         }
 
@@ -396,6 +468,23 @@
       });
     };
 
+    const createUpgradeRow = (upgrade) => {
+      const row = document.createElement("div");
+      row.className = "upgrade";
+      row.dataset.id = upgrade.id;
+      row.innerHTML = `
+        <div>
+          <div class="name">${upgrade.name}</div>
+          <div class="meta">${upgrade.desc}</div>
+        </div>
+        <button class="btn upgrade-btn" data-upgrade="${upgrade.id}">研发（${format(upgrade.price)} 齿轮）</button>
+      `;
+      upgradeList.appendChild(row);
+      upgradeViewMap.set(upgrade.id, {
+        btn: row.querySelector(`[data-upgrade="${upgrade.id}"]`)
+      });
+    };
+
     const renderMode = () => {
       for (const btn of modeButtons) {
         btn.classList.toggle("active", btn.dataset.mode === state.purchaseMode);
@@ -429,6 +518,18 @@
         }
       }
 
+      for (const upgrade of upgrades) {
+        const view = upgradeViewMap.get(upgrade.id);
+        if (!view) continue;
+        if (upgrade.purchased) {
+          view.btn.textContent = "已研发";
+          view.btn.disabled = true;
+          continue;
+        }
+        view.btn.textContent = `研发（${format(upgrade.price)} 齿轮）`;
+        view.btn.disabled = state.gears < upgrade.price;
+      }
+
       if (state.pendingOfflineGears > 0) {
         offlineNoticeEl.style.display = "flex";
         offlineTextEl.textContent = `你离开期间积累了 ${format(state.pendingOfflineGears)} 齿轮`;
@@ -458,8 +559,23 @@
       render();
     };
 
+    const buyUpgrade = (id) => {
+      const upgrade = upgrades.find((u) => u.id === id);
+      if (!upgrade || upgrade.purchased) return;
+      if (state.gears < upgrade.price) return;
+
+      state.gears -= upgrade.price;
+      upgrade.purchased = true;
+
+      if (upgrade.type === "manual") state.manualPower += upgrade.value;
+      if (upgrade.type === "gps") state.gpsMultiplier *= upgrade.value;
+
+      saveGame();
+      render();
+    };
+
     manualBtn.addEventListener("click", () => {
-      state.gears += 1;
+      state.gears += getManualGain();
       saveGame();
       render();
     });
@@ -470,6 +586,14 @@
       const id = target.dataset.buy;
       if (!id) return;
       buyBuilding(id);
+    });
+
+    upgradeList.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLButtonElement)) return;
+      const id = target.dataset.upgrade;
+      if (!id) return;
+      buyUpgrade(id);
     });
 
     document.querySelector(".controls").addEventListener("click", (event) => {
@@ -498,11 +622,15 @@
       state.purchaseMode = "1";
       state.pendingOfflineGears = 0;
       state.accumulator = 0;
+      state.manualPower = 1;
+      state.gpsMultiplier = 1;
       for (const b of buildings) b.owned = 0;
+      for (const u of upgrades) u.purchased = false;
       render();
     });
 
     for (const building of buildings) createBuildingRow(building);
+    for (const upgrade of upgrades) createUpgradeRow(upgrade);
 
     loadGame();
 
