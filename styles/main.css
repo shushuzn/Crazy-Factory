@@ -842,12 +842,24 @@
   border: 1px solid var(--border);
   font-size: 0.78rem;
   color: var(--muted);
-  background: rgba(15, 23, 42, 0.7);
-  transition: border-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+  --boost-fill: 0%;
+  background:
+    linear-gradient(90deg, rgba(251, 113, 133, 0.24) 0%, rgba(239, 68, 68, 0.2) var(--boost-fill), rgba(15, 23, 42, 0.65) var(--boost-fill), rgba(15, 23, 42, 0.65) 100%);
+  transition: border-color 120ms ease, color 120ms ease, box-shadow 120ms ease, background 120ms ease;
 }
 
 .combo-boost-chip.active {
   color: #fee2e2;
   border-color: rgba(239, 68, 68, 0.65);
   box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.35), 0 0 14px rgba(239, 68, 68, 0.28);
+}
+
+
+.combo-boost-chip.critical {
+  animation: comboCriticalPulse 420ms ease-in-out infinite alternate;
+}
+
+@keyframes comboCriticalPulse {
+  from { box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.35), 0 0 8px rgba(248, 113, 113, 0.2); }
+  to { box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.7), 0 0 14px rgba(248, 113, 113, 0.4); }
 }
