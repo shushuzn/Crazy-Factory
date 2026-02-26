@@ -506,6 +506,7 @@
         <button class="chip" data-speed="4">4x</button>
         <button class="chip" id="autoBuyBtn">自动购买: 关</button>
         <button class="chip" id="audioBtn">音效: 开</button>
+        <button class="chip" id="lowPerfBtn">低性能模式: 关</button>
         <button class="chip" id="exportSaveBtn">导出存档</button>
         <button class="chip" id="importSaveBtn">导入存档</button>
         <button class="chip" id="prestigeBtn">软重置</button>
@@ -607,7 +608,9 @@
     const COMBO_BONUS_PER_STACK = 0.02;
     const FX_SHAKE_DURATION_MS = 360;
     const FX_MAX_FLOATING_GAINS = 18;
+    const FX_PRIORITY_SLOTS = 2;
     const FX_SHAKE_COOLDOWN_MS = 260;
+    const LOW_PERF_FLOAT_SCALE = 0.55;
 
     const ORDER_TEMPLATES = [
       { key: "clicks", type: "clicks", minTier: 1, weight: 3, title: "订单：人工质检", desc: "手动点击完成一次人工抽检" },
@@ -673,7 +676,8 @@
       comboStreak: 0,
       comboTimer: 0,
       activeFloatingGains: 0,
-      lastShakeAt: 0
+      lastShakeAt: 0,
+      lowPerfMode: false
     };
 
     const gearsEl = document.getElementById("gears");
@@ -685,6 +689,7 @@
     const speedButtons = [...document.querySelectorAll("[data-speed]")];
     const autoBuyBtn = document.getElementById("autoBuyBtn");
     const audioBtn = document.getElementById("audioBtn");
+    const lowPerfBtn = document.getElementById("lowPerfBtn");
     const exportSaveBtn = document.getElementById("exportSaveBtn");
     const importSaveBtn = document.getElementById("importSaveBtn");
     const prestigeBtn = document.getElementById("prestigeBtn");
@@ -818,9 +823,16 @@
 
     const triggerScreenShake = (el = gamePanelEl) => {
       if (!el) return;
+      if (state.lowPerfMode) {
+        triggerPanelPulse(el);
+        return;
+      }
       const now = performance.now();
-      // 限制高频震屏，避免连击/奖励堆叠时造成视觉疲劳。
-      if (now - state.lastShakeAt < FX_SHAKE_COOLDOWN_MS) return;
+      // 限制高频震屏；冷却期内自动降级为边框脉冲，保证反馈连续但不过载。
+      if (now - state.lastShakeAt < FX_SHAKE_COOLDOWN_MS) {
+        triggerPanelPulse(el);
+        return;
+      }
       state.lastShakeAt = now;
       el.classList.remove("screen-shake");
       void el.offsetWidth;
@@ -828,9 +840,14 @@
       window.setTimeout(() => el.classList.remove("screen-shake"), FX_SHAKE_DURATION_MS);
     };
 
-    const spawnFloatingGain = (anchorEl, text, kind = "gear") => {
+    const spawnFloatingGain = (anchorEl, text, kind = "gear", priority = "normal") => {
       if (!fxLayerEl || !anchorEl) return;
-      if (state.activeFloatingGains >= FX_MAX_FLOATING_GAINS) return;
+      const hardCap = FX_MAX_FLOATING_GAINS + FX_PRIORITY_SLOTS;
+      const normalCap = FX_MAX_FLOATING_GAINS;
+      const canSpawn = priority === "high"
+        ? state.activeFloatingGains < hardCap
+        : state.activeFloatingGains < normalCap;
+      if (!canSpawn) return;
       state.activeFloatingGains += 1;
 
       const rect = anchorEl.getBoundingClientRect();
@@ -840,10 +857,11 @@
       item.style.left = `${rect.left + rect.width / 2}px`;
       item.style.top = `${rect.top - 6}px`;
       fxLayerEl.appendChild(item);
+      const duration = Math.floor((FX_FLOAT_DURATION_MS + 80) * (state.lowPerfMode ? LOW_PERF_FLOAT_SCALE : 1));
       window.setTimeout(() => {
         item.remove();
         state.activeFloatingGains = Math.max(0, state.activeFloatingGains - 1);
-      }, FX_FLOAT_DURATION_MS + 80);
+      }, duration);
     };
 
     let audioContext = null;
@@ -1005,6 +1023,7 @@
         researchPoints: state.researchPoints,
         activeOrder: state.activeOrder,
         audioEnabled: state.audioEnabled,
+        lowPerfMode: state.lowPerfMode,
         saveVersion: SAVE_VERSION,
         savedAt: Date.now()
       };
@@ -1057,6 +1076,7 @@
         }
         state.autoBuy = Boolean(data.autoBuy);
         state.audioEnabled = data.audioEnabled !== false;
+        state.lowPerfMode = Boolean(data.lowPerfMode);
         state.comboStreak = 0;
         state.comboTimer = 0;
       state.activeFloatingGains = 0;
@@ -1214,7 +1234,7 @@
     const claimAchievementReward = (achievement) => {
       if (!achievement.reward || achievement.claimed) return;
       achievement.claimed = true;
-      grantReward(achievement.reward, `成就奖励（${achievement.name}）`);
+      grantReward(achievement.reward, `成就奖励（${achievement.name}）`, "high");
       saveGame();
     };
 
@@ -1239,14 +1259,14 @@
       state.logs = state.logs.slice(0, 20);
     };
 
-    const grantReward = (reward, label) => {
+    const grantReward = (reward, label, priority = "normal") => {
       if (!reward) return;
       if (reward.type === "gear") {
         state.gears += reward.value;
         state.lifetimeGears += reward.value;
         state.lastRewardText = `${label}：+${format(reward.value)} 齿轮`;
         pushLog(state.lastRewardText);
-        spawnFloatingGain(gamePanelEl, `+${format(reward.value)} 齿轮`, "gear");
+        spawnFloatingGain(gamePanelEl, `+${format(reward.value)} 齿轮`, "gear", priority);
         triggerPanelPulse(gamePanelEl);
         playSfx("reward");
       }
@@ -1254,7 +1274,7 @@
         state.researchPoints += reward.value;
         state.lastRewardText = `${label}：+${reward.value} RP`;
         pushLog(state.lastRewardText);
-        spawnFloatingGain(gamePanelEl, `+${reward.value} RP`, "rp");
+        spawnFloatingGain(gamePanelEl, `+${reward.value} RP`, "rp", priority);
         triggerPanelPulse(gamePanelEl);
         playSfx("reward");
       }
@@ -1280,7 +1300,7 @@
       questRewardEl.textContent = `奖励：${quest.rewardText}`;
 
       if (current >= quest.target) {
-        grantReward(quest.reward, `任务奖励（${quest.title}）`);
+        grantReward(quest.reward, `任务奖励（${quest.title}）`, "high");
         triggerScreenShake();
         playSfx("order");
         state.questIndex += 1;
@@ -1299,6 +1319,8 @@
       autoBuyBtn.textContent = `自动购买: ${state.autoBuy ? "开" : "关"}`;
       audioBtn.classList.toggle("active", state.audioEnabled);
       audioBtn.textContent = `音效: ${state.audioEnabled ? "开" : "关"}`;
+      lowPerfBtn.classList.toggle("active", state.lowPerfMode);
+      lowPerfBtn.textContent = `低性能模式: ${state.lowPerfMode ? "开" : "关"}`;
     };
 
     const render = () => {
@@ -1607,6 +1629,14 @@
         pushLog(`音效已${state.audioEnabled ? "开启" : "关闭"}`);
         saveGame();
         render();
+        return;
+      }
+
+      if (target.id === "lowPerfBtn") {
+        state.lowPerfMode = !state.lowPerfMode;
+        pushLog(`低性能模式已${state.lowPerfMode ? "开启" : "关闭"}`);
+        saveGame();
+        render();
       }
     });
 
@@ -1624,7 +1654,7 @@
       if (!order) return;
       const progress = getOrderProgress(order);
       if (progress < order.target) return;
-      grantReward(order.reward, `订单完成（${order.title}）`);
+      grantReward(order.reward, `订单完成（${order.title}）`, "high");
       triggerPanelPulse(document.getElementById("orderPanel"));
       triggerScreenShake();
       playSfx("order");

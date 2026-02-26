@@ -16,6 +16,7 @@ const OFFLINE_CAP_SECONDS = 8 * 60 * 60;
 const COMBO_MAX_STREAK = 40;
 const COMBO_BONUS_PER_STACK = 0.02;
 const FX_MAX_FLOATING_GAINS = 18;
+const FX_PRIORITY_SLOTS = 2;
 
 const ORDER_TEMPLATES = [
   { key: 'clicks', minTier: 1, weight: 3 },
@@ -50,7 +51,11 @@ const getPrestigeGain = (lifetimeGears) => {
 };
 
 const getComboMultiplier = (streak) => 1 + Math.min(COMBO_MAX_STREAK, streak) * COMBO_BONUS_PER_STACK;
-const shouldSpawnFloatingGain = (activeCount) => activeCount < FX_MAX_FLOATING_GAINS;
+const shouldSpawnFloatingGain = (activeCount, priority = "normal") => {
+  const hardCap = FX_MAX_FLOATING_GAINS + FX_PRIORITY_SLOTS;
+  const normalCap = FX_MAX_FLOATING_GAINS;
+  return priority === "high" ? activeCount < hardCap : activeCount < normalCap;
+};
 
 const getOfflineReward = (gps, savedAtMs, nowMs) => {
   const offlineSeconds = Math.max(0, Math.min((nowMs - savedAtMs) / 1000, OFFLINE_CAP_SECONDS));
@@ -90,7 +95,9 @@ assert(getComboMultiplier(0) === 1, 'combo at 0 should not buff');
 assert(getComboMultiplier(10) === 1.2, 'combo 10 should be +20%');
 assert(getComboMultiplier(999) === 1 + COMBO_MAX_STREAK * COMBO_BONUS_PER_STACK, 'combo multiplier should clamp');
 assert(shouldSpawnFloatingGain(0) === true, 'floating gain should spawn when queue is empty');
-assert(shouldSpawnFloatingGain(FX_MAX_FLOATING_GAINS) === false, 'floating gain should stop at cap');
+assert(shouldSpawnFloatingGain(FX_MAX_FLOATING_GAINS) === false, 'normal floating gain should stop at cap');
+assert(shouldSpawnFloatingGain(FX_MAX_FLOATING_GAINS, 'high') === true, 'high priority gain should use reserved slots');
+assert(shouldSpawnFloatingGain(FX_MAX_FLOATING_GAINS + FX_PRIORITY_SLOTS, 'high') === false, 'high priority gain should respect hard cap');
 
 // prestige
 assert(getPrestigeGain(0) === 0, 'prestige gain at zero should be 0');
