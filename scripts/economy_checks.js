@@ -112,11 +112,20 @@ const migrateSaveData = (rawData) => {
   return data;
 };
 
+const sanitizeImportPayload = (data) => {
+  if (!data || typeof data !== 'object') return null;
+  if (!Array.isArray(data.buildings) || !Array.isArray(data.upgrades)) return null;
+  if (!Array.isArray(data.skills) || !Array.isArray(data.achievements)) return null;
+  return data;
+};
+
 // price
 assert(getCurrentPrice(15, 0) === 15, 'base price should be unchanged at owned=0');
 assert(getCurrentPrice(15, 1) === 17, 'price growth step mismatch at owned=1');
 assert(getCurrentPrice(100, 10, 0.9) > 0, 'discounted price should stay positive');
 assert(getCurrentPrice(100, 120) < Math.floor(100 * Math.pow(PRICE_GROWTH, 120)), 'mid-late curve should be softer than pure exponential');
+assert(getCurrentPrice(100, 250) > getCurrentPrice(100, 120), 'price should remain monotonic even with softened curve');
+assert(getCurrentPrice(100, 0, 0.8) < getCurrentPrice(100, 0, 1), 'discount multiplier should lower base price');
 
 // multipliers
 assert(getResearchMultiplier(0) === 1, 'rp 0 multiplier should be 1');
@@ -159,11 +168,22 @@ assert(getPrestigeGain(2_000_000) > Math.floor(Math.sqrt(2_000_000 / 2000)), 'la
 const now = Date.now();
 const reward = getOfflineReward(10, now - (OFFLINE_CAP_SECONDS + 600) * 1000, now);
 assert(reward === 10 * OFFLINE_CAP_SECONDS, 'offline reward must be capped at 8h');
+assert(getOfflineReward(50, now, now) === 0, 'offline reward should be zero for no elapsed time');
 
 // migration
 const migrated = migrateSaveData({ gears: 10, activeOrder: { type: 'unknown', target: 10 } });
 assert(migrated.saveVersion === 2, 'saveVersion should migrate to 2');
 assert(migrated.activeOrder === null, 'invalid order should be nulled during migration');
+const migratedValidOrder = migrateSaveData({ saveVersion: 1, activeOrder: { type: 'clicks', target: 30 } });
+assert(migratedValidOrder.activeOrder.type === 'clicks', 'valid legacy order should be preserved during migration');
+assert(migrateSaveData(null) === null, 'null save should return null');
+assert(migrateSaveData({ saveVersion: 'NaN', activeOrder: null }).saveVersion === 2, 'invalid saveVersion should fallback to 2');
+
+// import sanitize
+const payloadOk = sanitizeImportPayload({ buildings: [], upgrades: [], skills: [], achievements: [] });
+assert(payloadOk !== null, 'sanitize should pass valid minimal payload');
+assert(sanitizeImportPayload({ buildings: [], upgrades: [] }) === null, 'sanitize should reject payload missing skills/achievements');
+assert(sanitizeImportPayload('bad') === null, 'sanitize should reject non-object payload');
 
 
 
