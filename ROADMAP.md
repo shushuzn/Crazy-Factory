@@ -128,48 +128,52 @@
   - 完成：2026-02-27
   - 指标影响：North Star +（默认样例在短时长下结果稳定，回归耗时更可控）
   - 证据：默认 pass/fail 调整为 60s；连续两次验证均得到 `pass=true` 与 `fail=false`
-- [TODO] M7-T15 为默认 60s 样例增加基线快照测试
+- [DONE] M7-T15 为默认 60s 样例增加基线快照测试
   - 验收：测试断言默认样例 durationSec=60
-- [NEXT] M7-T15 为默认 60s 样例增加基线快照测试
-  - 验收：测试断言默认样例 durationSec=60
+  - 完成：2026-02-27
+  - 指标影响：North Star +（默认样例时长被测试固定，防止回归漂移）
+  - 证据：新增 `tests/verify-soak-defaults.test.js`，断言 pass/fail 的 `durationSec=60`
+- [TODO] M7-T16 为 verify 脚本增加超时保护
+  - 验收：单次 verify 总耗时超阈值时给出非零退出
+- [NEXT] M7-T16 为 verify 脚本增加超时保护
+  - 验收：单次 verify 总耗时超阈值时给出非零退出
 
 <!-- AUTO:METRICS-START -->
 [Mode]
 🛡 Hardening Mode（强化模式）
 
 [North Star]
-89.0% (trend: up)
+90.0% (trend: up)
 
 [Supporting Metrics]
-- growth_momentum: 87.0%（默认样例时长降至 60s 且结果稳定）
+- growth_momentum: 88.0%（默认样例基线加入测试，结果稳定性增强）
 - return_quality: 80.0%
 - upgrade_satisfaction: 77.0%
-- progress_clarity: 89.0%
-- stability_score: 85.0%
+- progress_clarity: 90.0%
+- stability_score: 86.0%
 
 [Risk Level]
 低
 
 [Task]
-M7-T14 / 校准 verify 默认样例阈值，确保 60s 内稳定得到 pass/fail 预期
+M7-T15 / 为默认 60s 样例增加基线快照测试
 
 [Impact]
-对 North Star 影响：+（缩短回归时长并保持稳定判定，提升执行效率）
+对 North Star 影响：+（防止默认样例时长被意外改动）
 
 [Do]
-- 修改文件列表：`scripts/verify_soak_thresholds.sh`、`README.md`、`ROADMAP.md`
-- 实现摘要：默认 PASS/FAIL 样例改为 60s，并验证连续执行稳定性
+- 修改文件列表：`tests/verify-soak-defaults.test.js`、`ROADMAP.md`
+- 实现摘要：新增测试验证默认 pass/fail 样例 durationSec=60 与阈值配置
 
 [Verify]
-- `bash scripts/verify_soak_thresholds.sh artifacts/soak-thresholds-a`
-- `bash scripts/verify_soak_thresholds.sh artifacts/soak-thresholds-b`
-- `node --test tests/formula-system.test.js tests/log-system.test.js tests/soak-cli.test.js tests/verify-soak-fallback.test.js tests/verify-soak-config.test.js`
+- `node --test tests/verify-soak-defaults.test.js`
+- `node --test tests/formula-system.test.js tests/log-system.test.js tests/soak-cli.test.js tests/verify-soak-fallback.test.js tests/verify-soak-config.test.js tests/verify-soak-defaults.test.js`
 
 [RoadmapPatch]
 (diff only)
 
 [Next]
-M7-T15
+M7-T16
 <!-- AUTO:METRICS-END -->
 
 ## 当前版本能力（摘要）
