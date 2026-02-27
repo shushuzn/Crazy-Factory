@@ -154,8 +154,13 @@
   - 完成：2026-02-27
   - 指标影响：North Star +（新增政策利率驱动收益与波动，金融系统真实感提升）
   - 证据：`policyRate` 已纳入状态与存档；收益公式新增利率拖拽因子；市场切换会变动利率并反馈至 UI
-- [NEXT] M8-T04 真实金融体系二期：资金成本可视化与研发对冲
+- [DONE] M8-T04 真实金融体系二期：资金成本可视化与研发对冲
   - 验收：界面展示“利率对收益影响比例”，并新增至少 1 个可降低利率拖拽的研发项
+  - 完成：2026-02-27
+  - 指标影响：North Star +（利率影响透明化并提供对冲成长路径，决策反馈更清晰）
+  - 证据：手动收益文案新增“利率效率 %”；新增研发“久期对冲”可降低利率拖拽
+- [NEXT] M8-T05 真实金融体系三期：市场事件与利率前瞻
+  - 验收：新增至少 2 类宏观事件并可提前预告下一次利率方向
 
 <!-- AUTO:METRICS-START -->
 [Mode]
@@ -175,14 +180,14 @@
 低
 
 [Task]
-M8-T03 / 真实金融体系一期：政策利率与资金成本
+M8-T04 / 真实金融体系二期：资金成本可视化与研发对冲
 
 [Impact]
-对 North Star 影响：+（经济循环新增“利率→收益/波动”联动，金融主题一致性更强）
+对 North Star 影响：+（利率影响可见且可对冲，提升策略可解释性与目标感）
 
 [Do]
-- 修改文件列表：`scripts/economy-system.js`、`scripts/game-data.js`、`scripts/game.js`、`scripts/market-system.js`、`scripts/save-system.js`、`ROADMAP.md`
-- 实现摘要：新增政策利率状态（默认值/上下限/存档），并将其接入手动收益、自动收益与市场周期波动
+- 修改文件列表：`scripts/economy-system.js`、`scripts/game-data.js`、`scripts/render-system.js`、`scripts/save-system.js`、`scripts/game.js`、`ROADMAP.md`
+- 实现摘要：新增“久期对冲”研发降低利率拖拽，并在手动收益文案实时展示“利率效率”比例
 
 [Verify]
 - `node --test tests/formula-system.test.js tests/log-system.test.js tests/soak-cli.test.js tests/verify-soak-fallback.test.js tests/verify-soak-config.test.js tests/verify-soak-defaults.test.js`
@@ -191,7 +196,7 @@ M8-T03 / 真实金融体系一期：政策利率与资金成本
 (diff only)
 
 [Next]
-M8-T04
+M8-T05
 <!-- AUTO:METRICS-END -->
 
 ## 当前版本能力（摘要）

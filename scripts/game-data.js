@@ -62,6 +62,7 @@
       { id:"algo",        name:"算法交易",   price:60000,      desc:"手动撮合 ×3",            type:"manualMult", value:3,    purchased:false, unlockRP:2, requires:"fintech" },
       { id:"derivatives", name:"衍生品套利", price:500000,     desc:"总产出 ×3",              type:"gps",        value:3,    purchased:false, unlockRP:3, requires:"algo" },
       { id:"quant2",      name:"量化 2.0",   price:8000000,    desc:"总产出 ×4",              type:"gps",        value:4,    purchased:false, unlockRP:5, requires:"derivatives" },
+      { id:"rate_hedge",  name:"久期对冲",   price:1800000,    desc:"利率拖拽 -20%",           type:"policyHedge",value:0.2,  purchased:false, unlockRP:4, requires:"derivatives" },
       // 建筑专属升级（每个产业解锁后可研发）
       { id:"sp_workshop",  name:"作坊精工",  price:500,        desc:"手工作坊产出 ×2",        type:"bldBoost",   value:{id:"workshop",   mult:2}, purchased:false, unlockRP:0, requires:null },
       { id:"sp_factory",   name:"流水线",    price:3500,       desc:"轻工厂产出 ×2",          type:"bldBoost",   value:{id:"factory",    mult:2}, purchased:false, unlockRP:0, requires:null },
@@ -122,7 +123,7 @@
       autoBuy:false, autoBuyAccumulator:0,
       bullClicks:0,
       marketMomentum:0, marketMomentumTimer:0,
-      policyRate:POLICY_RATE_DEFAULT,
+      policyRate:POLICY_RATE_DEFAULT, policyHedge:0,
       marketIsBull:true, marketTimer:35, marketCycleDuration:35,
       soundEnabled:true,
       skillMasteryTier:0,

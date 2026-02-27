@@ -38,7 +38,11 @@ const createEconomySystem = ({
   const marketMomentumStacks = () => Math.max(0, Math.floor(st.marketMomentum || 0));
   const marketMomentumGPSMult = () => st.marketIsBull ? 1 + marketMomentumStacks() * MARKET_MOMENTUM_GPS_PER_STACK : 1;
   const marketMomentumManualMult = () => 1 + marketMomentumStacks() * MARKET_MOMENTUM_MANUAL_PER_STACK;
-  const policyRateDrag = () => Math.max(0.72, 1 - (st.policyRate || 0) * 0.035);
+  const policyRateDrag = () => {
+    const baseDrag = Math.max(0.72, 1 - (st.policyRate || 0) * 0.035);
+    const hedge = Math.max(0, Math.min(0.6, Number(st.policyHedge) || 0));
+    return Math.min(1, baseDrag + (1 - baseDrag) * hedge);
+  };
   const getTotalGPS = () => baseGPS() * st.gpsMultiplier * resMult() * skillGPS() * mktMult() * skillMasteryMult() * marketMomentumGPSMult() * policyRateDrag();
   const getManualGain = () => st.manualPower * st.manualMult * (1 + skillLv('manual_mastery') * 0.3) * marketMomentumManualMult() * policyRateDrag();
 

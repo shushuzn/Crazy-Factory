@@ -95,9 +95,13 @@ const createRenderSystem = ({
     rpMetaEl.textContent = `研究加成 ×${(1 + st.researchPoints * 0.1).toFixed(1)}`;
     const momentumStacks = Math.max(0, Math.floor(st.marketMomentum || 0));
     const momentumPct = momentumStacks * 8;
+    const baseDrag = Math.max(0.72, 1 - (st.policyRate || 0) * 0.035);
+    const hedge = Math.max(0, Math.min(0.6, Number(st.policyHedge) || 0));
+    const policyMult = Math.min(1, baseDrag + (1 - baseDrag) * hedge);
+    const rateHint = `利率效率 ${(policyMult * 100).toFixed(1)}%`;
     manualDesc.textContent = momentumStacks > 0
-      ? `每次撮合 +${fmt(getManualGain())}（多头连击 ${momentumStacks} 层，手动+${momentumPct}%）`
-      : `每次撮合 +${fmt(getManualGain())}`;
+      ? `每次撮合 +${fmt(getManualGain())}（多头连击 ${momentumStacks} 层，手动+${momentumPct}%｜${rateHint}）`
+      : `每次撮合 +${fmt(getManualGain())}（${rateHint}）`;
     if(dirty.market) renderMarket();
 
     if(dirty.buildings){
