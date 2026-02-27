@@ -45,6 +45,8 @@ price = floor(basePrice * 1.15 ^ owned)
 - 阶段任务链：连续目标推进，并自动发放任务奖励
 - 事件日志：记录关键操作与奖励发放，便于调试平衡
 - 统计摘要面板：集中展示建筑/升级/成就/任务与累计进度
+- 调试面板：`?debug=1` 可查看 GPS 分解 / 市场状态 / 存档大小 / FPS / RAF速率 / Heap / 写入频次
+- 版本日志：首页展示版本号与最近两版变更
 - 内容解锁：
   - 建筑按累计齿轮解锁
   - 升级含前置条件与 RP 门槛
@@ -57,9 +59,25 @@ price = floor(basePrice * 1.15 ^ owned)
 ```txt
 .
 ├── index.html
+├── styles/
+│   └── main.css
 ├── README.md
 ├── ROADMAP.md
+├── tests/
+│   └── formula-system.test.js
 └── scripts/
+    ├── game-data.js
+    ├── formula-system.js
+    ├── skill-system.js
+    ├── economy-system.js
+    ├── market-system.js
+    ├── feedback-system.js
+    ├── save-system.js
+    ├── loop-system.js
+    ├── render-system.js
+    ├── debug-system.js
+    ├── game.js
+    ├── run_soak_check.js
     └── capture_screenshot.py
 ```
 
@@ -78,6 +96,12 @@ SCREENSHOT_ENGINES=firefox,webkit,chromium SCREENSHOT_URL=http://127.0.0.1:4173 
 ```
 
 > 在容器中若 Chromium 不稳定（SIGSEGV），建议保持 Firefox 优先。
+
+长时巡检可用：
+
+```bash
+node scripts/run_soak_check.js --seconds 1800
+```
 
 ## 路线图
 

@@ -1,62 +1,72 @@
 # 金融帝国（Idle/Incremental）路线图
 
 ## 目标
-将原型推进为可持续迭代的可玩版本：有中期目标、可验证数值、可维护代码结构。
+以“可持续迭代 + 可验证”为核心：每轮交付 1 个可验证增量（MVI），并保持模块边界清晰。
 
-## 里程碑
+## Milestones
 
-### M1：核心循环稳定化 ✅
-- [x] 数值层重构（生产/购买/渲染解耦）— `economy` 函数组与 `render()` 完全分离
-- [x] 固定步长 Tick（减少帧率波动影响）
-- [x] 渲染层缓存 DOM 引用（`buildingViewMap` 等 Map 缓存）
-- [x] 数值显示规范化（K/M/B/T）
-- [x] 前 10 分钟成长曲线调优 — 新增任务链节奏节点（q4/q5/q6），解锁阈值重新校准
+### M4：工程化与发布准备（进行中）
+- [DONE] M4-T01 单元测试：价格/批量购买/离线/Prestige 公式
+  - 验收：`node --test tests/formula-system.test.js` 全通过
+  - 完成：2026-02-27
+- [DONE] M4-T02 调试面板：GPS 分解 / 市场状态 / 存档大小 / FPS / Heap / 写入频次
+  - 验收：`/?debug=1` 可见调试面板并实时刷新
+  - 完成：2026-02-27
+- [DONE] M4-T03 RAF 速率巡检指标（泄漏前置监控）
+  - 验收：`/?debug=1` 显示 `RAF xx/s | OK/WARN`
+  - 完成：2026-02-27
+- [DONE] M4-T04 长时间运行巡检脚本（30 分钟）
+  - 验收：`node scripts/run_soak_check.js --seconds 1800` 输出平均 FPS、峰值 Heap、writes/min 波动与结论
+  - 完成：2026-02-27
+- [DONE] M4-T05 发布页与版本日志（changelog）
+  - 验收：首页标题展示版本号 + 页面存在“版本日志”区块并含版本记录
+  - 完成：2026-02-27
+  - 证据：`index.html` 含 `#appVersion` 与 `#changelogList`；`scripts/game.js` 初始化调用 `renderChangelog()`
 
-### M2：进度与可玩性增强 ✅
-- [x] 批量购买（×1/×10/×100/Max）
-- [x] 升级系统（全局/建筑增益）
-- [x] 本地存档（自动保存 + 手动重置）
-- [x] 离线收益（封顶结算）
-- [x] 成就与新手目标提示
-- [x] 阶段任务链（多阶段目标）
+### M5：平衡与体验抛光（完成）
+- [DONE] M5-T01 市场波动平衡回归（牛/熊周期与收益体感）
+  - 验收：给出参数表 + 10 分钟试玩日志
+  - 完成：2026-02-27
+  - 参数表：`MARKET_CYCLE_MIN=25s`、`MARKET_CYCLE_MAX=55s`、`MARKET_BULL_BONUS=1.4`、`MARKET_BEAR_PENALTY=0.7`
+  - 10 分钟日志：`node scripts/run_soak_check.js --seconds 600` => `writesPerMinAvg=11.56`、`writesPerMinStd=0.76`、结论 `FPS稳定 / 写入频次稳定 / Heap峰值正常`
+- [DONE] M5-T02 技能专精曲线复核（前中后期收益斜率）
+  - 验收：专精层级阈值与收益倍率对照表
+  - 完成：2026-02-27
+  - 证据：`SKILL_MASTERY_STEP=3`、`SKILL_MASTERY_BONUS=0.05`、技能总等级上限 18（5+5+5+3）
+  - 对照表：T0=Lv0-2×1.00；T1=Lv3-5×1.05；T2=Lv6-8×1.10；T3=Lv9-11×1.15；T4=Lv12-14×1.20；T5=Lv15-17×1.25；T6=Lv18×1.30
+- [DONE] M5-T03 反馈层细化（购买/研发/市场切换分层反馈）
+  - 验收：每类反馈至少 1 项可调参数与截图证明
+  - 完成：2026-02-27
+  - 参数：购买 `sfxBuy(330/440Hz, square, 0.12/0.10s, gain 0.08/0.06)`；研发 `sfxUpgrade(660/880Hz, sine, 0.15/0.20s, gain 0.10/0.08)`；市场切换 `marketFlashDurationMs=250`、`marketShakePx=6`、`marketShakeMs=220`
+  - 截图：`browser:/tmp/codex_browser_invocations/471049d103f3fb5d/artifacts/artifacts/m5-t03-feedback-proof.png`
 
-### M3：中期循环扩展 ✅
-- [x] 新建筑层级 — 新增 🏛️ 中央银行（dps 44000）、🌐 金融集团（dps 260000）
-- [x] 建筑专属升级 — 每个产业一条 ×2 专属研发项（sp_workshop … sp_fund）
-- [x] 解锁条件系统（建筑/升级前置/RP 门槛）
-- [x] 软重置（Prestige / RP，增发股权）
-- [x] 经济曲线二次调优 — 专属升级触发节点、任务链扩展至 7 步
-- [x] 音效 — Web Audio API 合成：撮合音（triangle）、购买双音（square）、研发上扬（sine）、市场切换（sawtooth）
-- [x] 关键反馈动效 — 市场切换屏闪（`#marketFlash`）、建筑购买弹跳（`buyBounce`）
+### M6：稳定性与可维护性（进行中）
+- [DONE] M6-T01 存档导入鲁棒性校验（非法 JSON/缺字段回退）
+  - 验收：提供最少 3 组异常输入与结果日志
+  - 完成：2026-02-27
+  - 日志1（非法 JSON）：点击导入并输入 `not-json` => 弹窗 `存档格式无效`
+  - 日志2（缺字段对象）：`{"savedAt":...,"buildings":[{"id":"workshop","owned":2}]}` => 页面可加载，`workshopOwned=2`，`rp=0 RP`
+  - 日志3（越界数值）：`manualPower=-5,researchPoints=-8,skills.manual_mastery=999` => 夹取后 `rp=0 RP`、技能显示 `等级 5/5`
+- [DONE] M6-T02 调试面板字段一致性复核（FPS/RAF/Heap 与采样窗口）
+  - 验收：字段说明 + 对应采样来源代码行
+  - 完成：2026-02-27
+  - 字段说明：`debugGps`=base/mul/total/bld；`debugMarket`=BULL/BEAR+timer+cycle；`debugSave`=size+writes/min+last；`debugPerf`=FPS+speed+auto；`debugRaf`=RAF/s+OK/WARN；`debugMem`=Heap MB/n-a
+  - 来源行：`scripts/debug-system.js` L11-16(字段容器), L36-37(GPS/Market), L43(Save), L47(RAF), L53(FPS), L59(Heap), L44-46(RAF窗口判定), L49-56(FPS采样窗口)
+  - 运行证据：`/?debug=1` 实测文本含 `GPS base...`, `Market BULL...`, `Save key...writes/min...`, `FPS ...`, `RAF ...`, `Heap ...`
+- [TODO] M6-T03 事件日志容量策略（上限与裁剪提示）
+  - 验收：日志上限值 + 裁剪后用户可见提示
+- [NEXT] M6-T03 事件日志容量策略（上限与裁剪提示）
+  - 验收：同 M6-T03
 
-### M4：工程化与发布准备
-- [ ] 模块化拆分（ui.js / economy.js / save.js）
-- [ ] 单元测试（价格计算、批量购买、离线结算、Prestige 公式）
-- [ ] 调试面板（实时查看 GPS 分解、市场状态、存档大小）
-- [ ] 长时间运行性能巡检（>30 分钟无内存泄漏）
-- [ ] 发布页与版本日志（changelog）
+## 当前版本能力（摘要）
+- 模块化系统：formula/economy/skill/market/feedback/save/render/loop/debug
+- 经济核心公式已抽离为纯函数并具备 Node 单测
+- `?debug=1` 支持 GPS 分解、市场状态、存档大小、writes/min、FPS、RAF/s、Heap
+- 支持 `scripts/run_soak_check.js` 进行 30 分钟巡检报告导出
 
-## 当前版本已落地能力（v2）
-- 固定步长模拟 + 5s 自动存档
-- 生产层/渲染层解耦（`economy` 函数组 vs `render()`）
-- 8 栋产业建筑（手工作坊 → 金融集团）
-- 12 条研发升级（通用链 6 条 + 建筑专属 6 条）
-- 4 条技能树（交易直觉/产线优化/采购折扣/市场嗅觉）
-- 8 个成就 + 7 步任务链
-- 市场波动系统（多头 ×1.4 / 空头 ×0.7，随机周期 25~55s）
-- Web Audio 音效（4 种场景，可开关）
-- 视觉反馈：浮动数字、按钮脉冲、涟漪背景、市场屏闪、购买弹跳
-- 离线收益结算（上限 8h）
-- Prestige（RP 永久研究加成）
-- 自动投资、批量购买、仿真倍速、存档导入导出
+## 历史完成摘要（归档）
+- M1~M3 核心循环、进度系统、中期内容扩展均已完成（建筑层级、升级链、成就任务、Prestige、离线收益、音效反馈）
 
-## 下一步优先级（M4）
-1. 拆分单文件 → `economy.js` + `ui.js` + `save.js`，降低维护成本
-2. 为核心经济函数补最小单元测试（价格公式、离线公式、Prestige 公式）
-3. 内置调试面板（`?debug=1` 参数触发）
-4. 长时间运行性能巡检（requestAnimationFrame 泄漏检测）
-
-## 更新规则
-- 每次迭代只更新三块：`已完成`、`待处理`、`下一步`。
-- 文档保持短句、可勾选、可追踪。
-- 存档 Key 升版本时需迁移旧存档（当前：`finance_empire_v2`）。
+## 规则
+- DONE 仅保留近期关键项；历史内容归档摘要。
+- 每轮仅执行 1 个任务；必须维护唯一 NEXT。
