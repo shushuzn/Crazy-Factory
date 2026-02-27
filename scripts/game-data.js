@@ -19,6 +19,13 @@
     const SKILL_MASTERY_STEP = 3;     // 每 3 级技能提升 1 个专精层级
     const SKILL_MASTERY_BONUS = 0.05; // 每层专精提供 +5% 总收益
 
+    const APP_VERSION = "v2.1.0";
+    const CHANGELOG = [
+      { version:"v2.1.0", date:"2026-02-27", notes:["新增公式单测与长时巡检脚本", "调试面板支持 RAF/Heap/写入频次诊断", "系统模块拆分至 formula/economy/market/render/loop"] },
+      { version:"v2.0.0", date:"2026-02-26", notes:["中期内容扩展：中央银行、金融集团", "技能专精与事件反馈增强", "Prestige、离线收益与自动投资完善"] },
+    ];
+
+
     // ════════════════════════════════════════════════
     // ② 产业链数据
     //    新增 2 层：中央银行 + 金融集团（M3 新建筑层级）

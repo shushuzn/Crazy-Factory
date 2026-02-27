@@ -20,6 +20,8 @@
     const upgradeListEl = $("upgradeList");
     const skillListEl   = $("skillList");
     const skillMasteryMetaEl = $("skillMasteryMeta");
+    const appVersionEl  = $("appVersion");
+    const changelogListEl= $("changelogList");
     const achievListEl  = $("achievementList");
     const modeButtons   = [...document.querySelectorAll("[data-mode]")];
     const speedButtons  = [...document.querySelectorAll("[data-speed]")];
@@ -125,6 +127,20 @@
         btn:row.querySelector(`[data-skbuy="${sk.id}"]`),
         meta:row.querySelector(`[data-smeta="${sk.id}"]`),
       });
+    };
+
+
+    const renderChangelog = () => {
+      if(appVersionEl) appVersionEl.textContent = APP_VERSION;
+      if(!changelogListEl) return;
+      changelogListEl.innerHTML = "";
+      for(const item of CHANGELOG){
+        const wrap=document.createElement("article");
+        wrap.className="changelog-item";
+        const notes=item.notes.map(n=>`<li>${n}</li>`).join("");
+        wrap.innerHTML=`<div class="changelog-head"><strong>${item.version}</strong><span>${item.date}</span></div><ul class="changelog-notes">${notes}</ul>`;
+        changelogListEl.appendChild(wrap);
+      }
     };
 
     const createAchievRow = (a) => {
@@ -385,6 +401,7 @@
     upgrades.forEach(createUpgradeRow);
     skills.forEach(createSkillRow);
     achievements.forEach(createAchievRow);
+    renderChangelog();
 
     loadGame();
     refreshSkillMastery(true);
