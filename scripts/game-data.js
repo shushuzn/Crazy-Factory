@@ -114,6 +114,7 @@
       lastRewardText:"", gameSpeed:1, questIndex:0, logs:[],
       autoBuy:false, autoBuyAccumulator:0,
       bullClicks:0,
+      marketMomentum:0, marketMomentumTimer:0,
       marketIsBull:true, marketTimer:35, marketCycleDuration:35,
       soundEnabled:true,
       skillMasteryTier:0,

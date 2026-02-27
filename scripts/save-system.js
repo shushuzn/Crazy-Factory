@@ -9,7 +9,7 @@
         autoBuy:st.autoBuy, questIndex:st.questIndex, logs:st.logs.slice(0,LOG_CAP),
         manualPower:st.manualPower, manualMult:st.manualMult, gpsMultiplier:st.gpsMultiplier,
         totalClicks:st.totalClicks, lifetimeGears:st.lifetimeGears, researchPoints:st.researchPoints,
-        bullClicks:st.bullClicks, marketIsBull:st.marketIsBull, soundEnabled:st.soundEnabled,
+        bullClicks:st.bullClicks, marketMomentum:st.marketMomentum, marketMomentumTimer:st.marketMomentumTimer, marketIsBull:st.marketIsBull, soundEnabled:st.soundEnabled,
         skillMasteryTier:st.skillMasteryTier,
         buildings: buildings.map(b=>({id:b.id,owned:b.owned})),
         upgrades:  upgrades.map(u=>({id:u.id,purchased:u.purchased})),
@@ -33,6 +33,8 @@
         st.lifetimeGears  = Math.max(0,Number(d.lifetimeGears)||0);
         st.researchPoints = Math.max(0,Math.floor(Number(d.researchPoints)||0));
         st.bullClicks     = Math.max(0,Number(d.bullClicks)||0);
+        st.marketMomentum  = Math.max(0,Math.min(20,Math.floor(Number(d.marketMomentum)||0)));
+        st.marketMomentumTimer = Math.max(0,Number(d.marketMomentumTimer)||0);
         st.marketIsBull   = d.marketIsBull!==false;
         st.soundEnabled   = d.soundEnabled!==false;
         st.skillMasteryTier = Math.max(0,Math.floor(Number(d.skillMasteryTier)||0));

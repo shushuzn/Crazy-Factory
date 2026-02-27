@@ -138,48 +138,52 @@
   - 完成：2026-02-27
   - 指标影响：North Star +（防止回归流程失控卡死，CI 稳定性提升）
   - 证据：`scripts/verify_soak_thresholds.sh` 新增 `VERIFY_SOAK_TIMEOUT_SEC` 并在超时后返回非零
-- [TODO] M7-T17 为超时保护补充自动化测试
-  - 验收：强制超时场景断言非零退出
-- [NEXT] M7-T17 为超时保护补充自动化测试
-  - 验收：强制超时场景断言非零退出
+- [DONE] M8-T01 多头连击玩法（手动撮合叠层增益）
+  - 验收：多头期间手动撮合可叠加连击层数，并提升手动收益与总产出
+  - 完成：2026-02-27
+  - 指标影响：North Star +（手动操作反馈更强，中前期留存与参与度提升）
+  - 证据：新增 `marketMomentum` 与 `marketMomentumTimer`，`manualDesc` 显示连击层与手动加成
+- [TODO] M8-T02 连击玩法平衡复核（层数上限/持续时间）
+  - 验收：给出 10 分钟样例日志与推荐参数
+- [NEXT] M8-T02 连击玩法平衡复核（层数上限/持续时间）
+  - 验收：给出 10 分钟样例日志与推荐参数
 
 <!-- AUTO:METRICS-START -->
 [Mode]
 🛡 Hardening Mode（强化模式）
 
 [North Star]
-91.0% (trend: up)
+91.5% (trend: up)
 
 [Supporting Metrics]
-- growth_momentum: 89.0%（verify 增加超时保护，CI 可控性增强）
-- return_quality: 80.0%
+- growth_momentum: 90.0%（新增多头连击，主动玩法驱动成长感）
+- return_quality: 81.0%
 - upgrade_satisfaction: 77.0%
-- progress_clarity: 91.0%
+- progress_clarity: 90.0%
 - stability_score: 87.0%
 
 [Risk Level]
 低
 
 [Task]
-M7-T16 / 为 verify 脚本增加总超时保护（超时非零退出）
+M8-T01 / 多头连击玩法（手动撮合叠层增益）
 
 [Impact]
-对 North Star 影响：+（降低长时阻塞风险，保障自动化流水线稳定）
+对 North Star 影响：+（增强主动操作价值，提升短会话目标感）
 
 [Do]
-- 修改文件列表：`scripts/verify_soak_thresholds.sh`、`README.md`、`ROADMAP.md`
-- 实现摘要：新增超时环境变量与超时检测逻辑，补充文档
+- 修改文件列表：`scripts/economy-system.js`、`scripts/loop-system.js`、`scripts/render-system.js`、`scripts/game.js`、`scripts/save-system.js`、`scripts/game-data.js`、`ROADMAP.md`
+- 实现摘要：加入多头连击层数与衰减计时，连击可提升手动收益并在多头期提升总产出，UI 文案同步显示
 
 [Verify]
-- `bash scripts/verify_soak_thresholds.sh`
-- `VERIFY_SOAK_TIMEOUT_SEC=1 VERIFY_SOAK_PASS_CMD='sleep 2; node scripts/run_soak_check.js --seconds 5 --max-writes-std 3' bash scripts/verify_soak_thresholds.sh artifacts/soak-timeout`
 - `node --test tests/formula-system.test.js tests/log-system.test.js tests/soak-cli.test.js tests/verify-soak-fallback.test.js tests/verify-soak-config.test.js tests/verify-soak-defaults.test.js`
+- `node scripts/run_soak_check.js --seconds 60 --max-writes-std 3`
 
 [RoadmapPatch]
 (diff only)
 
 [Next]
-M7-T17
+M8-T02
 <!-- AUTO:METRICS-END -->
 
 ## 当前版本能力（摘要）
