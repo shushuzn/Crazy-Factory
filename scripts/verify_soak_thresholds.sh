@@ -10,8 +10,8 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   OUT_DIR  归档目录（可选），默认 artifacts/soak-thresholds
 
 说明:
-  - 执行一个预期通过的 run_soak_check（exit 0）
-  - 执行一个预期失败的 run_soak_check（阈值失败，exit 1）
+  - 执行一个预期通过的 run_soak_check（默认 60s，exit 0）
+  - 执行一个预期失败的 run_soak_check（默认 60s 严格阈值，exit 1）
   - 执行一个预期失败的 run_soak_check（非法参数，exit 1）
   - 归档每次执行的原始日志与 SOAK_REPORT JSON（非法参数仅归档日志）
   - JSON 解析优先使用 python（python3/python），不可用时自动回退到 node
@@ -33,8 +33,8 @@ USAGE
 fi
 
 OUT_DIR="${1:-artifacts/soak-thresholds}"
-PASS_CMD="${VERIFY_SOAK_PASS_CMD:-node scripts/run_soak_check.js --seconds 120 --max-writes-std 2}"
-FAIL_CMD="${VERIFY_SOAK_FAIL_CMD:-node scripts/run_soak_check.js --seconds 10}"
+PASS_CMD="${VERIFY_SOAK_PASS_CMD:-node scripts/run_soak_check.js --seconds 60 --max-writes-std 3}"
+FAIL_CMD="${VERIFY_SOAK_FAIL_CMD:-node scripts/run_soak_check.js --seconds 60 --max-writes-std 1}"
 INVALID_CMD="${VERIFY_SOAK_INVALID_CMD:-node scripts/run_soak_check.js --bad-flag}"
 mkdir -p "$OUT_DIR"
 

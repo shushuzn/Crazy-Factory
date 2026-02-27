@@ -123,7 +123,7 @@ CI 示例（可直接复制）：
 node scripts/run_soak_check.js --seconds 600 --min-fps 55 --max-heap-mb 256 --max-writes-std 2
 ```
 
-阈值回归样例（一次执行验证 pass/fail/invalid 三类路径并归档）：
+阈值回归样例（默认以 60s 样例一次执行验证 pass/fail/invalid 三类路径并归档）：
 
 ```bash
 bash scripts/verify_soak_thresholds.sh

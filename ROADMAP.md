@@ -123,47 +123,53 @@
   - 完成：2026-02-27
   - 指标影响：North Star +（命令覆盖能力具备自动验证，避免配置失效）
   - 证据：新增 `tests/verify-soak-config.test.js`，校验 PASS/FAIL/INVALID 覆盖命令生效
-- [TODO] M7-T14 校准 verify 脚本默认样例阈值（减少短测波动）
+- [DONE] M7-T14 校准 verify 脚本默认样例阈值（减少短测波动）
   - 验收：默认样例在 60s 内稳定得到 pass/fail 预期
-- [NEXT] M7-T14 校准 verify 脚本默认样例阈值（减少短测波动）
-  - 验收：默认样例在 60s 内稳定得到 pass/fail 预期
+  - 完成：2026-02-27
+  - 指标影响：North Star +（默认样例在短时长下结果稳定，回归耗时更可控）
+  - 证据：默认 pass/fail 调整为 60s；连续两次验证均得到 `pass=true` 与 `fail=false`
+- [TODO] M7-T15 为默认 60s 样例增加基线快照测试
+  - 验收：测试断言默认样例 durationSec=60
+- [NEXT] M7-T15 为默认 60s 样例增加基线快照测试
+  - 验收：测试断言默认样例 durationSec=60
 
 <!-- AUTO:METRICS-START -->
 [Mode]
 🛡 Hardening Mode（强化模式）
 
 [North Star]
-88.0% (trend: up)
+89.0% (trend: up)
 
 [Supporting Metrics]
-- growth_momentum: 86.0%（可配置命令加入自动化验证，回归可信度提高）
+- growth_momentum: 87.0%（默认样例时长降至 60s 且结果稳定）
 - return_quality: 80.0%
 - upgrade_satisfaction: 77.0%
-- progress_clarity: 88.0%
+- progress_clarity: 89.0%
 - stability_score: 85.0%
 
 [Risk Level]
 低
 
 [Task]
-M7-T13 / 为 verify 脚本可配置样例参数增加自动化测试
+M7-T14 / 校准 verify 默认样例阈值，确保 60s 内稳定得到 pass/fail 预期
 
 [Impact]
-对 North Star 影响：+（降低 CI 配置变更导致的隐性失效风险）
+对 North Star 影响：+（缩短回归时长并保持稳定判定，提升执行效率）
 
 [Do]
-- 修改文件列表：`tests/verify-soak-config.test.js`、`ROADMAP.md`
-- 实现摘要：新增测试覆盖 `VERIFY_SOAK_PASS_CMD/FAIL_CMD/INVALID_CMD` 生效性
+- 修改文件列表：`scripts/verify_soak_thresholds.sh`、`README.md`、`ROADMAP.md`
+- 实现摘要：默认 PASS/FAIL 样例改为 60s，并验证连续执行稳定性
 
 [Verify]
-- `node --test tests/verify-soak-config.test.js`
+- `bash scripts/verify_soak_thresholds.sh artifacts/soak-thresholds-a`
+- `bash scripts/verify_soak_thresholds.sh artifacts/soak-thresholds-b`
 - `node --test tests/formula-system.test.js tests/log-system.test.js tests/soak-cli.test.js tests/verify-soak-fallback.test.js tests/verify-soak-config.test.js`
 
 [RoadmapPatch]
 (diff only)
 
 [Next]
-M7-T14
+M7-T15
 <!-- AUTO:METRICS-END -->
 
 ## 当前版本能力（摘要）
