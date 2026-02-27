@@ -21,6 +21,9 @@
     const MARKET_MOMENTUM_DURATION = 5;
     const MARKET_MOMENTUM_GPS_PER_STACK = 0.02;
     const MARKET_MOMENTUM_MANUAL_PER_STACK = 0.06;
+    const POLICY_RATE_DEFAULT = 2.5;
+    const POLICY_RATE_MIN = 0;
+    const POLICY_RATE_MAX = 8;
     const SKILL_MASTERY_STEP = 3;     // 每 3 级技能提升 1 个专精层级
     const SKILL_MASTERY_BONUS = 0.05; // 每层专精提供 +5% 总收益
 
@@ -119,6 +122,7 @@
       autoBuy:false, autoBuyAccumulator:0,
       bullClicks:0,
       marketMomentum:0, marketMomentumTimer:0,
+      policyRate:POLICY_RATE_DEFAULT,
       marketIsBull:true, marketTimer:35, marketCycleDuration:35,
       soundEnabled:true,
       skillMasteryTier:0,

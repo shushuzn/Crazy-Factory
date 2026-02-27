@@ -149,10 +149,13 @@
   - 指标影响：North Star +（连击强度进入可控区间，节奏更稳）
   - 证据：新增 `scripts/run_momentum_balance_check.js`，10 分钟报告建议“保持当前参数”
   - 推荐参数：`MOMENTUM_CAP=12`、`MOMENTUM_DURATION=5s`、`MANUAL_PER_STACK=6%`、`GPS_PER_STACK=2%`
-- [TODO] M8-T03 真实金融体系一期：政策利率与资金成本
+- [DONE] M8-T03 真实金融体系一期：政策利率与资金成本
   - 验收：新增“政策利率”变量并影响手动/自动收益与市场波动
-- [NEXT] M8-T03 真实金融体系一期：政策利率与资金成本
-  - 验收：新增“政策利率”变量并影响手动/自动收益与市场波动
+  - 完成：2026-02-27
+  - 指标影响：North Star +（新增政策利率驱动收益与波动，金融系统真实感提升）
+  - 证据：`policyRate` 已纳入状态与存档；收益公式新增利率拖拽因子；市场切换会变动利率并反馈至 UI
+- [NEXT] M8-T04 真实金融体系二期：资金成本可视化与研发对冲
+  - 验收：界面展示“利率对收益影响比例”，并新增至少 1 个可降低利率拖拽的研发项
 
 <!-- AUTO:METRICS-START -->
 [Mode]
@@ -172,24 +175,23 @@
 低
 
 [Task]
-M8-T02 / 连击玩法平衡复核（层数上限/持续时间）
+M8-T03 / 真实金融体系一期：政策利率与资金成本
 
 [Impact]
-对 North Star 影响：+（玩法强度更可预测，避免过强或无感）
+对 North Star 影响：+（经济循环新增“利率→收益/波动”联动，金融主题一致性更强）
 
 [Do]
-- 修改文件列表：`scripts/economy-system.js`、`scripts/game.js`、`scripts/loop-system.js`、`scripts/render-system.js`、`scripts/save-system.js`、`scripts/game-data.js`、`scripts/run_momentum_balance_check.js`、`ROADMAP.md`
-- 实现摘要：引入可调连击参数并完成 10 分钟平衡报告，给出推荐参数集
+- 修改文件列表：`scripts/economy-system.js`、`scripts/game-data.js`、`scripts/game.js`、`scripts/market-system.js`、`scripts/save-system.js`、`ROADMAP.md`
+- 实现摘要：新增政策利率状态（默认值/上下限/存档），并将其接入手动收益、自动收益与市场周期波动
 
 [Verify]
-- `node scripts/run_momentum_balance_check.js`
 - `node --test tests/formula-system.test.js tests/log-system.test.js tests/soak-cli.test.js tests/verify-soak-fallback.test.js tests/verify-soak-config.test.js tests/verify-soak-defaults.test.js`
 
 [RoadmapPatch]
 (diff only)
 
 [Next]
-M8-T03
+M8-T04
 <!-- AUTO:METRICS-END -->
 
 ## 当前版本能力（摘要）
