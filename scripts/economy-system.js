@@ -9,13 +9,13 @@ const createEconomySystem = ({
   PRICE_GROWTH,
   MARKET_BULL_BONUS,
   MARKET_BEAR_PENALTY,
+  SKILL_MASTERY_BONUS,
   dirty,
   buildingViewMap,
   pushLog,
   saveGame,
   fmt,
   sfxBuy,
-  sfxUpgrade,
   applyUpgradeEffect
 }) => {
   const bld = (id) => buildings.find((b) => b.id === id);
@@ -32,7 +32,8 @@ const createEconomySystem = ({
     return st.marketIsBull ? base * (1 + skillLv('market_sense') * 0.1) : base;
   };
 
-  const getTotalGPS = () => baseGPS() * st.gpsMultiplier * resMult() * skillGPS() * mktMult();
+  const skillMasteryMult = () => 1 + (st.skillMasteryTier || 0) * SKILL_MASTERY_BONUS;
+  const getTotalGPS = () => baseGPS() * st.gpsMultiplier * resMult() * skillGPS() * mktMult() * skillMasteryMult();
   const getManualGain = () => st.manualPower * st.manualMult * (1 + skillLv('manual_mastery') * 0.3);
 
   const affordableCount = (b, budget, mode) => {
@@ -115,17 +116,7 @@ const createEconomySystem = ({
     saveGame();
   };
 
-  const buySkill = (id) => {
-    const sk = skills.find((s) => s.id === id);
-    if (!sk || sk.level >= sk.maxLevel || st.researchPoints < sk.costRP) return;
 
-    st.researchPoints -= sk.costRP;
-    sk.level++;
-    sfxUpgrade();
-    pushLog(`技能升级：${sk.name} Lv.${sk.level}`);
-    dirty.skills = dirty.logs = true;
-    saveGame();
-  };
 
   const tryAutoBuy = () => {
     for (const u of upgrades) {
@@ -160,7 +151,6 @@ const createEconomySystem = ({
     isBldUnlocked,
     buyBuilding,
     buyUpgrade,
-    buySkill,
     tryAutoBuy,
   };
 };

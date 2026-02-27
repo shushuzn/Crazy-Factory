@@ -19,6 +19,7 @@
     const buildingListEl= $("buildingList");
     const upgradeListEl = $("upgradeList");
     const skillListEl   = $("skillList");
+    const skillMasteryMetaEl = $("skillMasteryMeta");
     const achievListEl  = $("achievementList");
     const modeButtons   = [...document.querySelectorAll("[data-mode]")];
     const speedButtons  = [...document.querySelectorAll("[data-speed]")];
@@ -182,6 +183,7 @@
       PRICE_GROWTH,
       MARKET_BULL_BONUS,
       MARKET_BEAR_PENALTY,
+      SKILL_MASTERY_BONUS,
       dirty,
       buildingViewMap,
       pushLog,
@@ -204,9 +206,21 @@
       isBldUnlocked,
       buyBuilding,
       buyUpgrade,
-      buySkill,
       tryAutoBuy,
     } = economy;
+
+    const skillSystem = createSkillSystem({
+      st,
+      skills,
+      dirty,
+      pushLog,
+      saveGame,
+      sfxUpgrade,
+      SKILL_MASTERY_STEP,
+      SKILL_MASTERY_BONUS,
+    });
+    const { buySkill, getTotalSkillLevels, refreshSkillMastery } = skillSystem;
+
     const claimAchievement = (a) => {
       if(!a.reward||a.claimed) return;
       a.claimed=true; grantReward(a.reward,`成就「${a.name}」`); saveGame();
@@ -310,6 +324,10 @@
           v.meta.textContent=`等级 ${sk.level}/${sk.maxLevel}`;
           if(sk.level>=sk.maxLevel){v.btn.disabled=true;v.btn.textContent="已满级";}
           else{v.btn.disabled=st.researchPoints<sk.costRP;v.btn.textContent=`升级（${sk.costRP} RP）`;}
+        }
+        if(skillMasteryMetaEl){
+          const totalLv = getTotalSkillLevels();
+          skillMasteryMetaEl.textContent = `专精 T${st.skillMasteryTier} · 总技能等级 ${totalLv} · 总收益加成 ×${(1 + st.skillMasteryTier * SKILL_MASTERY_BONUS).toFixed(2)}`;
         }
         dirty.skills = false;
       }
@@ -419,7 +437,7 @@
       st.researchPoints+=gain; pushLog(`增发股权，获得 +${gain} RP`);
       Object.assign(st,{gears:0,purchaseMode:"1",pendingOfflineGears:0,accumulator:0,
         manualPower:1,manualMult:1,gpsMultiplier:1,totalClicks:0,lifetimeGears:0,
-        lastRewardText:"",gameSpeed:1,questIndex:0,autoBuy:false,autoBuyAccumulator:0,bullClicks:0});
+        lastRewardText:"",gameSpeed:1,questIndex:0,autoBuy:false,autoBuyAccumulator:0,bullClicks:0,skillMasteryTier:0});
       buildings.forEach(b=>b.owned=0);
       upgrades.forEach(u=>u.purchased=false);
       skills.forEach(s=>s.level=0);
@@ -436,7 +454,7 @@
         manualPower:1,manualMult:1,gpsMultiplier:1,totalClicks:0,lifetimeGears:0,researchPoints:0,
         lastRewardText:"",gameSpeed:1,questIndex:0,autoBuy:false,autoBuyAccumulator:0,
         bullClicks:0,marketIsBull:true,marketTimer:35,marketCycleDuration:35,
-        soundEnabled:true,logs:["[--:--:--] 清盘重来"]});
+        soundEnabled:true,skillMasteryTier:0,logs:["[--:--:--] 清盘重来"]});
       buildings.forEach(b=>b.owned=0);
       upgrades.forEach(u=>u.purchased=false);
       skills.forEach(s=>s.level=0);
@@ -455,6 +473,7 @@
     achievements.forEach(createAchievRow);
 
     loadGame();
+    refreshSkillMastery(true);
     dirty.market = dirty.buildings = dirty.upgrades = dirty.skills = dirty.achievements = dirty.quest = dirty.stats = dirty.logs = true;
 
     let lastSave = performance.now();

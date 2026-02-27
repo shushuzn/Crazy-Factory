@@ -8,6 +8,7 @@
         manualPower:st.manualPower, manualMult:st.manualMult, gpsMultiplier:st.gpsMultiplier,
         totalClicks:st.totalClicks, lifetimeGears:st.lifetimeGears, researchPoints:st.researchPoints,
         bullClicks:st.bullClicks, marketIsBull:st.marketIsBull, soundEnabled:st.soundEnabled,
+        skillMasteryTier:st.skillMasteryTier,
         buildings: buildings.map(b=>({id:b.id,owned:b.owned})),
         upgrades:  upgrades.map(u=>({id:u.id,purchased:u.purchased})),
         skills:    skills.map(s=>({id:s.id,level:s.level})),
@@ -32,6 +33,7 @@
         st.bullClicks     = Math.max(0,Number(d.bullClicks)||0);
         st.marketIsBull   = d.marketIsBull!==false;
         st.soundEnabled   = d.soundEnabled!==false;
+        st.skillMasteryTier = Math.max(0,Math.floor(Number(d.skillMasteryTier)||0));
         if(["1","10","100","max"].includes(d.purchaseMode)) st.purchaseMode=d.purchaseMode;
         if([1,2,4].includes(Number(d.gameSpeed))) st.gameSpeed=Number(d.gameSpeed);
         st.autoBuy    = Boolean(d.autoBuy);
@@ -41,6 +43,7 @@
         (d.buildings||[]).forEach(s=>{const t=bld(s.id);if(t)t.owned=Math.max(0,Math.floor(Number(s.owned)||0));});
         (d.upgrades||[]).forEach(s=>{const t=upgrades.find(u=>u.id===s.id);if(t){t.purchased=Boolean(s.purchased);if(t.purchased)applyUpgradeEffect(t,true);}});
         (d.skills||[]).forEach(s=>{const t=skills.find(x=>x.id===s.id);if(t)t.level=Math.max(0,Math.min(t.maxLevel,Math.floor(Number(s.level)||0)));});
+        if(typeof refreshSkillMastery === "function") refreshSkillMastery(true);
         (d.achievements||[]).forEach(s=>{const t=achievements.find(a=>a.id===s.id);if(t){t.done=Boolean(s.done);t.claimed=Boolean(s.claimed);}});
         if(d.bldBoost&&typeof d.bldBoost==="object") Object.assign(bldBoost,d.bldBoost);
 

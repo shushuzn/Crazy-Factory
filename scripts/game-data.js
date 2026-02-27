@@ -16,6 +16,8 @@
     const MARKET_CYCLE_MAX  = 55;
     const MARKET_BULL_BONUS = 1.4;
     const MARKET_BEAR_PENALTY = 0.7;
+    const SKILL_MASTERY_STEP = 3;     // 每 3 级技能提升 1 个专精层级
+    const SKILL_MASTERY_BONUS = 0.05; // 每层专精提供 +5% 总收益
 
     // ════════════════════════════════════════════════
     // ② 产业链数据
@@ -106,6 +108,7 @@
       bullClicks:0,
       marketIsBull:true, marketTimer:35, marketCycleDuration:35,
       soundEnabled:true,
+      skillMasteryTier:0,
     };
 
     // 显示值（用于平滑滚动）
