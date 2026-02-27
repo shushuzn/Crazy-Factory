@@ -13,6 +13,8 @@ const createMarketSystem = ({
   MARKET_BEAR_PENALTY,
   POLICY_RATE_MIN,
   POLICY_RATE_MAX,
+  MACRO_EVENTS,
+  POLICY_GUIDANCE_BASE_BIAS,
   marketMultEl,
   marketStatusEl,
   marketDotEl,
@@ -20,16 +22,72 @@ const createMarketSystem = ({
   marketWaveEl,
   marketCountEl,
   marketEffectEl,
+  marketEventEl,
+  marketOutlookEl,
 }) => {
+  const clampRate = (x) => Math.max(POLICY_RATE_MIN, Math.min(POLICY_RATE_MAX, x));
+
+  const getActiveMacro = () => {
+    if (!st.macroEventId) return null;
+    return (MACRO_EVENTS || []).find((e) => e.id === st.macroEventId) || null;
+  };
+
+  const chooseDirectionByBias = (biasUp) => (Math.random() < biasUp ? 0.25 : -0.25);
+
+  const updateRateOutlook = () => {
+    const macro = getActiveMacro();
+    const biasUp = Math.max(0.05, Math.min(0.95, Number(macro?.guidanceBiasUp ?? POLICY_GUIDANCE_BASE_BIAS ?? 0.5)));
+    st.rateOutlookBiasUp = biasUp;
+    st.rateOutlookDirection = biasUp >= 0.5 ? '上调' : '下调';
+    st.rateOutlookConfidence = Math.round(Math.abs(biasUp - 0.5) * 200);
+  };
+
+  const maybeRollMacroEvent = () => {
+    if (st.macroEventTimer > 0 || !Array.isArray(MACRO_EVENTS) || MACRO_EVENTS.length === 0) return;
+    if (Math.random() >= 0.35) return;
+    const idx = Math.floor(Math.random() * MACRO_EVENTS.length);
+    const ev = MACRO_EVENTS[idx];
+    if (!ev) return;
+    st.macroEventId = ev.id;
+    st.macroEventTimer = Math.max(1, Number(ev.durationSwitches) || 1);
+    const shock = Number(ev.rateShock) || 0;
+    if (shock !== 0) st.policyRate = clampRate((st.policyRate || 0) + shock);
+    pushLog(`🌐 宏观事件：${ev.name}（持续 ${st.macroEventTimer} 次切换）`);
+    dirty.logs = true;
+    updateRateOutlook();
+  };
+
+  const decayMacroEvent = () => {
+    if (st.macroEventTimer <= 0) return;
+    st.macroEventTimer = Math.max(0, st.macroEventTimer - 1);
+    if (st.macroEventTimer === 0) {
+      const ev = getActiveMacro();
+      if (ev) pushLog(`📰 事件结束：${ev.name}`);
+      st.macroEventId = '';
+      dirty.logs = true;
+      updateRateOutlook();
+    }
+  };
+
   const doMarketSwitch = () => {
     st.marketIsBull = !st.marketIsBull;
     st.marketCycleDuration = MARKET_CYCLE_MIN + Math.random() * (MARKET_CYCLE_MAX - MARKET_CYCLE_MIN);
     st.marketTimer = st.marketCycleDuration;
-    const rateStep = (Math.random() < 0.5 ? -0.25 : 0.25);
-    st.policyRate = Math.max(POLICY_RATE_MIN, Math.min(POLICY_RATE_MAX, (st.policyRate || 0) + rateStep));
+
+    const rateStep = chooseDirectionByBias(st.rateOutlookBiasUp || POLICY_GUIDANCE_BASE_BIAS || 0.5);
+    st.policyRate = clampRate((st.policyRate || 0) + rateStep);
+
     const label = st.marketIsBull ? '📈 多头行情爆发！' : '📉 空头来袭，注意风控';
     pushLog(`${label}（政策利率 ${st.policyRate.toFixed(2)}%）`);
     st.lastRewardText = `${label}｜政策利率 ${st.policyRate.toFixed(2)}%`;
+
+    decayMacroEvent();
+    maybeRollMacroEvent();
+    updateRateOutlook();
+
+    const arrow = st.rateOutlookDirection === '上调' ? '↑' : '↓';
+    pushLog(`🔮 利率前瞻：下次更可能${st.rateOutlookDirection}${arrow}（置信 ${st.rateOutlookConfidence}%）`);
+
     sfxMarket(st.marketIsBull);
     dirty.market = true;
     dirty.logs = true;
@@ -45,6 +103,7 @@ const createMarketSystem = ({
   const renderMarket = () => {
     const bull = st.marketIsBull;
     const mult = mktMult();
+    const macro = getActiveMacro();
     marketMultEl.textContent = `×${mult.toFixed(2)}`;
     marketMultEl.style.color = bull ? 'var(--bull)' : 'var(--bear)';
     marketStatusEl.textContent = bull ? '多头市场' : '空头市场';
@@ -62,7 +121,18 @@ const createMarketSystem = ({
       ? `多头加成 ×${MARKET_BULL_BONUS.toFixed(1)}｜利率 ${st.policyRate.toFixed(2)}%`
       : `空头折损 ×${MARKET_BEAR_PENALTY.toFixed(1)}｜利率 ${st.policyRate.toFixed(2)}%`;
     marketEffectEl.style.color = bull ? 'var(--bull)' : 'var(--bear)';
+
+    if (marketEventEl) {
+      marketEventEl.textContent = macro
+        ? `宏观事件：${macro.name}（剩余 ${st.macroEventTimer} 次切换）`
+        : '宏观事件：暂无';
+    }
+    if (marketOutlookEl) {
+      const arrow = st.rateOutlookDirection === '上调' ? '↑' : '↓';
+      marketOutlookEl.textContent = `利率前瞻：${st.rateOutlookDirection}${arrow}（置信 ${st.rateOutlookConfidence || 0}%）`;
+    }
   };
 
+  updateRateOutlook();
   return { doMarketSwitch, tickMarket, renderMarket };
 };

@@ -12,6 +12,8 @@
     const marketWaveEl  = $("marketWave");
     const marketCountEl = $("marketCountdown");
     const marketEffectEl= $("marketEffect");
+    const marketEventEl = $("marketEvent");
+    const marketOutlookEl = $("marketOutlook");
     const marketFlashEl = $("marketFlash");
     const manualBtn     = $("manualBtn");
     const manualDesc    = $("manualDesc");
@@ -232,6 +234,8 @@
       MARKET_BEAR_PENALTY,
       POLICY_RATE_MIN,
       POLICY_RATE_MAX,
+      MACRO_EVENTS,
+      POLICY_GUIDANCE_BASE_BIAS,
       marketMultEl,
       marketStatusEl,
       marketDotEl,
@@ -239,6 +243,8 @@
       marketWaveEl,
       marketCountEl,
       marketEffectEl,
+      marketEventEl,
+      marketOutlookEl,
     });
     const { tickMarket, renderMarket } = marketSystem;
 
@@ -373,7 +379,7 @@
       st.researchPoints+=gain; pushLog(`增发股权，获得 +${gain} RP`);
       Object.assign(st,{gears:0,purchaseMode:"1",pendingOfflineGears:0,accumulator:0,
         manualPower:1,manualMult:1,gpsMultiplier:1,totalClicks:0,lifetimeGears:0,
-        lastRewardText:"",gameSpeed:1,questIndex:0,autoBuy:false,autoBuyAccumulator:0,bullClicks:0,marketMomentum:0,marketMomentumTimer:0,policyRate:POLICY_RATE_DEFAULT,policyHedge:0,skillMasteryTier:0,logTrimNotified:false});
+        lastRewardText:"",gameSpeed:1,questIndex:0,autoBuy:false,autoBuyAccumulator:0,bullClicks:0,marketMomentum:0,marketMomentumTimer:0,policyRate:POLICY_RATE_DEFAULT,policyHedge:0,macroEventId:"",macroEventTimer:0,rateOutlookDirection:"上调",rateOutlookBiasUp:POLICY_GUIDANCE_BASE_BIAS,rateOutlookConfidence:0,skillMasteryTier:0,logTrimNotified:false});
       buildings.forEach(b=>b.owned=0);
       upgrades.forEach(u=>u.purchased=false);
       skills.forEach(s=>s.level=0);
@@ -389,7 +395,7 @@
       Object.assign(st,{gears:0,purchaseMode:"1",pendingOfflineGears:0,accumulator:0,
         manualPower:1,manualMult:1,gpsMultiplier:1,totalClicks:0,lifetimeGears:0,researchPoints:0,
         lastRewardText:"",gameSpeed:1,questIndex:0,autoBuy:false,autoBuyAccumulator:0,
-        bullClicks:0,marketMomentum:0,marketMomentumTimer:0,policyRate:POLICY_RATE_DEFAULT,policyHedge:0,marketIsBull:true,marketTimer:35,marketCycleDuration:35,
+        bullClicks:0,marketMomentum:0,marketMomentumTimer:0,policyRate:POLICY_RATE_DEFAULT,policyHedge:0,macroEventId:"",macroEventTimer:0,rateOutlookDirection:"上调",rateOutlookBiasUp:POLICY_GUIDANCE_BASE_BIAS,rateOutlookConfidence:0,marketIsBull:true,marketTimer:35,marketCycleDuration:35,
         soundEnabled:true,skillMasteryTier:0,logs:["[--:--:--] 清盘重来"],logTrimNotified:false});
       buildings.forEach(b=>b.owned=0);
       upgrades.forEach(u=>u.purchased=false);

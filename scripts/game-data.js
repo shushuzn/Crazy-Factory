@@ -27,10 +27,16 @@
     const SKILL_MASTERY_STEP = 3;     // 每 3 级技能提升 1 个专精层级
     const SKILL_MASTERY_BONUS = 0.05; // 每层专精提供 +5% 总收益
 
-    const APP_VERSION = "v2.1.0";
+    const POLICY_GUIDANCE_BASE_BIAS = 0.5;
+    const MACRO_EVENTS = [
+      { id:"inflation_hot", name:"通胀升温", guidanceBiasUp:0.8, rateShock:0.25, durationSwitches:3 },
+      { id:"growth_cool", name:"增长放缓", guidanceBiasUp:0.2, rateShock:-0.25, durationSwitches:3 },
+    ];
+
+    const APP_VERSION = "v2.2.0";
     const CHANGELOG = [
+      { version:"v2.2.0", date:"2026-02-27", notes:["新增宏观事件（通胀升温/增长放缓）", "市场栏增加利率前瞻与事件剩余提示", "利率切换由前瞻概率驱动并写入交易日志"] },
       { version:"v2.1.0", date:"2026-02-27", notes:["新增公式单测与长时巡检脚本", "调试面板支持 RAF/Heap/写入频次诊断", "系统模块拆分至 formula/economy/market/render/loop"] },
-      { version:"v2.0.0", date:"2026-02-26", notes:["中期内容扩展：中央银行、金融集团", "技能专精与事件反馈增强", "Prestige、离线收益与自动投资完善"] },
     ];
 
 
@@ -124,6 +130,8 @@
       bullClicks:0,
       marketMomentum:0, marketMomentumTimer:0,
       policyRate:POLICY_RATE_DEFAULT, policyHedge:0,
+      macroEventId:"", macroEventTimer:0,
+      rateOutlookDirection:"上调", rateOutlookBiasUp:POLICY_GUIDANCE_BASE_BIAS, rateOutlookConfidence:0,
       marketIsBull:true, marketTimer:35, marketCycleDuration:35,
       soundEnabled:true,
       skillMasteryTier:0,
