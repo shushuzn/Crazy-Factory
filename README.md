@@ -109,6 +109,20 @@ SCREENSHOT_ENGINES=firefox,webkit,chromium SCREENSHOT_URL=http://127.0.0.1:4173 
 node scripts/run_soak_check.js --seconds 1800
 ```
 
+巡检阈值参数（用于 CI 门禁）：
+
+- `--min-fps`：最低平均 FPS（默认 `55`）
+- `--max-heap-mb`：Heap 峰值上限（MB，默认 `256`）
+- `--max-writes-std`：`writesPerMin` 标准差上限（默认 `1`）
+
+脚本会在输出 `SOAK_REPORT` 的同时附带 `thresholds` 与 `checks` 字段；任一检查失败时进程返回非零退出码。
+
+CI 示例（可直接复制）：
+
+```bash
+node scripts/run_soak_check.js --seconds 600 --min-fps 55 --max-heap-mb 256 --max-writes-std 2
+```
+
 ## 路线图
 
 后续迭代见 `ROADMAP.md`（已精简为可执行清单）。

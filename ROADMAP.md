@@ -73,48 +73,53 @@
   - 完成：2026-02-27
   - 指标影响：North Star +（阈值化后可自动判定稳定性，减少人工误判）；Risk 低（阈值可配置，默认策略保守）
   - 证据：`scripts/run_soak_check.js` 新增 `--min-fps` / `--max-heap-mb` / `--max-writes-std`，并在任一阈值失败时返回非零退出码
-- [TODO] M7-T04 巡检脚本阈值文档化与CI接入示例
+- [DONE] M7-T04 巡检脚本阈值文档化与CI接入示例
   - 验收：README 增加阈值参数说明与一条可复制的 CI 命令
-- [NEXT] M7-T04 巡检脚本阈值文档化与CI接入示例
-  - 验收：README 增加阈值参数说明与一条可复制的 CI 命令
+  - 完成：2026-02-27
+  - 指标影响：North Star +（门禁配置可复制，回归执行率提升）；Risk 低（仅文档改动）
+  - 证据：`README.md` 新增阈值参数说明、`SOAK_REPORT` 字段说明及 CI 命令示例
+- [TODO] M7-T05 巡检阈值回归测试样例（通过/失败）
+  - 验收：新增一份脚本化示例，分别演示 exit 0 与 exit 1
+- [NEXT] M7-T05 巡检阈值回归测试样例（通过/失败）
+  - 验收：新增一份脚本化示例，分别演示 exit 0 与 exit 1
 
 <!-- AUTO:METRICS-START -->
 [Mode]
 ⚡ Optimization Mode（优化模式）
 
 [North Star]
-78.0% (trend: up)
+79.0% (trend: up)
 
 [Supporting Metrics]
-- growth_momentum: 76.0%（阈值化后巡检门禁可用性提升）
+- growth_momentum: 77.0%（文档化后门禁落地成本降低）
 - return_quality: 79.0%
 - upgrade_satisfaction: 77.0%
-- progress_clarity: 78.0%
+- progress_clarity: 79.0%
 - stability_score: 80.0%
 
 [Risk Level]
 低
 
 [Task]
-M7-T03 / 为 FPS/Heap/writes 波动增加可配置阈值参数，并在超阈值时返回非零退出码
+M7-T04 / README 增加巡检阈值参数说明与可复制 CI 命令
 
 [Impact]
-对 North Star 影响：+（稳定性回归可自动阻断异常版本，提高持续迭代质量）
+对 North Star 影响：+（提升阈值化巡检的可执行性与团队一致性）
 
 [Do]
-- 修改文件列表：`scripts/run_soak_check.js`、`ROADMAP.md`
-- 实现摘要：新增巡检阈值参数与失败退出码；完成 M7-T03 并推进下一项文档化任务
+- 修改文件列表：`README.md`、`ROADMAP.md`
+- 实现摘要：补充阈值参数、`SOAK_REPORT` 字段与 CI 用法示例；完成 M7-T04 并推进回归样例任务
 
 [Verify]
 - `node scripts/run_soak_check.js --seconds 120 --max-writes-std 2`
 - `node --test tests/formula-system.test.js tests/log-system.test.js`
-- 指标验证：检查 SOAK_REPORT 中 `thresholds`、`checks` 字段与进程退出码
+- 指标验证：核对 README 参数说明与命令可直接执行
 
 [RoadmapPatch]
 (diff only)
 
 [Next]
-M7-T04
+M7-T05
 <!-- AUTO:METRICS-END -->
 
 ## 当前版本能力（摘要）
