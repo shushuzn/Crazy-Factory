@@ -93,49 +93,53 @@
   - 完成：2026-02-27
   - 指标影响：North Star +（脚本可发现性提升，误用参数导致失败的概率下降）
   - 证据：`node scripts/run_soak_check.js --help` 与 `bash scripts/verify_soak_thresholds.sh --help` 输出参数说明
-- [TODO] M7-T08 巡检脚本错误参数回归（未知参数返回非零）
+- [DONE] M7-T08 巡检脚本错误参数回归（未知参数返回非零）
   - 验收：`run_soak_check.js --bad-flag` 返回非零并输出帮助
-- [NEXT] M7-T08 巡检脚本错误参数回归（未知参数返回非零）
-  - 验收：`run_soak_check.js --bad-flag` 返回非零并输出帮助
+  - 完成：2026-02-27
+  - 指标影响：North Star +（错误参数路径可自动回归，减少发布前遗漏）
+  - 证据：新增 `tests/soak-cli.test.js`，覆盖未知参数时 exit=1 与帮助输出
+- [TODO] M7-T09 将错误参数校验整合进阈值回归脚本
+  - 验收：`verify_soak_thresholds.sh` 一次执行覆盖 pass/fail/invalid 三类路径
+- [NEXT] M7-T09 将错误参数校验整合进阈值回归脚本
+  - 验收：`verify_soak_thresholds.sh` 一次执行覆盖 pass/fail/invalid 三类路径
 
 <!-- AUTO:METRICS-START -->
 [Mode]
 ⚡ Optimization Mode（优化模式）
 
 [North Star]
-82.0% (trend: up)
+83.0% (trend: up)
 
 [Supporting Metrics]
-- growth_momentum: 80.0%（参数帮助完善后脚本接入摩擦降低）
+- growth_momentum: 81.0%（新增参数错误回归测试，脚本健壮性提升）
 - return_quality: 79.0%
 - upgrade_satisfaction: 77.0%
-- progress_clarity: 82.0%
-- stability_score: 81.0%
+- progress_clarity: 83.0%
+- stability_score: 82.0%
 
 [Risk Level]
 低
 
 [Task]
-M7-T07 / 为 `run_soak_check.js` 与 `verify_soak_thresholds.sh` 提供 --help 参数说明
+M7-T08 / 覆盖 run_soak_check 未知参数返回非零与帮助输出
 
 [Impact]
-对 North Star 影响：+（降低参数误用成本，提升巡检流程可用性）
+对 North Star 影响：+（将错误参数场景纳入自动回归，降低运维误触风险）
 
 [Do]
-- 修改文件列表：`scripts/run_soak_check.js`、`scripts/verify_soak_thresholds.sh`、`README.md`、`ROADMAP.md`
-- 实现摘要：为两个脚本新增帮助输出；`run_soak_check` 对未知参数返回非零并显示帮助
+- 修改文件列表：`tests/soak-cli.test.js`、`ROADMAP.md`
+- 实现摘要：新增 CLI 回归测试，验证 bad-flag 的退出码与帮助信息
 
 [Verify]
-- `node scripts/run_soak_check.js --help`
-- `bash scripts/verify_soak_thresholds.sh --help`
-- `bash scripts/verify_soak_thresholds.sh`
-- `node --test tests/formula-system.test.js tests/log-system.test.js`
+- `node --test tests/soak-cli.test.js`
+- `node --test tests/formula-system.test.js tests/log-system.test.js tests/soak-cli.test.js`
+- `node scripts/run_soak_check.js --bad-flag`
 
 [RoadmapPatch]
 (diff only)
 
 [Next]
-M7-T08
+M7-T09
 <!-- AUTO:METRICS-END -->
 
 ## 当前版本能力（摘要）
