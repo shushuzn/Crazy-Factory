@@ -118,48 +118,52 @@
   - 完成：2026-02-27
   - 指标影响：North Star +（CI 可按场景定制样例命令，接入灵活性提升）
   - 证据：`scripts/verify_soak_thresholds.sh` 新增 `VERIFY_SOAK_PASS_CMD` / `VERIFY_SOAK_FAIL_CMD` / `VERIFY_SOAK_INVALID_CMD`
-- [TODO] M7-T13 为可配置样例参数补充自动化测试
+- [DONE] M7-T13 为可配置样例参数补充自动化测试
   - 验收：新增测试验证覆盖命令可生效
-- [NEXT] M7-T13 为可配置样例参数补充自动化测试
-  - 验收：新增测试验证覆盖命令可生效
+  - 完成：2026-02-27
+  - 指标影响：North Star +（命令覆盖能力具备自动验证，避免配置失效）
+  - 证据：新增 `tests/verify-soak-config.test.js`，校验 PASS/FAIL/INVALID 覆盖命令生效
+- [TODO] M7-T14 校准 verify 脚本默认样例阈值（减少短测波动）
+  - 验收：默认样例在 60s 内稳定得到 pass/fail 预期
+- [NEXT] M7-T14 校准 verify 脚本默认样例阈值（减少短测波动）
+  - 验收：默认样例在 60s 内稳定得到 pass/fail 预期
 
 <!-- AUTO:METRICS-START -->
 [Mode]
 🛡 Hardening Mode（强化模式）
 
 [North Star]
-87.0% (trend: up)
+88.0% (trend: up)
 
 [Supporting Metrics]
-- growth_momentum: 85.0%（样例命令可配置，CI 适配性增强）
+- growth_momentum: 86.0%（可配置命令加入自动化验证，回归可信度提高）
 - return_quality: 80.0%
 - upgrade_satisfaction: 77.0%
-- progress_clarity: 87.0%
-- stability_score: 84.0%
+- progress_clarity: 88.0%
+- stability_score: 85.0%
 
 [Risk Level]
 低
 
 [Task]
-M7-T12 / 通过环境变量覆盖 verify 脚本 PASS/FAIL 样例命令
+M7-T13 / 为 verify 脚本可配置样例参数增加自动化测试
 
 [Impact]
-对 North Star 影响：+（减少不同 CI 资源约束下的接入阻力）
+对 North Star 影响：+（降低 CI 配置变更导致的隐性失效风险）
 
 [Do]
-- 修改文件列表：`scripts/verify_soak_thresholds.sh`、`README.md`、`ROADMAP.md`
-- 实现摘要：新增命令覆盖环境变量并补充文档示例
+- 修改文件列表：`tests/verify-soak-config.test.js`、`ROADMAP.md`
+- 实现摘要：新增测试覆盖 `VERIFY_SOAK_PASS_CMD/FAIL_CMD/INVALID_CMD` 生效性
 
 [Verify]
-- `bash scripts/verify_soak_thresholds.sh`
-- `VERIFY_SOAK_PASS_CMD='node scripts/run_soak_check.js --seconds 30 --max-writes-std 3' VERIFY_SOAK_FAIL_CMD='node scripts/run_soak_check.js --seconds 10 --max-writes-std 1' VERIFY_SOAK_INVALID_CMD='node scripts/run_soak_check.js --bad-flag' bash scripts/verify_soak_thresholds.sh artifacts/soak-thresholds-custom`
-- `node --test tests/formula-system.test.js tests/log-system.test.js tests/soak-cli.test.js tests/verify-soak-fallback.test.js`
+- `node --test tests/verify-soak-config.test.js`
+- `node --test tests/formula-system.test.js tests/log-system.test.js tests/soak-cli.test.js tests/verify-soak-fallback.test.js tests/verify-soak-config.test.js`
 
 [RoadmapPatch]
 (diff only)
 
 [Next]
-M7-T13
+M7-T14
 <!-- AUTO:METRICS-END -->
 
 ## 当前版本能力（摘要）
