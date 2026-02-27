@@ -11,12 +11,14 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
 
 说明:
   - 执行一个预期通过的 run_soak_check（exit 0）
-  - 执行一个预期失败的 run_soak_check（exit 1）
-  - 归档每次执行的原始日志与 SOAK_REPORT JSON
+  - 执行一个预期失败的 run_soak_check（阈值失败，exit 1）
+  - 执行一个预期失败的 run_soak_check（非法参数，exit 1）
+  - 归档每次执行的原始日志与 SOAK_REPORT JSON（非法参数仅归档日志）
 
 输出:
   <OUT_DIR>/pass.log
   <OUT_DIR>/fail.log
+  <OUT_DIR>/invalid.log
   <OUT_DIR>/pass.json
   <OUT_DIR>/fail.json
 USAGE
@@ -26,6 +28,7 @@ fi
 OUT_DIR="${1:-artifacts/soak-thresholds}"
 PASS_CMD=(node scripts/run_soak_check.js --seconds 120 --max-writes-std 2)
 FAIL_CMD=(node scripts/run_soak_check.js --seconds 10)
+INVALID_CMD=(node scripts/run_soak_check.js --bad-flag)
 mkdir -p "$OUT_DIR"
 
 extract_report_json() {
@@ -67,4 +70,31 @@ run_case() {
 run_case pass 0 "${PASS_CMD[@]}"
 run_case fail 1 "${FAIL_CMD[@]}"
 
-echo "[soak-threshold] pass/fail paths verified and archived under: $OUT_DIR"
+run_invalid_case() {
+  local label=invalid
+
+  echo "[soak-threshold] ${label}: expecting exit 1 and invalid-arg hint: ${INVALID_CMD[*]}"
+  set +e
+  local output
+  output="$(${INVALID_CMD[@]} 2>&1)"
+  local status=$?
+  set -e
+
+  printf '%s\n' "$output" | tee "$OUT_DIR/${label}.log"
+
+  if [[ $status -ne 1 ]]; then
+    echo "[soak-threshold] ${label}: expected exit 1, got ${status}" >&2
+    exit 1
+  fi
+
+  if [[ "$output" != *"未知参数"* ]]; then
+    echo "[soak-threshold] ${label}: missing invalid-arg hint" >&2
+    exit 1
+  fi
+
+  echo "[soak-threshold] ${label}: verified invalid-arg path"
+}
+
+run_invalid_case
+
+echo "[soak-threshold] pass/fail/invalid paths verified and archived under: $OUT_DIR"
