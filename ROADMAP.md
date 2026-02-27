@@ -78,48 +78,53 @@
   - 完成：2026-02-27
   - 指标影响：North Star +（门禁配置可复制，回归执行率提升）；Risk 低（仅文档改动）
   - 证据：`README.md` 新增阈值参数说明、`SOAK_REPORT` 字段说明及 CI 命令示例
-- [TODO] M7-T05 巡检阈值回归测试样例（通过/失败）
+- [DONE] M7-T05 巡检阈值回归测试样例（通过/失败）
   - 验收：新增一份脚本化示例，分别演示 exit 0 与 exit 1
-- [NEXT] M7-T05 巡检阈值回归测试样例（通过/失败）
-  - 验收：新增一份脚本化示例，分别演示 exit 0 与 exit 1
+  - 完成：2026-02-27
+  - 指标影响：North Star +（阈值门禁回归路径可重复验证，减少配置漂移）
+  - 证据：新增 `scripts/verify_soak_thresholds.sh`，依次验证 `run_soak_check` 的 exit 0 与 exit 1
+- [TODO] M7-T06 巡检回归脚本输出归档（JSON文件）
+  - 验收：支持将 pass/fail 两次报告输出到 artifacts 目录
+- [NEXT] M7-T06 巡检回归脚本输出归档（JSON文件）
+  - 验收：支持将 pass/fail 两次报告输出到 artifacts 目录
 
 <!-- AUTO:METRICS-START -->
 [Mode]
 ⚡ Optimization Mode（优化模式）
 
 [North Star]
-79.0% (trend: up)
+80.0% (trend: up)
 
 [Supporting Metrics]
-- growth_momentum: 77.0%（文档化后门禁落地成本降低）
+- growth_momentum: 78.0%（回归样例脚本化，执行一致性提升）
 - return_quality: 79.0%
 - upgrade_satisfaction: 77.0%
-- progress_clarity: 79.0%
-- stability_score: 80.0%
+- progress_clarity: 80.0%
+- stability_score: 81.0%
 
 [Risk Level]
 低
 
 [Task]
-M7-T04 / README 增加巡检阈值参数说明与可复制 CI 命令
+M7-T05 / 新增脚本化样例，分别验证巡检阈值通过与失败退出码
 
 [Impact]
-对 North Star 影响：+（提升阈值化巡检的可执行性与团队一致性）
+对 North Star 影响：+（降低巡检门禁误用风险，提升稳定发布节奏）
 
 [Do]
-- 修改文件列表：`README.md`、`ROADMAP.md`
-- 实现摘要：补充阈值参数、`SOAK_REPORT` 字段与 CI 用法示例；完成 M7-T04 并推进回归样例任务
+- 修改文件列表：`scripts/verify_soak_thresholds.sh`、`README.md`、`ROADMAP.md`
+- 实现摘要：提供一键脚本验证 exit 0/1 路径并补充文档入口；完成 M7-T05
 
 [Verify]
-- `node scripts/run_soak_check.js --seconds 120 --max-writes-std 2`
+- `bash scripts/verify_soak_thresholds.sh`
 - `node --test tests/formula-system.test.js tests/log-system.test.js`
-- 指标验证：核对 README 参数说明与命令可直接执行
+- 指标验证：脚本需在一次执行中覆盖通过/失败两条路径
 
 [RoadmapPatch]
 (diff only)
 
 [Next]
-M7-T05
+M7-T06
 <!-- AUTO:METRICS-END -->
 
 ## 当前版本能力（摘要）
