@@ -203,8 +203,13 @@
   - 完成：2026-02-27
   - 指标影响：North Star +（奖惩参数可调并可量化验证，降低迭代回归成本）
   - 证据：`run_macro_event_balance_check.js` 新增奖惩参数与 `netDeltaPerSwitch/netDeltaStdPerSwitch`；默认 600 次模拟输出建议“保持当前参数”
-- [NEXT] M8-T09 宏观事件扩展：事件连锁与行业偏好
+- [DONE] M8-T09 宏观事件扩展：事件连锁与行业偏好
   - 验收：至少新增 1 条事件连锁逻辑，并给出 600 次模拟分布对比
+  - 完成：2026-02-27
+  - 指标影响：North Star +（宏观叙事与产业经营联动，策略深度提升）
+  - 证据：`MACRO_EVENTS` 新增 `nextEventId/preferredBuildingId`；市场日志显示连锁触发与偏好产业；CLI 输出 `chainTriggers` 与 `preferredBreakdown`
+- [NEXT] M8-T10 宏观策略层：事件预案与自动配置
+  - 验收：新增 1 套基于事件偏好的自动投资预案，可在日志查看切换记录
 
 <!-- AUTO:METRICS-START -->
 [Mode]

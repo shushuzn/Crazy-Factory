@@ -15,6 +15,8 @@ test('run_macro_event_balance_check prints JSON report with stable seed', () => 
   assert.ok(report.outlookHitRate >= 0 && report.outlookHitRate <= 1);
   assert.ok(Object.hasOwn(report.eventBreakdown, 'inflation_hot'));
   assert.ok(Object.hasOwn(report.eventBreakdown, 'growth_cool'));
+  assert.equal(typeof report.chainTriggers, 'number');
+  assert.ok(report.preferredBreakdown && Object.hasOwn(report.preferredBreakdown, 'bank'));
   assert.equal(typeof report.netDeltaPerSwitch, 'number');
   assert.equal(typeof report.netDeltaStdPerSwitch, 'number');
   assert.ok(report.params && report.params.rewardBase > 0);

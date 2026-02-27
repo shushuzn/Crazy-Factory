@@ -12,8 +12,8 @@ const DEFAULT_PENALTY_RATE_SCALE = 24;
 const DEFAULT_PENALTY_GEAR_RATIO = 0.03;
 
 const MACRO_EVENTS = [
-  { id: 'inflation_hot', name: '通胀升温', guidanceBiasUp: 0.8, durationSwitches: 3 },
-  { id: 'growth_cool', name: '增长放缓', guidanceBiasUp: 0.2, durationSwitches: 3 },
+  { id: 'inflation_hot', name: '通胀升温', guidanceBiasUp: 0.8, durationSwitches: 3, preferredBuildingId: 'bank', nextEventId: 'growth_cool' },
+  { id: 'growth_cool', name: '增长放缓', guidanceBiasUp: 0.2, durationSwitches: 3, preferredBuildingId: 'logistics', nextEventId: 'inflation_hot' },
 ];
 
 const help = `用法:
@@ -105,12 +105,21 @@ let outlookPredictedUp = true;
 let outlookHit = 0;
 let eventTriggers = 0;
 let netDelta = 0;
+let lastMacroEventId = "";
+let chainTriggers = 0;
+const preferredBreakdown = { bank: 0, logistics: 0, none: 0 };
 
 const eventBreakdown = Object.fromEntries(MACRO_EVENTS.map((e) => [e.id, 0]));
 const deltas = [];
 
 const findEvent = (id) => MACRO_EVENTS.find((e) => e.id === id) || null;
 const pickEvent = () => MACRO_EVENTS[Math.floor(rand() * MACRO_EVENTS.length)];
+const chooseEvent = () => {
+  const prev = findEvent(lastMacroEventId);
+  const target = prev?.nextEventId ? findEvent(prev.nextEventId) : null;
+  if (target && rand() < 0.65) return { event: target, chained: true };
+  return { event: pickEvent(), chained: false };
+};
 
 for (let i = 0; i < opts.switches; i += 1) {
   const actualUp = rand() < rateOutlookBiasUp;
@@ -141,11 +150,15 @@ for (let i = 0; i < opts.switches; i += 1) {
   }
 
   if (macroEventTimer === 0 && rand() < opts.eventChance) {
-    const ev = pickEvent();
+    const picked = chooseEvent();
+    const ev = picked.event;
     macroEventId = ev.id;
+    lastMacroEventId = ev.id;
     macroEventTimer = ev.durationSwitches;
     eventTriggers += 1;
     eventBreakdown[ev.id] += 1;
+    if (picked.chained) chainTriggers += 1;
+    preferredBreakdown[ev.preferredBuildingId || 'none'] = (preferredBreakdown[ev.preferredBuildingId || 'none'] || 0) + 1;
   }
 
   const active = findEvent(macroEventId);
@@ -171,7 +184,9 @@ const result = {
     penaltyGearRatio: opts.penaltyGearRatio,
   },
   totalEventTriggers: eventTriggers,
+  chainTriggers,
   eventBreakdown,
+  preferredBreakdown,
   outlookHitRate: Number(hitRate.toFixed(4)),
   netDelta,
   netDeltaPerSwitch: Number(netPerSwitch.toFixed(4)),

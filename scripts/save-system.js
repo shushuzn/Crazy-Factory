@@ -9,7 +9,7 @@
         autoBuy:st.autoBuy, questIndex:st.questIndex, logs:st.logs.slice(0,LOG_CAP),
         manualPower:st.manualPower, manualMult:st.manualMult, gpsMultiplier:st.gpsMultiplier,
         totalClicks:st.totalClicks, lifetimeGears:st.lifetimeGears, researchPoints:st.researchPoints,
-        bullClicks:st.bullClicks, marketMomentum:st.marketMomentum, marketMomentumTimer:st.marketMomentumTimer, policyRate:st.policyRate, policyHedge:st.policyHedge, macroEventId:st.macroEventId, macroEventTimer:st.macroEventTimer, rateOutlookDirection:st.rateOutlookDirection, rateOutlookBiasUp:st.rateOutlookBiasUp, rateOutlookConfidence:st.rateOutlookConfidence, rateOutlookHits:st.rateOutlookHits, rateOutlookMisses:st.rateOutlookMisses, marketIsBull:st.marketIsBull, soundEnabled:st.soundEnabled,
+        bullClicks:st.bullClicks, marketMomentum:st.marketMomentum, marketMomentumTimer:st.marketMomentumTimer, policyRate:st.policyRate, policyHedge:st.policyHedge, macroEventId:st.macroEventId, macroEventTimer:st.macroEventTimer, macroPreferredBuildingId:st.macroPreferredBuildingId, lastMacroEventId:st.lastMacroEventId, macroChainCount:st.macroChainCount, rateOutlookDirection:st.rateOutlookDirection, rateOutlookBiasUp:st.rateOutlookBiasUp, rateOutlookConfidence:st.rateOutlookConfidence, rateOutlookHits:st.rateOutlookHits, rateOutlookMisses:st.rateOutlookMisses, marketIsBull:st.marketIsBull, soundEnabled:st.soundEnabled,
         skillMasteryTier:st.skillMasteryTier,
         buildings: buildings.map(b=>({id:b.id,owned:b.owned})),
         upgrades:  upgrades.map(u=>({id:u.id,purchased:u.purchased})),
@@ -39,6 +39,9 @@
         st.policyHedge = Math.max(0, Math.min(0.6, Number(d.policyHedge) || 0));
         st.macroEventId = typeof d.macroEventId === "string" ? d.macroEventId : "";
         st.macroEventTimer = Math.max(0, Math.floor(Number(d.macroEventTimer) || 0));
+        st.macroPreferredBuildingId = typeof d.macroPreferredBuildingId === "string" ? d.macroPreferredBuildingId : "";
+        st.lastMacroEventId = typeof d.lastMacroEventId === "string" ? d.lastMacroEventId : "";
+        st.macroChainCount = Math.max(0, Math.floor(Number(d.macroChainCount) || 0));
         st.rateOutlookDirection = d.rateOutlookDirection === "下调" ? "下调" : "上调";
         st.rateOutlookBiasUp = Math.max(0.05, Math.min(0.95, Number(d.rateOutlookBiasUp) || 0.5));
         st.rateOutlookConfidence = Math.max(0, Math.min(100, Math.floor(Number(d.rateOutlookConfidence) || 0)));

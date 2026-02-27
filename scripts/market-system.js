@@ -37,6 +37,8 @@ const createMarketSystem = ({
     return (MACRO_EVENTS || []).find((e) => e.id === st.macroEventId) || null;
   };
 
+  const getEventById = (id) => (MACRO_EVENTS || []).find((e) => e.id === id) || null;
+
   const chooseDirectionByBias = (biasUp) => (Math.random() < biasUp ? 0.25 : -0.25);
 
   const getOutlookHitRate = () => {
@@ -81,14 +83,34 @@ const createMarketSystem = ({
   const maybeRollMacroEvent = () => {
     if (st.macroEventTimer > 0 || !Array.isArray(MACRO_EVENTS) || MACRO_EVENTS.length === 0) return;
     if (Math.random() >= 0.35) return;
-    const idx = Math.floor(Math.random() * MACRO_EVENTS.length);
-    const ev = MACRO_EVENTS[idx];
+
+    const prev = getEventById(st.lastMacroEventId || '');
+    const chainTargetId = prev?.nextEventId || '';
+    const chainPick = chainTargetId && Math.random() < 0.65;
+
+    let ev = null;
+    if (chainPick) {
+      ev = getEventById(chainTargetId);
+    }
+    if (!ev) {
+      const idx = Math.floor(Math.random() * MACRO_EVENTS.length);
+      ev = MACRO_EVENTS[idx];
+    }
     if (!ev) return;
+
     st.macroEventId = ev.id;
+    st.lastMacroEventId = ev.id;
     st.macroEventTimer = Math.max(1, Number(ev.durationSwitches) || 1);
+    st.macroPreferredBuildingId = ev.preferredBuildingId || '';
+    if (chainPick && ev.id === chainTargetId) {
+      st.macroChainCount = Math.max(0, Number(st.macroChainCount) || 0) + 1;
+    }
+
     const shock = Number(ev.rateShock) || 0;
     if (shock !== 0) st.policyRate = clampRate((st.policyRate || 0) + shock);
-    pushLog(`🌐 宏观事件：${ev.name}（持续 ${st.macroEventTimer} 次切换）`);
+    const chainTag = chainPick && ev.id === chainTargetId ? '｜连锁触发' : '';
+    const prefTag = st.macroPreferredBuildingId ? `｜偏好 ${st.macroPreferredBuildingId}` : '';
+    pushLog(`🌐 宏观事件：${ev.name}（持续 ${st.macroEventTimer} 次切换${chainTag}${prefTag}）`);
     dirty.logs = true;
     updateRateOutlook();
   };
@@ -100,6 +122,7 @@ const createMarketSystem = ({
       const ev = getActiveMacro();
       if (ev) pushLog(`📰 事件结束：${ev.name}`);
       st.macroEventId = '';
+      st.macroPreferredBuildingId = '';
       dirty.logs = true;
       updateRateOutlook();
     }
@@ -160,7 +183,7 @@ const createMarketSystem = ({
 
     if (marketEventEl) {
       marketEventEl.textContent = macro
-        ? `宏观事件：${macro.name}（剩余 ${st.macroEventTimer} 次切换）`
+        ? `宏观事件：${macro.name}（剩余 ${st.macroEventTimer} 次切换｜偏好 ${st.macroPreferredBuildingId || 'none'}｜连锁 ${st.macroChainCount || 0}）`
         : '宏观事件：暂无';
     }
     if (marketOutlookEl) {
