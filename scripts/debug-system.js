@@ -12,6 +12,7 @@ const createDebugSystem = ({ st, buildings, getGpsBreakdown, SAVE_KEY, fmt }) =>
     <div id="debugMarket"></div>
     <div id="debugSave"></div>
     <div id="debugPerf"></div>
+    <div id="debugMem"></div>
   `;
   document.body.appendChild(panel);
 
@@ -19,6 +20,7 @@ const createDebugSystem = ({ st, buildings, getGpsBreakdown, SAVE_KEY, fmt }) =>
   const marketEl = panel.querySelector('#debugMarket');
   const saveEl = panel.querySelector('#debugSave');
   const perfEl = panel.querySelector('#debugPerf');
+  const memEl = panel.querySelector('#debugMem');
 
   let frameCount = 0;
   let frameAccum = 0;
@@ -31,7 +33,12 @@ const createDebugSystem = ({ st, buildings, getGpsBreakdown, SAVE_KEY, fmt }) =>
 
     gpsEl.textContent = `GPS base ${fmt(gp.baseGPS)} | mul x${gp.finalMult.toFixed(2)} | total ${fmt(gp.totalGPS)} | bld ${totalBuildings}`;
     marketEl.textContent = `Market ${st.marketIsBull ? 'BULL' : 'BEAR'} | timer ${Math.max(0, st.marketTimer).toFixed(1)}s | cycle ${st.marketCycleDuration.toFixed(1)}s`;
-    saveEl.textContent = `Save key ${SAVE_KEY} | size ${(saveBytes / 1024).toFixed(2)} KB | logs ${st.logs.length}`;
+    const now = Date.now();
+    if (!st.saveWriteWindowStart) st.saveWriteWindowStart = now;
+    const elapsedMin = Math.max(1/60, (now - st.saveWriteWindowStart) / 60000);
+    const writesPerMin = (st.saveWriteCount || 0) / elapsedMin;
+    const lastSaveAgo = st.lastSaveAt ? ((now - st.lastSaveAt) / 1000).toFixed(1) : '-';
+    saveEl.textContent = `Save key ${SAVE_KEY} | size ${(saveBytes / 1024).toFixed(2)} KB | writes/min ${writesPerMin.toFixed(1)} | last ${lastSaveAgo}s`;
 
     frameCount += 1;
     frameAccum += dtSec;
@@ -41,6 +48,9 @@ const createDebugSystem = ({ st, buildings, getGpsBreakdown, SAVE_KEY, fmt }) =>
       frameCount = 0;
       frameAccum = 0;
     }
+
+    const heap = performance && performance.memory ? performance.memory.usedJSHeapSize : 0;
+    memEl.textContent = heap ? `Heap ${(heap / 1024 / 1024).toFixed(1)} MB` : 'Heap n/a (browser restricted)';
   };
 
   return { enabled: true, update };

@@ -2,6 +2,8 @@
     // ⑫ 存档系统
     // ════════════════════════════════════════════════
     const saveGame = () => {
+      st.saveWriteCount = (st.saveWriteCount || 0) + 1;
+      st.lastSaveAt = Date.now();
       localStorage.setItem(SAVE_KEY, JSON.stringify({
         gears:st.gears, purchaseMode:st.purchaseMode, gameSpeed:st.gameSpeed,
         autoBuy:st.autoBuy, questIndex:st.questIndex, logs:st.logs.slice(0,20),
@@ -34,6 +36,9 @@
         st.marketIsBull   = d.marketIsBull!==false;
         st.soundEnabled   = d.soundEnabled!==false;
         st.skillMasteryTier = Math.max(0,Math.floor(Number(d.skillMasteryTier)||0));
+        st.saveWriteWindowStart = Date.now();
+        st.saveWriteCount = 0;
+        st.lastSaveAt = Number(d.savedAt)||0;
         if(["1","10","100","max"].includes(d.purchaseMode)) st.purchaseMode=d.purchaseMode;
         if([1,2,4].includes(Number(d.gameSpeed))) st.gameSpeed=Number(d.gameSpeed);
         st.autoBuy    = Boolean(d.autoBuy);

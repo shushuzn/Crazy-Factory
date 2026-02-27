@@ -49,13 +49,12 @@
 - 离线收益结算（上限 8h）
 - Prestige（RP 永久研究加成）
 - 自动投资、批量购买、仿真倍速、存档导入导出
-- 调试面板（`?debug=1`）：GPS 分解 / 市场状态 / 存档大小 / FPS
+- 调试面板（`?debug=1`）：GPS 分解 / 市场状态 / 存档大小 / FPS / Heap / 写入频次
 - 公式系统（price/purchase/offline/prestige）+ Node 单测
 
 ## 下一步优先级（M4）
 1. 长时间运行性能巡检（requestAnimationFrame 泄漏检测）
 2. 发布页与版本日志（changelog）
-3. 调试面板补充内存与存档写入频次统计
 
 ## 更新规则
 - 每次迭代只更新三块：`已完成`、`待处理`、`下一步`。

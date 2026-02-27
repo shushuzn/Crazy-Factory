@@ -109,6 +109,9 @@
       marketIsBull:true, marketTimer:35, marketCycleDuration:35,
       soundEnabled:true,
       skillMasteryTier:0,
+      saveWriteCount:0,
+      saveWriteWindowStart:Date.now(),
+      lastSaveAt:0,
     };
 
     // 显示值（用于平滑滚动）
