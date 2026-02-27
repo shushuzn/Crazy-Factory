@@ -41,14 +41,18 @@
   - 截图：`browser:/tmp/codex_browser_invocations/471049d103f3fb5d/artifacts/artifacts/m5-t03-feedback-proof.png`
 
 ### M6：稳定性与可维护性（进行中）
-- [TODO] M6-T01 存档导入鲁棒性校验（非法 JSON/缺字段回退）
+- [DONE] M6-T01 存档导入鲁棒性校验（非法 JSON/缺字段回退）
   - 验收：提供最少 3 组异常输入与结果日志
+  - 完成：2026-02-27
+  - 日志1（非法 JSON）：点击导入并输入 `not-json` => 弹窗 `存档格式无效`
+  - 日志2（缺字段对象）：`{"savedAt":...,"buildings":[{"id":"workshop","owned":2}]}` => 页面可加载，`workshopOwned=2`，`rp=0 RP`
+  - 日志3（越界数值）：`manualPower=-5,researchPoints=-8,skills.manual_mastery=999` => 夹取后 `rp=0 RP`、技能显示 `等级 5/5`
 - [TODO] M6-T02 调试面板字段一致性复核（FPS/RAF/Heap 与采样窗口）
   - 验收：字段说明 + 对应采样来源代码行
 - [TODO] M6-T03 事件日志容量策略（上限与裁剪提示）
   - 验收：日志上限值 + 裁剪后用户可见提示
-- [NEXT] M6-T01 存档导入鲁棒性校验（非法 JSON/缺字段回退）
-  - 验收：同 M6-T01
+- [NEXT] M6-T02 调试面板字段一致性复核（FPS/RAF/Heap 与采样窗口）
+  - 验收：同 M6-T02
 
 ## 当前版本能力（摘要）
 - 模块化系统：formula/economy/skill/market/feedback/save/render/loop/debug
