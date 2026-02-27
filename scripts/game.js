@@ -1,3 +1,124 @@
+═══════════════════════════════════════════════
+    // ① 经济常量（调这里调手感）
+    // ════════════════════════════════════════════════
+    const PRICE_GROWTH         = 1.15;   // 建筑价格增长指数
+    const SAVE_KEY             = "finance_empire_v2";
+    const TICK_RATE            = 60;
+    const FIXED_STEP           = 1 / TICK_RATE;
+    const MAX_ACCUMULATED_SECS = 0.25;   // 防止补帧过多
+    const OFFLINE_CAP_SECONDS  = 8 * 3600;
+    const SAVE_INTERVAL        = 5000;    // 自动存档间隔(ms)
+    const SMOOTH_SPEED         = 0.15;   // 数字滚动平滑速度
+    const RENDER_THROTTLE      = 100;     // 渲染节流间隔(ms)
+
+    // 市场参数
+    const MARKET_CYCLE_MIN  = 25;
+    const MARKET_CYCLE_MAX  = 55;
+    const MARKET_BULL_BONUS = 1.4;
+    const MARKET_BEAR_PENALTY = 0.7;
+
+    // ════════════════════════════════════════════════
+    // ② 产业链数据
+    //    新增 2 层：中央银行 + 金融集团（M3 新建筑层级）
+    //    解锁阈值经过 10 分钟曲线校准（M1 调优）
+    // ════════════════════════════════════════════════
+    const buildings = [
+      // id            name         basePrice   dps    owned  unlock(累计)  emoji
+      { id:"workshop",   name:"手工作坊",  basePrice:15,        dps:1,       owned:0, unlock:0,          emoji:"🔧" },
+      { id:"factory",    name:"轻工厂",    basePrice:110,       dps:8,       owned:0, unlock:250,        emoji:"🏭" },
+      { id:"logistics",  name:"物流公司",  basePrice:1200,      dps:47,      owned:0, unlock:2000,       emoji:"🚛" },
+      { id:"realestate", name:"房地产",    basePrice:13000,     dps:260,     owned:0, unlock:15000,      emoji:"🏢" },
+      { id:"bank",       name:"商业银行",  basePrice:140000,    dps:1400,    owned:0, unlock:100000,     emoji:"🏦" },
+      { id:"fund",       name:"量化基金",  basePrice:1500000,   dps:7800,    owned:0, unlock:800000,     emoji:"📊" },
+      { id:"central",    name:"中央银行",  basePrice:20000000,  dps:44000,   owned:0, unlock:12000000,   emoji:"🏛️" },  // M3 新增
+      { id:"conglom",    name:"金融集团",  basePrice:300000000, dps:260000,  owned:0, unlock:180000000,  emoji:"🌐" },  // M3 新增
+    ];
+
+    // ════════════════════════════════════════════════
+    // ③ 研发升级（含建筑专属升级 —— M3 建筑专属加成）
+    // ════════════════════════════════════════════════
+    const upgrades = [
+      // 通用链
+      { id:"training",    name:"员工培训",   price:300,        desc:"手动撮合 +1",            type:"manual",     value:1,    purchased:false, unlockRP:0, requires:null },
+      { id:"automation",  name:"流程自动化", price:1200,       desc:"总产出 ×1.5",            type:"gps",        value:1.5,  purchased:false, unlockRP:0, requires:"training" },
+      { id:"fintech",     name:"金融科技",   price:8000,       desc:"总产出 ×2",              type:"gps",        value:2,    purchased:false, unlockRP:1, requires:"automation" },
+      { id:"algo",        name:"算法交易",   price:60000,      desc:"手动撮合 ×3",            type:"manualMult", value:3,    purchased:false, unlockRP:2, requires:"fintech" },
+      { id:"derivatives", name:"衍生品套利", price:500000,     desc:"总产出 ×3",              type:"gps",        value:3,    purchased:false, unlockRP:3, requires:"algo" },
+      { id:"quant2",      name:"量化 2.0",   price:8000000,    desc:"总产出 ×4",              type:"gps",        value:4,    purchased:false, unlockRP:5, requires:"derivatives" },
+      // 建筑专属升级（每个产业解锁后可研发）
+      { id:"sp_workshop",  name:"作坊精工",  price:500,        desc:"手工作坊产出 ×2",        type:"bldBoost",   value:{id:"workshop",   mult:2}, purchased:false, unlockRP:0, requires:null },
+      { id:"sp_factory",   name:"流水线",    price:3500,       desc:"轻工厂产出 ×2",          type:"bldBoost",   value:{id:"factory",    mult:2}, purchased:false, unlockRP:0, requires:null },
+      { id:"sp_logistics", name:"智慧物流",  price:35000,      desc:"物流公司产出 ×2",        type:"bldBoost",   value:{id:"logistics",  mult:2}, purchased:false, unlockRP:0, requires:null },
+      { id:"sp_realestate",name:"土地溢价",  price:350000,     desc:"房地产产出 ×2",          type:"bldBoost",   value:{id:"realestate", mult:2}, purchased:false, unlockRP:0, requires:null },
+      { id:"sp_bank",      name:"存款准备金",price:4000000,    desc:"商业银行产出 ×2",        type:"bldBoost",   value:{id:"bank",       mult:2}, purchased:false, unlockRP:1, requires:null },
+      { id:"sp_fund",      name:"高频策略",  price:50000000,   desc:"量化基金产出 ×2",        type:"bldBoost",   value:{id:"fund",       mult:2}, purchased:false, unlockRP:2, requires:null },
+    ];
+
+    // 建筑专属倍率表（运行时维护，存档时持久化）
+    const bldBoost = { workshop:1, factory:1, logistics:1, realestate:1, bank:1, fund:1, central:1, conglom:1 };
+
+    // ════════════════════════════════════════════════
+    // ④ 技能树
+    // ════════════════════════════════════════════════
+    const skills = [
+      { id:"manual_mastery", name:"交易直觉",  desc:"手动收益每级 +30%",  maxLevel:5, level:0, costRP:1 },
+      { id:"line_optimizer", name:"产线优化",  desc:"总产出每级 +25%",    maxLevel:5, level:0, costRP:1 },
+      { id:"bulk_discount",  name:"采购折扣",  desc:"建筑价格每级 -4%",   maxLevel:5, level:0, costRP:1 },
+      { id:"market_sense",   name:"市场嗅觉",  desc:"市场乘数每级 +10%",  maxLevel:3, level:0, costRP:2 },
+    ];
+
+    // ════════════════════════════════════════════════
+    // ⑤ 成就
+    // ════════════════════════════════════════════════
+    const achievements = [
+      { id:"first_click",  name:"初入江湖",  desc:"完成首次撮合",                    reward:{type:"gear",value:20},    check:()=>st.totalClicks>=1,                                                     done:false, claimed:false },
+      { id:"workshop_1",   name:"小作坊主",  desc:"拥有 1 个手工作坊",               reward:{type:"gear",value:60},    check:()=>bld("workshop").owned>=1,                                              done:false, claimed:false },
+      { id:"hundred",      name:"百元起步",  desc:"历史资本达到 ¥100",               reward:{type:"gear",value:150},   check:()=>st.lifetimeGears>=100,                                                 done:false, claimed:false },
+      { id:"gps_50",       name:"产能初成",  desc:"总产出 ≥ ¥50/s",                 reward:{type:"rp",value:1},       check:()=>getTotalGPS()>=50,                                                     done:false, claimed:false },
+      { id:"bank_owner",   name:"银行家",    desc:"拥有 1 家商业银行",               reward:{type:"rp",value:2},       check:()=>bld("bank").owned>=1,                                                  done:false, claimed:false },
+      { id:"bull_market",  name:"牛市猎手",  desc:"多头市场中完成 50 次撮合",         reward:{type:"gear",value:2000},  check:()=>st.bullClicks>=50,                                                     done:false, claimed:false },
+      { id:"central_bank", name:"央行行长",  desc:"拥有 1 家中央银行",               reward:{type:"rp",value:3},       check:()=>bld("central").owned>=1,                                               done:false, claimed:false },
+      { id:"conglom_owner",name:"金融帝国",  desc:"拥有 1 个金融集团",               reward:{type:"rp",value:5},       check:()=>bld("conglom").owned>=1,                                               done:false, claimed:false },
+    ];
+
+    // ════════════════════════════════════════════════
+    // ⑥ 任务链（M1：前 10 分钟节奏校准）
+    // ════════════════════════════════════════════════
+    const questChain = [
+      { id:"q1", title:"任务一：手动撮合 20 次",       rewardText:"+¥200",      reward:{type:"gear",value:200},   progress:()=>Math.min(st.totalClicks,20), target:20 },
+      { id:"q2", title:"任务二：拥有 10 家手工作坊",   rewardText:"+¥600",      reward:{type:"gear",value:600},   progress:()=>Math.min(bld("workshop").owned,10), target:10 },
+      { id:"q3", title:"任务三：总产出 ≥ ¥100/s",     rewardText:"+1 RP",      reward:{type:"rp",value:1},       progress:()=>Math.min(getTotalGPS(),100), target:100 },
+      { id:"q4", title:"任务四：拥有 5 家轻工厂",      rewardText:"+¥5000",     reward:{type:"gear",value:5000},  progress:()=>Math.min(bld("factory").owned,5), target:5 },
+      { id:"q5", title:"任务五：拥有 1 家商业银行",    rewardText:"+¥50000",    reward:{type:"gear",value:50000}, progress:()=>Math.min(bld("bank").owned,1), target:1 },
+      { id:"q6", title:"任务六：研发「衍生品套利」",   rewardText:"+2 RP",      reward:{type:"rp",value:2},       progress:()=>upgrades.find(u=>u.id==="derivatives")?.purchased?1:0, target:1 },
+      { id:"q7", title:"任务七：拥有 1 家中央银行",    rewardText:"+¥5000000",  reward:{type:"gear",value:5000000},progress:()=>Math.min(bld("central").owned,1), target:1 },
+    ];
+
+    // ════════════════════════════════════════════════
+    // ⑦ 游戏状态
+    // ════════════════════════════════════════════════
+    const st = {
+      gears:0, purchaseMode:"1", lastTimestamp:performance.now(), accumulator:0,
+      pendingOfflineGears:0, manualPower:1, manualMult:1, gpsMultiplier:1,
+      totalClicks:0, lifetimeGears:0, researchPoints:0,
+      lastRewardText:"", gameSpeed:1, questIndex:0, logs:[],
+      autoBuy:false, autoBuyAccumulator:0,
+      bullClicks:0,
+      marketIsBull:true, marketTimer:35, marketCycleDuration:35,
+      soundEnabled:true,
+    };
+
+    // 显示值（用于平滑滚动）
+    const disp = { gears:0, gps:0, rp:0 };
+    // 脏标记（避免每帧全量渲染）
+    const dirty = { 
+      gears:false, market:false, buildings:false, upgrades:false, 
+      skills:false, achievements:false, quest:false, stats:false, logs:false 
+    };
+    let lastRender = 0;
+
+    // ════════════════════════════════════════════════
+
     // ⑧ DOM 引用（渲染层缓存，M1 解耦）
     // ════════════════════════════════════════════════
     const $ = (id) => document.getElementById(id);
@@ -19,7 +140,9 @@
     const buildingListEl= $("buildingList");
     const upgradeListEl = $("upgradeList");
     const skillListEl   = $("skillList");
+
     const skillMasteryMetaEl = $("skillMasteryMeta");
+
     const achievListEl  = $("achievementList");
     const modeButtons   = [...document.querySelectorAll("[data-mode]")];
     const speedButtons  = [...document.querySelectorAll("[data-speed]")];
@@ -41,7 +164,10 @@
     const statQstEl     = $("statQuest");
     const statModeEl    = $("statMode");
     const statLifeEl    = $("statLifetime");
+
     const gameShellEl   = document.querySelector(".game");
+
+
 
     // View 缓存（渲染解耦核心，避免每帧 querySelector）
     const buildingViewMap   = new Map();
@@ -50,8 +176,44 @@
     const achievViewMap     = new Map();
 
     // ════════════════════════════════════════════════
+
     // ⑨ 工具函数
     // ════════════════════════════════════════════════
+
+    // ⑨ 工具函数（生产层，独立于 DOM）
+    // ════════════════════════════════════════════════
+    const bld      = (id) => buildings.find(b=>b.id===id);
+    const skillLv  = (id) => skills.find(s=>s.id===id)?.level||0;
+    const discount = ()   => Math.max(0.6, 1 - skillLv("bulk_discount")*0.04);
+    const price    = (b,off=0) => Math.floor(b.basePrice * Math.pow(PRICE_GROWTH, b.owned+off) * discount());
+
+    // 建筑产出：基础 dps × 专属倍率
+    const bldGPS   = (b) => b.dps * b.owned * (bldBoost[b.id]||1);
+    const baseGPS  = ()  => buildings.reduce((s,b)=>s+bldGPS(b),0);
+    const resMult  = ()  => 1 + st.researchPoints * 0.1;
+    const skillGPS = ()  => 1 + skillLv("line_optimizer")*0.25;
+    const mktMult  = ()  => {
+      const base = st.marketIsBull ? MARKET_BULL_BONUS : MARKET_BEAR_PENALTY;
+      return st.marketIsBull ? base*(1+skillLv("market_sense")*0.1) : base;
+    };
+    const getTotalGPS  = () => baseGPS() * st.gpsMultiplier * resMult() * skillGPS() * mktMult();
+    const getManualGain= () => st.manualPower * st.manualMult * (1+skillLv("manual_mastery")*0.3);
+
+    // ── 批量购买计算（生产层独立）──
+    const affordableCount = (b,budget,mode) => {
+      if (mode==="1") return budget>=price(b)?1:0;
+      if (mode==="10"||mode==="100") {
+        const tgt=Number(mode); let tot=0;
+        for (let i=0;i<tgt;i++){tot+=price(b,i);if(tot>budget)return i;}
+        return tgt;
+      }
+      let n=0,tot=0;
+      while(n<10000){tot+=price(b,n);if(tot>budget)return n;n++;}
+      return n;
+    };
+    const purchaseCost = (b,n) => { let c=0; for(let i=0;i<n;i++) c+=price(b,i); return c; };
+
+
     // ── 数值格式化 ──
     const fmt = (n) => {
       if (!Number.isFinite(n)) return "¥0";
@@ -63,9 +225,151 @@
       return `${sg}¥${abs.toLocaleString("zh-CN",{maximumFractionDigits:1})}`;
     };
 
+
     // 反馈系统初始化（为什么：反馈层高频迭代，独立工厂减少对主循环的干扰）
     const feedback = createFeedbackSystem({ st, JUICE, fmt, manualBtn, manualZone, marketFlashEl, gameShellEl });
     const { eventBus, sfxBuy, sfxUpgrade, sfxMarket, spawnFloat } = feedback;
+
+    // ════════════════════════════════════════════════
+    // ⑩ Web Audio 音效（M3）
+    //    无外部依赖，纯 AudioContext 合成
+    // ════════════════════════════════════════════════
+    let audioCtx = null;
+    const getAudioCtx = () => {
+      if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+      return audioCtx;
+    };
+
+    const playTone = (freq, type, duration, gainVal, detune=0) => {
+      if (!st.soundEnabled) return;
+      try {
+        const ctx = getAudioCtx();
+        const osc = ctx.createOscillator();
+        const gain= ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type      = type;
+        osc.frequency.value = freq;
+        osc.detune.value    = detune;
+        gain.gain.setValueAtTime(gainVal, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+        osc.start(); osc.stop(ctx.currentTime + duration);
+      } catch {}
+    };
+
+    // 三种音效场景（调频率/时长调手感）
+    const sfxClick   = () => playTone(520, "triangle", 0.08, 0.12);        // 手动撮合：短促高音
+    const sfxBuy     = () => { playTone(330,"square",0.12,0.08); playTone(440,"square",0.1,0.06,50); }; // 购买：双音上扬
+    const sfxUpgrade = () => { playTone(660,"sine",0.15,0.1); setTimeout(()=>playTone(880,"sine",0.2,0.08),80); }; // 研发：上扬双音
+    const sfxMarket  = (bull) => playTone(bull?330:220, "sawtooth", 0.25, 0.06, bull?0:-20); // 市场切换
+
+    // ════════════════════════════════════════════════
+    // ⑪ 市场切换（含屏闪动效 M3）
+    // ════════════════════════════════════════════════
+    const doMarketSwitch = () => {
+      st.marketIsBull = !st.marketIsBull;
+      st.marketCycleDuration = MARKET_CYCLE_MIN + Math.random()*(MARKET_CYCLE_MAX-MARKET_CYCLE_MIN);
+      st.marketTimer = st.marketCycleDuration;
+      const label = st.marketIsBull ? "📈 多头行情爆发！" : "📉 空头来袭，注意风控";
+      pushLog(label); st.lastRewardText = label;
+      sfxMarket(st.marketIsBull);
+      dirty.market = true; dirty.logs = true;
+      // 屏闪
+      marketFlashEl.style.background = st.marketIsBull ? "#10b981" : "#ef4444";
+      marketFlashEl.classList.add("on");
+      setTimeout(()=>marketFlashEl.classList.remove("on"), 250);
+    };
+
+    const tickMarket = (dt) => {
+      st.marketTimer -= dt * st.gameSpeed;
+      if (st.marketTimer <= 0) doMarketSwitch();
+    };
+
+    // ════════════════════════════════════════════════
+    // ⑫ 存档系统
+    // ════════════════════════════════════════════════
+    const saveGame = () => {
+      localStorage.setItem(SAVE_KEY, JSON.stringify({
+        gears:st.gears, purchaseMode:st.purchaseMode, gameSpeed:st.gameSpeed,
+        autoBuy:st.autoBuy, questIndex:st.questIndex, logs:st.logs.slice(0,20),
+        manualPower:st.manualPower, manualMult:st.manualMult, gpsMultiplier:st.gpsMultiplier,
+        totalClicks:st.totalClicks, lifetimeGears:st.lifetimeGears, researchPoints:st.researchPoints,
+        bullClicks:st.bullClicks, marketIsBull:st.marketIsBull, soundEnabled:st.soundEnabled,
+        buildings: buildings.map(b=>({id:b.id,owned:b.owned})),
+        upgrades:  upgrades.map(u=>({id:u.id,purchased:u.purchased})),
+        skills:    skills.map(s=>({id:s.id,level:s.level})),
+        achievements: achievements.map(a=>({id:a.id,done:a.done,claimed:a.claimed})),
+        bldBoost: {...bldBoost},
+        savedAt: Date.now(),
+      }));
+    };
+
+    const loadGame = () => {
+      try {
+        const raw = localStorage.getItem(SAVE_KEY); if(!raw) return;
+        const d = JSON.parse(raw); if(!d||typeof d!=="object") return;
+
+        st.gears          = Number(d.gears)||0;
+        st.manualPower    = Math.max(1,Number(d.manualPower)||1);
+        st.manualMult     = Math.max(1,Number(d.manualMult)||1);
+        st.gpsMultiplier  = Math.max(1,Number(d.gpsMultiplier)||1);
+        st.totalClicks    = Math.max(0,Number(d.totalClicks)||0);
+        st.lifetimeGears  = Math.max(0,Number(d.lifetimeGears)||0);
+        st.researchPoints = Math.max(0,Math.floor(Number(d.researchPoints)||0));
+        st.bullClicks     = Math.max(0,Number(d.bullClicks)||0);
+        st.marketIsBull   = d.marketIsBull!==false;
+        st.soundEnabled   = d.soundEnabled!==false;
+        if(["1","10","100","max"].includes(d.purchaseMode)) st.purchaseMode=d.purchaseMode;
+        if([1,2,4].includes(Number(d.gameSpeed))) st.gameSpeed=Number(d.gameSpeed);
+        st.autoBuy    = Boolean(d.autoBuy);
+        st.questIndex = Math.max(0,Math.min(Number(d.questIndex)||0,questChain.length));
+        if(Array.isArray(d.logs)) st.logs=d.logs.slice(0,20);
+
+        (d.buildings||[]).forEach(s=>{const t=bld(s.id);if(t)t.owned=Math.max(0,Math.floor(Number(s.owned)||0));});
+        (d.upgrades||[]).forEach(s=>{const t=upgrades.find(u=>u.id===s.id);if(t){t.purchased=Boolean(s.purchased);if(t.purchased)applyUpgradeEffect(t,true);}});
+        (d.skills||[]).forEach(s=>{const t=skills.find(x=>x.id===s.id);if(t)t.level=Math.max(0,Math.min(t.maxLevel,Math.floor(Number(s.level)||0)));});
+        (d.achievements||[]).forEach(s=>{const t=achievements.find(a=>a.id===s.id);if(t){t.done=Boolean(s.done);t.claimed=Boolean(s.claimed);}});
+        if(d.bldBoost&&typeof d.bldBoost==="object") Object.assign(bldBoost,d.bldBoost);
+
+        const off = Math.max(0,Math.min((Date.now()-(Number(d.savedAt)||Date.now()))/1000,OFFLINE_CAP_SECONDS));
+        const ofg = getTotalGPS()*off;
+        if(ofg>0) st.pendingOfflineGears=ofg;
+      } catch(e){ console.warn("存档读取失败",e); }
+    };
+
+    const exportSave = async () => {
+      const raw=localStorage.getItem(SAVE_KEY)||"";
+      if(!raw){alert("暂无存档");return;}
+      try{await navigator.clipboard.writeText(raw);pushLog("存档已复制到剪贴板");}
+      catch{prompt("复制以下存档：",raw);}
+    };
+    const importSave = () => {
+      const raw=prompt("粘贴存档文本（覆盖当前进度）");if(!raw)return;
+      try{
+        const d=JSON.parse(raw);if(!d||typeof d!=="object")throw 0;
+        localStorage.setItem(SAVE_KEY,raw);loadGame();render();pushLog("存档导入成功");
+      }catch{alert("存档格式无效");}
+    };
+
+    // ── 升级效果应用（独立函数，load 时可静默重放）──
+    const applyUpgradeEffect = (u, silent=false) => {
+      if(u.type==="manual")     st.manualPower += u.value;
+      if(u.type==="gps")        st.gpsMultiplier *= u.value;
+      if(u.type==="manualMult") st.manualMult *= u.value;
+      if(u.type==="bldBoost")   bldBoost[u.value.id] = (bldBoost[u.value.id]||1) * u.value.mult;
+      if(!silent){ sfxUpgrade(); pushLog(`研发完成：${u.name}`); }
+    };
+
+    // ════════════════════════════════════════════════
+    // ⑬ 浮动数字特效
+    // ════════════════════════════════════════════════
+    const spawnFloat = (x,y,text,color="#fbbf24")=>{
+      const el=document.createElement("div");
+      el.className="float-num"; el.textContent=text;
+      el.style.left=`${x}px`; el.style.top=`${y}px`; el.style.color=color;
+      document.body.appendChild(el);
+      el.addEventListener("animationend",()=>el.remove());
+    };
+
 
     // ════════════════════════════════════════════════
     // ⑭ DOM 构建（只调用一次）
@@ -154,6 +458,7 @@
       if(rw.type==="rp"  ){ st.researchPoints+=rw.value; st.lastRewardText=`${label}：+${rw.value} RP`; pushLog(st.lastRewardText); }
     };
 
+
     // 经济系统初始化（为什么：将平衡与购买逻辑从 UI/循环中抽离，便于独立调数值）
     const economy = createEconomySystem({
       st,
@@ -223,12 +528,73 @@
     });
     const { tickMarket, renderMarket } = marketSystem;
 
+
+
     const claimAchievement = (a) => {
       if(!a.reward||a.claimed) return;
       a.claimed=true; grantReward(a.reward,`成就「${a.name}」`); saveGame();
     };
 
     // ════════════════════════════════════════════════
+
+
+    // ⑯ 解锁条件检查
+    // ════════════════════════════════════════════════
+    const upgradeLockedReason = (u) => {
+      if(st.researchPoints<u.unlockRP) return `需要 ${u.unlockRP} RP`;
+      if(u.requires){ const r=upgrades.find(x=>x.id===u.requires); if(r&&!r.purchased) return `前置：${r.name}`; }
+      // 建筑专属升级：只有在对应建筑已解锁时才显示
+      if(u.type==="bldBoost"){
+        const b=bld(u.value.id);
+        if(b&&st.lifetimeGears<b.unlock) return `解锁「${b.name}」后可用`;
+      }
+      return "";
+    };
+    const isBldUnlocked = (b) => st.lifetimeGears >= b.unlock;
+
+    // ════════════════════════════════════════════════
+    // ⑰ 购买操作
+    // ════════════════════════════════════════════════
+    const buyBuilding = (id) => {
+      const b=bld(id); if(!b||!isBldUnlocked(b)) return;
+      const n=affordableCount(b,st.gears,st.purchaseMode); if(n<=0) return;
+      const pc=st.purchaseMode==="max"?n:Math.min(n,Number(st.purchaseMode)||1);
+      const cost=purchaseCost(b,pc); if(st.gears<cost) return;
+      st.gears-=cost; b.owned+=pc;
+      pushLog(`收购 ${b.emoji}${b.name} ×${pc}（-${fmt(cost)}）`);
+      sfxBuy();
+      // 购买弹跳动效（M3）
+      const v=buildingViewMap.get(id);
+      if(v){ v.row.classList.remove("bought"); void v.row.offsetWidth; v.row.classList.add("bought"); }
+      dirty.buildings = dirty.stats = dirty.logs = true;
+      saveGame();
+    };
+
+    const buyUpgrade = (id) => {
+      const u=upgrades.find(x=>x.id===id); if(!u||u.purchased) return;
+      const locked=upgradeLockedReason(u); if(locked||st.gears<u.price) return;
+      st.gears-=u.price; u.purchased=true;
+      applyUpgradeEffect(u);
+      dirty.upgrades = dirty.buildings = dirty.stats = dirty.logs = true;
+      saveGame();
+    };
+
+    const buySkill = (id) => {
+      const sk=skills.find(s=>s.id===id);
+      if(!sk||sk.level>=sk.maxLevel||st.researchPoints<sk.costRP) return;
+      st.researchPoints-=sk.costRP; sk.level++;
+      sfxUpgrade(); pushLog(`技能升级：${sk.name} Lv.${sk.level}`);
+      dirty.skills = dirty.logs = true;
+      saveGame();
+    };
+
+    const tryAutoBuy = () => {
+      for(const u of upgrades){ if(u.purchased||upgradeLockedReason(u))continue; if(st.gears>=u.price){buyUpgrade(u.id);return;} }
+      for(const b of [...buildings].reverse()){ if(!isBldUnlocked(b))continue; if(affordableCount(b,st.gears,"1")>0){const p=st.purchaseMode;st.purchaseMode="1";buyBuilding(b.id);st.purchaseMode=p;return;} }
+    };
+
+    // ════════════════════════════════════════════════
+
     // ⑱ 渲染层（与生产层解耦，M1 重构核心）
     // ════════════════════════════════════════════════
     const renderQuest = () => {
@@ -246,6 +612,22 @@
       questRewardEl.textContent=`奖励：${q.rewardText}`;
       if(cur>=q.target){ grantReward(q.reward,`任务「${q.title}」`); st.questIndex++; dirty.quest = dirty.gears = dirty.stats = dirty.logs = true; saveGame(); }
     };
+
+
+
+    const renderMarket = () => {
+      const bull=st.marketIsBull, mult=mktMult();
+      marketMultEl.textContent=`×${mult.toFixed(2)}`; marketMultEl.style.color=bull?"var(--bull)":"var(--bear)";
+      marketStatusEl.textContent=bull?"多头市场":"空头市场"; marketStatusEl.style.color=bull?"var(--bull)":"var(--bear)";
+      marketDotEl.classList.toggle("bear",!bull);
+      marketLabelEl.textContent=bull?"多头市场":"空头市场"; marketLabelEl.style.color=bull?"var(--bull)":"var(--bear)";
+      const pct=bull?50+(1-st.marketTimer/st.marketCycleDuration)*50:(st.marketTimer/st.marketCycleDuration)*50;
+      marketWaveEl.style.width=`${Math.max(5,Math.min(95,pct))}%`;
+      marketCountEl.textContent=`切换：${Math.ceil(st.marketTimer)}s`;
+      marketEffectEl.textContent=bull?`多头加成 ×${MARKET_BULL_BONUS.toFixed(1)}`:`空头折损 ×${MARKET_BEAR_PENALTY.toFixed(1)}`;
+      marketEffectEl.style.color=bull?"var(--bull)":"var(--bear)";
+    };
+
 
     // ════════════════════════════════════════════════
     // 渲染层（带脏标记 + 数字平滑滚动）
@@ -314,10 +696,12 @@
           if(sk.level>=sk.maxLevel){v.btn.disabled=true;v.btn.textContent="已满级";}
           else{v.btn.disabled=st.researchPoints<sk.costRP;v.btn.textContent=`升级（${sk.costRP} RP）`;}
         }
+
         if(skillMasteryMetaEl){
           const totalLv = getTotalSkillLevels();
           skillMasteryMetaEl.textContent = `专精 T${st.skillMasteryTier} · 总技能等级 ${totalLv} · 总收益加成 ×${(1 + st.skillMasteryTier * SKILL_MASTERY_BONUS).toFixed(2)}`;
         }
+
         dirty.skills = false;
       }
 
@@ -379,7 +763,17 @@
       st.gears+=gain; st.lifetimeGears+=gain; st.totalClicks++;
       if(st.marketIsBull) st.bullClicks++;
       if(st.totalClicks===1) pushLog("完成首次撮合");
+
       eventBus.emit("manual:clicked", { x: e.clientX, y: e.clientY, gain });
+
+      sfxClick();
+      spawnFloat(e.clientX+(Math.random()*20-10), e.clientY-10, `+${fmt(gain)}`);
+      manualBtn.classList.remove("clicked"); void manualBtn.offsetWidth; manualBtn.classList.add("clicked");
+      const rect=manualZone.getBoundingClientRect();
+      manualZone.style.setProperty("--rx",`${((e.clientX-rect.left)/rect.width)*100}%`);
+      manualZone.style.setProperty("--ry",`${((e.clientY-rect.top)/rect.height)*100}%`);
+      manualZone.classList.add("ripple"); setTimeout(()=>manualZone.classList.remove("ripple"),400);
+
       dirty.gears = dirty.stats = true;
       saveGame();
     });
@@ -426,7 +820,11 @@
       st.researchPoints+=gain; pushLog(`增发股权，获得 +${gain} RP`);
       Object.assign(st,{gears:0,purchaseMode:"1",pendingOfflineGears:0,accumulator:0,
         manualPower:1,manualMult:1,gpsMultiplier:1,totalClicks:0,lifetimeGears:0,
+
         lastRewardText:"",gameSpeed:1,questIndex:0,autoBuy:false,autoBuyAccumulator:0,bullClicks:0,skillMasteryTier:0});
+
+        lastRewardText:"",gameSpeed:1,questIndex:0,autoBuy:false,autoBuyAccumulator:0,bullClicks:0});
+
       buildings.forEach(b=>b.owned=0);
       upgrades.forEach(u=>u.purchased=false);
       skills.forEach(s=>s.level=0);
@@ -443,7 +841,11 @@
         manualPower:1,manualMult:1,gpsMultiplier:1,totalClicks:0,lifetimeGears:0,researchPoints:0,
         lastRewardText:"",gameSpeed:1,questIndex:0,autoBuy:false,autoBuyAccumulator:0,
         bullClicks:0,marketIsBull:true,marketTimer:35,marketCycleDuration:35,
+
         soundEnabled:true,skillMasteryTier:0,logs:["[--:--:--] 清盘重来"]});
+
+        soundEnabled:true,logs:["[--:--:--] 清盘重来"]});
+
       buildings.forEach(b=>b.owned=0);
       upgrades.forEach(u=>u.purchased=false);
       skills.forEach(s=>s.level=0);
@@ -462,6 +864,7 @@
     achievements.forEach(createAchievRow);
 
     loadGame();
+
     refreshSkillMastery(true);
     dirty.market = dirty.buildings = dirty.upgrades = dirty.skills = dirty.achievements = dirty.quest = dirty.stats = dirty.logs = true;
 
@@ -479,4 +882,34 @@
     });
 
     loopSystem.startLoop();
+
+    dirty.market = dirty.buildings = dirty.upgrades = dirty.skills = dirty.achievements = dirty.quest = dirty.stats = dirty.logs = true;
+
+    let lastSave = performance.now();
+    const tick = (now) => {
+      const dt = Math.min((now-st.lastTimestamp)/1000, MAX_ACCUMULATED_SECS);
+      st.lastTimestamp = now;
+      st.accumulator  += dt;
+
+      const gps = getTotalGPS();
+      while(st.accumulator >= FIXED_STEP){
+        const gain = gps * FIXED_STEP * st.gameSpeed;
+        st.gears += gain; st.lifetimeGears += gain;
+        st.accumulator -= FIXED_STEP;
+        tickMarket(FIXED_STEP);
+        if(st.autoBuy){
+          st.autoBuyAccumulator += FIXED_STEP*st.gameSpeed;
+          if(st.autoBuyAccumulator>=0.5){st.autoBuyAccumulator=0;tryAutoBuy();}
+        }
+      }
+
+      dirty.gears = dirty.market = true;
+      if(now-lastSave>SAVE_INTERVAL){saveGame();lastSave=now;}
+      render();
+      requestAnimationFrame(tick);
+    };
+
+    render(true);
+    requestAnimationFrame(tick);
+
   

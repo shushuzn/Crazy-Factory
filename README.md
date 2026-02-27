@@ -69,8 +69,7 @@ price = floor(basePrice * 1.15 ^ owned)
     ├── feedback-system.js
     ├── save-system.js
     ├── loop-system.js
-    ├── game.js
-    └── capture_screenshot.py
+
 ```
 
 ## 截图与调试（容器/CI）
