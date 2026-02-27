@@ -108,48 +108,52 @@
   - 完成：2026-02-27
   - 指标影响：North Star +（环境兼容性提升，CI 可用性更稳）
   - 证据：`scripts/verify_soak_thresholds.sh` 支持 python 不可用时自动回退 node 解析 JSON
-- [TODO] M7-T11 为 verify 脚本补充回退路径测试
+- [DONE] M7-T11 为 verify 脚本补充回退路径测试
   - 验收：使用环境变量强制 node 回退并通过
-- [NEXT] M7-T11 为 verify 脚本补充回退路径测试
-  - 验收：使用环境变量强制 node 回退并通过
+  - 完成：2026-02-27
+  - 指标影响：North Star +（回退机制被自动测试覆盖，跨环境回归更可靠）
+  - 证据：新增 `tests/verify-soak-fallback.test.js`，用 `VERIFY_SOAK_DISABLE_PYTHON=1` 验证归档 JSON 生成
+- [TODO] M7-T12 为 verify 脚本增加可配置样例参数
+  - 验收：允许通过环境变量覆盖 PASS/FAIL 示例命令
+- [NEXT] M7-T12 为 verify 脚本增加可配置样例参数
+  - 验收：允许通过环境变量覆盖 PASS/FAIL 示例命令
 
 <!-- AUTO:METRICS-START -->
 [Mode]
-⚡ Optimization Mode（优化模式）
+🛡 Hardening Mode（强化模式）
 
 [North Star]
-85.0% (trend: up)
+86.0% (trend: up)
 
 [Supporting Metrics]
-- growth_momentum: 83.0%（无 Python 兜底落地，跨环境稳定性提升）
+- growth_momentum: 84.0%（node 回退路径测试补齐，稳定性覆盖提升）
 - return_quality: 80.0%
 - upgrade_satisfaction: 77.0%
-- progress_clarity: 85.0%
-- stability_score: 83.0%
+- progress_clarity: 86.0%
+- stability_score: 84.0%
 
 [Risk Level]
 低
 
 [Task]
-M7-T10 / verify 脚本在无 python 环境下仍可生成 pass/fail JSON
+M7-T11 / 补充 verify 脚本 node 回退路径自动化测试
 
 [Impact]
-对 North Star 影响：+（降低环境依赖带来的巡检中断风险）
+对 North Star 影响：+（减少环境差异导致的回归盲区）
 
 [Do]
-- 修改文件列表：`scripts/verify_soak_thresholds.sh`、`README.md`、`ROADMAP.md`
-- 实现摘要：JSON 解析新增 python->node 自动回退机制，并补充文档说明
+- 修改文件列表：`tests/verify-soak-fallback.test.js`、`ROADMAP.md`
+- 实现摘要：新增测试强制禁用 python，并断言 pass/fail JSON 及 invalid 日志生成
 
 [Verify]
-- `bash scripts/verify_soak_thresholds.sh`
-- `VERIFY_SOAK_DISABLE_PYTHON=1 bash scripts/verify_soak_thresholds.sh artifacts/soak-thresholds-node`
-- `node --test tests/formula-system.test.js tests/log-system.test.js tests/soak-cli.test.js`
+- `node --test tests/verify-soak-fallback.test.js`
+- `node --test tests/formula-system.test.js tests/log-system.test.js tests/soak-cli.test.js tests/verify-soak-fallback.test.js`
 
 [RoadmapPatch]
 (diff only)
 
 [Next]
-M7-T11
+M7-T12
 <!-- AUTO:METRICS-END -->
 
 ## 当前版本能力（摘要）
