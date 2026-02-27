@@ -116,7 +116,8 @@
       position:relative; overflow:hidden;
     }
     .btn:hover:enabled { filter:brightness(1.1); }
-    .btn:active:enabled { transform:scale(.96); }
+    .btn:active:enabled { transform:scale(.92); }
+    .building.bought { border-color:var(--gold); box-shadow:0 0 20px rgba(251,191,36,.3); }
     .btn-primary {
       background:linear-gradient(135deg,#2563eb,#1d4ed8); color:#e0f2fe;
       box-shadow:0 4px 14px rgba(37,99,235,.35);
@@ -366,6 +367,9 @@
     const FIXED_STEP           = 1 / TICK_RATE;
     const MAX_ACCUMULATED_SECS = 0.25;   // 防止补帧过多
     const OFFLINE_CAP_SECONDS  = 8 * 3600;
+    const SAVE_INTERVAL        = 5000;    // 自动存档间隔(ms)
+    const SMOOTH_SPEED         = 0.15;   // 数字滚动平滑速度
+    const RENDER_THROTTLE      = 100;     // 渲染节流间隔(ms)
 
     // 市场参数
     const MARKET_CYCLE_MIN  = 25;
@@ -463,6 +467,15 @@
       marketIsBull:true, marketTimer:35, marketCycleDuration:35,
       soundEnabled:true,
     };
+
+    // 显示值（用于平滑滚动）
+    const disp = { gears:0, gps:0, rp:0 };
+    // 脏标记（避免每帧全量渲染）
+    const dirty = { 
+      gears:false, market:false, buildings:false, upgrades:false, 
+      skills:false, achievements:false, quest:false, stats:false, logs:false 
+    };
+    let lastRender = 0;
 
     // ════════════════════════════════════════════════
     // ⑧ DOM 引用（渲染层缓存，M1 解耦）
@@ -601,6 +614,7 @@
       const label = st.marketIsBull ? "📈 多头行情爆发！" : "📉 空头来袭，注意风控";
       pushLog(label); st.lastRewardText = label;
       sfxMarket(st.marketIsBull);
+      dirty.market = true; dirty.logs = true;
       // 屏闪
       marketFlashEl.style.background = st.marketIsBull ? "#10b981" : "#ef4444";
       marketFlashEl.classList.add("on");
@@ -777,6 +791,7 @@
     const pushLog = (msg) => {
       st.logs.unshift(`[${new Date().toLocaleTimeString("zh-CN",{hour12:false})}] ${msg}`);
       st.logs=st.logs.slice(0,20);
+      dirty.logs = true;
     };
     const grantReward = (rw,label) => {
       if(!rw) return;
@@ -817,7 +832,8 @@
       // 购买弹跳动效（M3）
       const v=buildingViewMap.get(id);
       if(v){ v.row.classList.remove("bought"); void v.row.offsetWidth; v.row.classList.add("bought"); }
-      saveGame(); render();
+      dirty.buildings = dirty.stats = dirty.logs = true;
+      saveGame();
     };
 
     const buyUpgrade = (id) => {
@@ -825,7 +841,8 @@
       const locked=upgradeLockedReason(u); if(locked||st.gears<u.price) return;
       st.gears-=u.price; u.purchased=true;
       applyUpgradeEffect(u);
-      saveGame(); render();
+      dirty.upgrades = dirty.buildings = dirty.stats = dirty.logs = true;
+      saveGame();
     };
 
     const buySkill = (id) => {
@@ -833,7 +850,8 @@
       if(!sk||sk.level>=sk.maxLevel||st.researchPoints<sk.costRP) return;
       st.researchPoints-=sk.costRP; sk.level++;
       sfxUpgrade(); pushLog(`技能升级：${sk.name} Lv.${sk.level}`);
-      saveGame(); render();
+      dirty.skills = dirty.logs = true;
+      saveGame();
     };
 
     const tryAutoBuy = () => {
@@ -857,7 +875,7 @@
       goalHintEl.textContent= cur>=q.target?"目标达成，奖励已发放":`进度 ${cur} / ${q.target}`;
       goalPctEl.textContent=`${pct.toFixed(0)}%`;
       questRewardEl.textContent=`奖励：${q.rewardText}`;
-      if(cur>=q.target){ grantReward(q.reward,`任务「${q.title}」`); st.questIndex++; saveGame(); }
+      if(cur>=q.target){ grantReward(q.reward,`任务「${q.title}」`); st.questIndex++; dirty.quest = dirty.gears = dirty.stats = dirty.logs = true; saveGame(); }
     };
 
     const renderMarket = () => {
@@ -873,56 +891,85 @@
       marketEffectEl.style.color=bull?"var(--bull)":"var(--bear)";
     };
 
-    const render = () => {
-      // 头部数字
-      gearsEl.textContent    = fmt(st.gears);
-      gpsEl.textContent      = `收益率 ${fmt(getTotalGPS())}/s`;
-      rpDisplayEl.textContent= `${st.researchPoints} RP`;
-      rpMetaEl.textContent   = `研究加成 ×${resMult().toFixed(1)}`;
+    // ════════════════════════════════════════════════
+    // 渲染层（带脏标记 + 数字平滑滚动）
+    // ════════════════════════════════════════════════
+    const smoothUpdate = (target) => {
+      const diff = target - disp.gears;
+      if(Math.abs(diff) < 1) { disp.gears = target; return target; }
+      disp.gears += diff * SMOOTH_SPEED;
+      return disp.gears;
+    };
+
+    const render = (force = false) => {
+      const now = performance.now();
+      if(!force && now - lastRender < RENDER_THROTTLE) return;
+      lastRender = now;
+
+      // 头部数字 - 平滑滚动
+      const targetGPS = getTotalGPS();
+      disp.gps += (targetGPS - disp.gps) * SMOOTH_SPEED;
+      disp.gears = smoothUpdate(st.gears);
+      gearsEl.textContent = fmt(disp.gears);
+      gpsEl.textContent = `收益率 ${fmt(disp.gps)}/s`;
+      rpDisplayEl.textContent = `${st.researchPoints} RP`;
+      rpMetaEl.textContent = `研究加成 ×${resMult().toFixed(1)}`;
       manualDesc.textContent = `每次撮合 +${fmt(getManualGain())}`;
-      renderMarket();
+      if(dirty.market) renderMarket();
 
       // 建筑列表
-      for(const b of buildings){
-        const v=buildingViewMap.get(b.id); if(!v) continue;
-        const cnt=affordableCount(b,st.gears,st.purchaseMode);
-        const pc =st.purchaseMode==="max"?cnt:Math.min(cnt,Number(st.purchaseMode)||1);
-        const spc=Math.max(1,pc||0);
-        const unlocked=isBldUnlocked(b);
-        v.ownedEl.textContent=b.owned;
-        v.buyBtn.textContent=`购买 ×${spc}（${fmt(purchaseCost(b,spc))}）`;
-        v.buyBtn.disabled=!(cnt>0&&unlocked);
-        v.lockEl.textContent=!unlocked?`解锁条件：历史资本 ${fmt(b.unlock)}`:"";
-        v.hintEl.textContent=(unlocked&&cnt<=0)?`还差 ${fmt(price(b)-st.gears)}`:"";
+      if(dirty.buildings){
+        for(const b of buildings){
+          const v=buildingViewMap.get(b.id); if(!v) continue;
+          const cnt=affordableCount(b,st.gears,st.purchaseMode);
+          const pc =st.purchaseMode==="max"?cnt:Math.min(cnt,Number(st.purchaseMode)||1);
+          const spc=Math.max(1,pc||0);
+          const unlocked=isBldUnlocked(b);
+          v.ownedEl.textContent=b.owned;
+          v.buyBtn.textContent=`购买 ×${spc}（${fmt(purchaseCost(b,spc))}）`;
+          v.buyBtn.disabled=!(cnt>0&&unlocked);
+          v.lockEl.textContent=!unlocked?`解锁条件：历史资本 ${fmt(b.unlock)}`:"";
+          v.hintEl.textContent=(unlocked&&cnt<=0)?`还差 ${fmt(price(b)-st.gears)}`:"";
+        }
+        dirty.buildings = false;
       }
 
       // 升级列表
-      for(const u of upgrades){
-        const v=upgradeViewMap.get(u.id); if(!v) continue;
-        if(u.purchased){v.btn.textContent="已研发";v.btn.disabled=true;v.lockEl.textContent="";continue;}
-        const lr=upgradeLockedReason(u);
-        v.lockEl.textContent=lr;
-        v.btn.textContent=`研发（${fmt(u.price)}）`;
-        v.btn.disabled=st.gears<u.price||Boolean(lr);
+      if(dirty.upgrades){
+        for(const u of upgrades){
+          const v=upgradeViewMap.get(u.id); if(!v) continue;
+          if(u.purchased){v.btn.textContent="已研发";v.btn.disabled=true;v.lockEl.textContent="";continue;}
+          const lr=upgradeLockedReason(u);
+          v.lockEl.textContent=lr;
+          v.btn.textContent=`研发（${fmt(u.price)}）`;
+          v.btn.disabled=st.gears<u.price||Boolean(lr);
+        }
+        dirty.upgrades = false;
       }
 
       // 任务
-      renderQuest();
+      if(dirty.quest) renderQuest();
 
       // 技能
-      for(const sk of skills){
-        const v=skillViewMap.get(sk.id); if(!v) continue;
-        v.meta.textContent=`等级 ${sk.level}/${sk.maxLevel}`;
-        if(sk.level>=sk.maxLevel){v.btn.disabled=true;v.btn.textContent="已满级";}
-        else{v.btn.disabled=st.researchPoints<sk.costRP;v.btn.textContent=`升级（${sk.costRP} RP）`;}
+      if(dirty.skills){
+        for(const sk of skills){
+          const v=skillViewMap.get(sk.id); if(!v) continue;
+          v.meta.textContent=`等级 ${sk.level}/${sk.maxLevel}`;
+          if(sk.level>=sk.maxLevel){v.btn.disabled=true;v.btn.textContent="已满级";}
+          else{v.btn.disabled=st.researchPoints<sk.costRP;v.btn.textContent=`升级（${sk.costRP} RP）`;}
+        }
+        dirty.skills = false;
       }
 
       // 成就
-      for(const a of achievements){
-        if(!a.done&&a.check()){a.done=true;claimAchievement(a);}
-        const v=achievViewMap.get(a.id); if(!v) continue;
-        v.badge.classList.toggle("done",a.done);
-        v.badge.textContent=a.done?(a.claimed?"已完成✓":"已完成"):"未完成";
+      if(dirty.achievements){
+        for(const a of achievements){
+          if(!a.done&&a.check()){a.done=true;claimAchievement(a);}
+          const v=achievViewMap.get(a.id); if(!v) continue;
+          v.badge.classList.toggle("done",a.done);
+          v.badge.textContent=a.done?(a.claimed?"已完成✓":"已完成"):"未完成";
+        }
+        dirty.achievements = false;
       }
 
       // 离线
@@ -932,20 +979,26 @@
       // 奖励公告
       rewardFeedEl.textContent=st.lastRewardText||"";
 
-      // 日志
-      eventLogEl.innerHTML="";
-      for(const line of st.logs.slice(0,8)){
-        const el=document.createElement("div"); el.className="log-item"; el.textContent=line;
-        eventLogEl.appendChild(el);
+      // 日志 - 增量更新
+      if(dirty.logs){
+        eventLogEl.innerHTML="";
+        for(const line of st.logs.slice(0,8)){
+          const el=document.createElement("div"); el.className="log-item"; el.textContent=line;
+          eventLogEl.appendChild(el);
+        }
+        dirty.logs = false;
       }
 
       // 统计摘要
-      statBldEl.textContent  =`产业数：${buildings.reduce((s,b)=>s+b.owned,0)}`;
-      statUpgEl.textContent  =`已研发：${upgrades.filter(u=>u.purchased).length}/${upgrades.length}`;
-      statAchEl.textContent  =`成就：${achievements.filter(a=>a.done).length}/${achievements.length}`;
-      statQstEl.textContent  =`任务：${Math.min(st.questIndex,questChain.length)}/${questChain.length}`;
-      statModeEl.textContent =`自动投资：${st.autoBuy?"开":"关"}`;
-      statLifeEl.textContent =`历史资本：${fmt(st.lifetimeGears)}`;
+      if(dirty.stats){
+        statBldEl.textContent  =`产业数：${buildings.reduce((s,b)=>s+b.owned,0)}`;
+        statUpgEl.textContent  =`已研发：${upgrades.filter(u=>u.purchased).length}/${upgrades.length}`;
+        statAchEl.textContent  =`成就：${achievements.filter(a=>a.done).length}/${achievements.length}`;
+        statQstEl.textContent  =`任务：${Math.min(st.questIndex,questChain.length)}/${questChain.length}`;
+        statModeEl.textContent =`自动投资：${st.autoBuy?"开":"关"}`;
+        statLifeEl.textContent =`历史资本：${fmt(st.lifetimeGears)}`;
+        dirty.stats = false;
+      }
 
       // 控制栏激活态
       modeButtons.forEach(b =>b.classList.toggle("active",b.dataset.mode===st.purchaseMode));
@@ -953,6 +1006,9 @@
       autoBuyBtn.classList.toggle("active",st.autoBuy);
       autoBuyBtn.textContent=`自动投资: ${st.autoBuy?"开":"关"}`;
       soundBtn.textContent  =`音效: ${st.soundEnabled?"开":"关"}`;
+
+      // 清除脏标记
+      dirty.gears = dirty.market = false;
     };
 
     // ════════════════════════════════════════════════
@@ -970,7 +1026,8 @@
       manualZone.style.setProperty("--rx",`${((e.clientX-rect.left)/rect.width)*100}%`);
       manualZone.style.setProperty("--ry",`${((e.clientY-rect.top)/rect.height)*100}%`);
       manualZone.classList.add("ripple"); setTimeout(()=>manualZone.classList.remove("ripple"),400);
-      saveGame(); render();
+      dirty.gears = dirty.stats = true;
+      saveGame();
     });
 
     buildingListEl.addEventListener("click",e=>{
@@ -989,22 +1046,23 @@
     document.querySelector(".controls").addEventListener("click",e=>{
       if(!(e.target instanceof HTMLButtonElement))return;
       const mode=e.target.dataset.mode;
-      if(mode){st.purchaseMode=mode;saveGame();render();return;}
+      if(mode){st.purchaseMode=mode;saveGame();return;}
       const spd=Number(e.target.dataset.speed);
-      if([1,2,4].includes(spd)){st.gameSpeed=spd;saveGame();render();return;}
+      if([1,2,4].includes(spd)){st.gameSpeed=spd;saveGame();return;}
       const id=e.target.id;
-      if(id==="autoBuyBtn"){ st.autoBuy=!st.autoBuy; pushLog(`自动投资已${st.autoBuy?"开启":"关闭"}`); saveGame();render(); }
-      if(id==="soundBtn")  { st.soundEnabled=!st.soundEnabled; saveGame();render(); }
+      if(id==="autoBuyBtn"){ st.autoBuy=!st.autoBuy; pushLog(`自动投资已${st.autoBuy?"开启":"关闭"}`); dirty.logs = dirty.stats = true; saveGame(); }
+      if(id==="soundBtn")  { st.soundEnabled=!st.soundEnabled; saveGame(); }
     });
 
-    $("exportSaveBtn").addEventListener("click",()=>{exportSave();render();});
-    $("importSaveBtn").addEventListener("click",()=>{importSave();saveGame();});
+    $("exportSaveBtn").addEventListener("click",()=>{exportSave();});
+    $("importSaveBtn").addEventListener("click",()=>{importSave();dirty.gears = dirty.buildings = dirty.upgrades = dirty.skills = dirty.achievements = dirty.quest = dirty.stats = dirty.logs = true;});
 
     claimBtn.addEventListener("click",()=>{
       if(st.pendingOfflineGears<=0)return;
       spawnFloat(window.innerWidth/2,window.innerHeight/2,`+${fmt(st.pendingOfflineGears)} 💤`,"#fbbf24");
       st.gears+=st.pendingOfflineGears; st.lifetimeGears+=st.pendingOfflineGears;
-      st.pendingOfflineGears=0; saveGame();render();
+      st.pendingOfflineGears=0; dirty.gears = dirty.stats = true;
+      saveGame();
     });
 
     $("prestigeBtn").addEventListener("click",()=>{
@@ -1020,7 +1078,8 @@
       skills.forEach(s=>s.level=0);
       achievements.forEach(a=>{a.done=false;a.claimed=false;});
       Object.keys(bldBoost).forEach(k=>bldBoost[k]=1);
-      saveGame();render();
+      dirty.market = dirty.buildings = dirty.upgrades = dirty.skills = dirty.achievements = dirty.quest = dirty.stats = dirty.logs = true;
+      saveGame();render(true);
     });
 
     $("resetSaveBtn").addEventListener("click",()=>{
@@ -1036,7 +1095,8 @@
       skills.forEach(s=>s.level=0);
       achievements.forEach(a=>{a.done=false;a.claimed=false;});
       Object.keys(bldBoost).forEach(k=>bldBoost[k]=1);
-      render();
+      dirty.market = dirty.buildings = dirty.upgrades = dirty.skills = dirty.achievements = dirty.quest = dirty.stats = dirty.logs = true;
+      render(true);
     });
 
     // ════════════════════════════════════════════════
@@ -1048,6 +1108,7 @@
     achievements.forEach(createAchievRow);
 
     loadGame();
+    dirty.market = dirty.buildings = dirty.upgrades = dirty.skills = dirty.achievements = dirty.quest = dirty.stats = dirty.logs = true;
 
     let lastSave = performance.now();
     const tick = (now) => {
@@ -1067,12 +1128,13 @@
         }
       }
 
-      if(now-lastSave>5000){saveGame();lastSave=now;}
+      dirty.gears = dirty.market = true;
+      if(now-lastSave>SAVE_INTERVAL){saveGame();lastSave=now;}
       render();
       requestAnimationFrame(tick);
     };
 
-    render();
+    render(true);
     requestAnimationFrame(tick);
   </script>
 </body>
