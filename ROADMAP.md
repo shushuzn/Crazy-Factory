@@ -24,8 +24,11 @@
   - 证据：`index.html` 含 `#appVersion` 与 `#changelogList`；`scripts/game.js` 初始化调用 `renderChangelog()`
 
 ### M5：平衡与体验抛光（进行中）
-- [TODO] M5-T01 市场波动平衡回归（牛/熊周期与收益体感）
+- [DONE] M5-T01 市场波动平衡回归（牛/熊周期与收益体感）
   - 验收：给出参数表 + 10 分钟试玩日志
+  - 完成：2026-02-27
+  - 参数表：`MARKET_CYCLE_MIN=25s`、`MARKET_CYCLE_MAX=55s`、`MARKET_BULL_BONUS=1.4`、`MARKET_BEAR_PENALTY=0.7`
+  - 10 分钟日志：`node scripts/run_soak_check.js --seconds 600` => `writesPerMinAvg=11.56`、`writesPerMinStd=0.76`、结论 `FPS稳定 / 写入频次稳定 / Heap峰值正常`
 - [DONE] M5-T02 技能专精曲线复核（前中后期收益斜率）
   - 验收：专精层级阈值与收益倍率对照表
   - 完成：2026-02-27
@@ -33,8 +36,8 @@
   - 对照表：T0=Lv0-2×1.00；T1=Lv3-5×1.05；T2=Lv6-8×1.10；T3=Lv9-11×1.15；T4=Lv12-14×1.20；T5=Lv15-17×1.25；T6=Lv18×1.30
 - [TODO] M5-T03 反馈层细化（购买/研发/市场切换分层反馈）
   - 验收：每类反馈至少 1 项可调参数与截图证明
-- [NEXT] M5-T01 市场波动平衡回归（牛/熊周期与收益体感）
-  - 验收：同 M5-T01
+- [NEXT] M5-T03 反馈层细化（购买/研发/市场切换分层反馈）
+  - 验收：同 M5-T03
 
 ## 当前版本能力（摘要）
 - 模块化系统：formula/economy/skill/market/feedback/save/render/loop/debug
