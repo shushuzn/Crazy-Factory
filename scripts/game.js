@@ -672,4 +672,47 @@
       console.log('Leaderboard data cleared');
       location.reload();
     };
+
+    // ════════════════════════════════════════════════
+    // ㉖ 邀请好友系统 (P5-T4)
+    // ════════════════════════════════════════════════
+    const inviteSystem = createInviteSystem({
+      st,
+      I18N,
+      eventBus,
+      pushLog,
+      saveGame,
+      onInviteSuccess: ({ friend, rewardGears, rewardRP }) => {
+        pushLog(`🎉 好友邀请奖励发放成功！+${rewardGears} 资本, +${rewardRP} RP`);
+      },
+    });
+
+    // 初始化邀请系统（需要在最前面，因为会检查URL参数）
+    inviteSystem.init();
+
+    // 添加邀请面板到UI
+    setTimeout(() => {
+      const statsPanel = document.querySelector('.stats');
+      if (statsPanel) {
+        const inviteContainer = document.createElement('div');
+        inviteContainer.id = 'inviteContainer';
+        inviteContainer.innerHTML = inviteSystem.renderInvitePanel();
+        statsPanel.insertBefore(inviteContainer, statsPanel.firstChild);
+        inviteSystem.bindInviteButtons(inviteContainer);
+      }
+    }, 3000);
+
+    // 调试命令：window.getInviteStats() 查看邀请统计
+    window.getInviteStats = () => {
+      const stats = inviteSystem.getInviteStats();
+      console.log('Invite Stats:', stats);
+      return stats;
+    };
+
+    // 调试命令：window.resetInvite() 重置邀请数据
+    window.resetInvite = () => {
+      inviteSystem.resetData();
+      console.log('Invite data cleared');
+      location.reload();
+    };
   
