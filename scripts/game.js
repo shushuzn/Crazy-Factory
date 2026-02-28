@@ -970,4 +970,79 @@
       console.log('Investment Result:', result);
       return result;
     };
+
+    // ════════════════════════════════════════════════
+    // ㉚ 危机事件系统 (P6-T4)
+    // ════════════════════════════════════════════════
+    const crisisSystem = createCrisisSystem({
+      st,
+      eventBus,
+      buildings,
+      pushLog,
+      I18N,
+      economy,
+    });
+
+    // 初始化危机系统
+    crisisSystem.init();
+
+    // 添加危机面板到UI（在顶部显示）
+    setTimeout(() => {
+      const header = document.querySelector('.header');
+      if (header) {
+        const crisisContainer = document.createElement('div');
+        crisisContainer.id = 'crisisContainer';
+        crisisContainer.innerHTML = crisisSystem.renderCrisisPanel() + crisisSystem.renderCrisisHistory();
+        header.appendChild(crisisContainer);
+      }
+    }, 3600);
+
+    // 定期刷新危机面板（每1秒）
+    setInterval(() => {
+      const container = document.getElementById('crisisContainer');
+      if (container) {
+        container.innerHTML = crisisSystem.renderCrisisPanel() + crisisSystem.renderCrisisHistory();
+      }
+    }, 1000);
+
+    // 将危机效果应用到经济系统
+    economy.setCrisisMultiplier(() => {
+      const effects = crisisSystem.getCrisisEffects();
+      if (!effects) return 1.0;
+      return effects.gpsMultiplier || 1.0;
+    });
+
+    // 监听危机事件
+    eventBus.on('crisis:started', ({ crisis, config }) => {
+      pushLog(`${config.icon} ${config.name.zh} 危机爆发！${config.description.zh}`);
+    });
+
+    eventBus.on('crisis:ended', ({ crisisId, method }) => {
+      const crisisName = { financial_crisis: '金融危机', pandemic: '全球疫情', cyber_attack: '网络攻击', trade_war: '贸易战', inflation_spike: '恶性通胀' }[crisisId];
+      const methodText = method === 'bailout' ? '已通过救助结束' : '已自然结束';
+      pushLog(`✅ ${crisisName} ${methodText}`);
+    });
+
+    // 调试命令：window.triggerCrisis(crisisId) 手动触发危机
+    window.triggerCrisis = (crisisId) => {
+      const result = crisisSystem.triggerCrisis(crisisId);
+      console.log('Trigger Crisis:', result);
+      return result;
+    };
+
+    // 调试命令：window.recoverCrisis(method) 结束危机
+    window.recoverCrisis = (method = 'wait') => {
+      const result = crisisSystem.recoverCrisis(method);
+      console.log('Recover Crisis:', result);
+      return result;
+    };
+
+    // 调试命令：window.getCrisisInfo() 查看危机信息
+    window.getCrisisInfo = () => {
+      const info = crisisSystem.getCrisisInfo();
+      const stats = crisisSystem.getStats();
+      console.log('Crisis Info:', info);
+      console.log('Crisis Stats:', stats);
+      return { info, stats };
+    };
   

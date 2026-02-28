@@ -66,7 +66,11 @@ const createEconomySystem = ({
   let regionMult = () => 1.0;
   const setRegionMultiplier = (fn) => { regionMult = fn; };
 
-  const getTotalGPS = () => baseGPS() * st.gpsMultiplier * resMult() * skillGPS() * mktMult() * skillMasteryMult() * marketMomentumGPSMult() * policyRateDrag() * synergyMult() * regionMult();
+  // P6-T4: 危机效果加成（由外部传入）
+  let crisisMult = () => 1.0;
+  const setCrisisMultiplier = (fn) => { crisisMult = fn; };
+
+  const getTotalGPS = () => baseGPS() * st.gpsMultiplier * resMult() * skillGPS() * mktMult() * skillMasteryMult() * marketMomentumGPSMult() * policyRateDrag() * synergyMult() * regionMult() * crisisMult();
   const getManualGain = () => st.manualPower * st.manualMult * (1 + skillLv('manual_mastery') * 0.3) * marketMomentumManualMult() * policyRateDrag();
 
   const getGpsBreakdown = () => {
@@ -213,6 +217,7 @@ const createEconomySystem = ({
     getManualGain,
     setSynergyMultiplier,
     setRegionMultiplier,
+    setCrisisMultiplier,
     getGpsBreakdown,
     affordableCount,
     purchaseCost,
