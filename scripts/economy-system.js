@@ -70,7 +70,11 @@ const createEconomySystem = ({
   let crisisMult = () => 1.0;
   const setCrisisMultiplier = (fn) => { crisisMult = fn; };
 
-  const getTotalGPS = () => baseGPS() * st.gpsMultiplier * resMult() * skillGPS() * mktMult() * skillMasteryMult() * marketMomentumGPSMult() * policyRateDrag() * synergyMult() * regionMult() * crisisMult();
+  // P6-T5: 公会加成（由外部传入）
+  let guildMult = () => 1.0;
+  const setGuildMultiplier = (fn) => { guildMult = fn; };
+
+  const getTotalGPS = () => baseGPS() * st.gpsMultiplier * resMult() * skillGPS() * mktMult() * skillMasteryMult() * marketMomentumGPSMult() * policyRateDrag() * synergyMult() * regionMult() * crisisMult() * guildMult();
   const getManualGain = () => st.manualPower * st.manualMult * (1 + skillLv('manual_mastery') * 0.3) * marketMomentumManualMult() * policyRateDrag();
 
   const getGpsBreakdown = () => {
@@ -218,6 +222,7 @@ const createEconomySystem = ({
     setSynergyMultiplier,
     setRegionMultiplier,
     setCrisisMultiplier,
+    setGuildMultiplier,
     getGpsBreakdown,
     affordableCount,
     purchaseCost,

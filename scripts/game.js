@@ -1045,4 +1045,91 @@
       console.log('Crisis Stats:', stats);
       return { info, stats };
     };
+
+    // ════════════════════════════════════════════════
+    // ㉛ 联盟/公会系统 (P6-T5)
+    // ════════════════════════════════════════════════
+    const guildSystem = createGuildSystem({
+      st,
+      eventBus,
+      pushLog,
+      I18N,
+    });
+
+    // 初始化公会系统
+    guildSystem.init();
+
+    // 将公会加成应用到经济系统
+    economy.setGuildMultiplier(() => {
+      return guildSystem.getTotalGPSBonus();
+    });
+
+    // 添加公会面板到UI
+    setTimeout(() => {
+      const statsPanel = document.querySelector('.stats');
+      if (statsPanel) {
+        const guildContainer = document.createElement('div');
+        guildContainer.id = 'guildContainer';
+        guildContainer.innerHTML = guildSystem.renderGuildPanel() + guildSystem.renderGuildRanking();
+        statsPanel.appendChild(guildContainer);
+      }
+    }, 4000);
+
+    // 定期刷新公会面板（每10秒）
+    setInterval(() => {
+      const container = document.getElementById('guildContainer');
+      if (container) {
+        container.innerHTML = guildSystem.renderGuildPanel() + guildSystem.renderGuildRanking();
+      }
+    }, 10000);
+
+    // 监听公会事件
+    eventBus.on('guild:joined', ({ guildId, guild }) => {
+      pushLog(`🏛️ 加入公会：${guild.name.zh}！享受公会加成吧！`);
+    });
+
+    eventBus.on('guild:left', ({ guildId }) => {
+      pushLog(`👋 已退出公会`);
+    });
+
+    eventBus.on('guild:contributed', ({ guildId, amount }) => {
+      pushLog(`💎 向公会贡献 ${formatNumber(amount)}！`);
+    });
+
+    eventBus.on('guild:leveledUp', ({ guildId, newLevel }) => {
+      const guild = st.virtualGuilds[guildId];
+      pushLog(`🎉 ${guild.name.zh} 升级到 ${newLevel} 级！公会加成提升！`);
+    });
+
+    // 调试命令：window.joinGuild(guildId) 加入公会
+    window.joinGuild = (guildId) => {
+      const result = guildSystem.joinGuild(guildId);
+      console.log('Join Guild:', result);
+      return result;
+    };
+
+    // 调试命令：window.leaveGuild() 退出公会
+    window.leaveGuild = () => {
+      const result = guildSystem.leaveGuild();
+      console.log('Leave Guild:', result);
+      return result;
+    };
+
+    // 调试命令：window.contributeToGuild(amount) 贡献公会
+    window.contributeToGuild = (amount) => {
+      const result = guildSystem.contribute(amount);
+      console.log('Contribute:', result);
+      return result;
+    };
+
+    // 调试命令：window.getGuildInfo() 查看公会信息
+    window.getGuildInfo = () => {
+      const info = guildSystem.getGuildInfo();
+      const stats = guildSystem.getStats();
+      const ranking = guildSystem.getGuildRanking();
+      console.log('Guild Info:', info);
+      console.log('Guild Stats:', stats);
+      console.log('Guild Ranking:', ranking);
+      return { info, stats, ranking };
+    };
   
