@@ -234,29 +234,29 @@
 低
 
 [Task]
-✅ P3-T3-i18n / 实现多语言支持（i18n）国际化 - 已完成
+⏩ P4-T1-rolling-update / 滚动更新检测系统
 
 [Impact]
-✅ 支持多语言(中文/英文)，扩大用户群体，提升游戏可访问性。North Star 维持 84.2%。
+自动检测服务器新版本，提示用户刷新获取最新内容。提升用户体验，确保玩家始终使用最新版本。North Star 维持 84.2%。
 
 [Do]
-✅ 已实施：
-- 创建 scripts/i18n.js (50+翻译键)
-- 添加 index.html 语言切换按钮
-- 添加 game.js 语言切换事件
-- 支持 localStorage 持久化
+- 创建 scripts/update-detection-system.js
+- 创建 version.json 版本文件
+- 实现每 5 分钟轮询检测
+- 添加 Toast UI 提示组件
+- 集成到 scripts/game.js
 
 [Verify]
-✅ 验证结果：
-- 11/11 测试通过
-- 语言切换功能正常
-- North Star 维持 84.2%
+```bash
+node tests/update-detection-system.test.js
+```
+预期结果：11/11 测试通过
 
 [RoadmapPatch]
-✅ P3-T3 完成，Phase 3 Feature Expansion 100% 完成
+Phase 4 Polish & Launch 开始，P4-T1 进行中
 
 [Next]
-Phase 4: Polish & Launch - UI/UX 优化准备
+P4-T2 音效/视觉反馈优化
 
 ----
 
