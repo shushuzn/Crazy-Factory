@@ -1,0 +1,13 @@
+{
+  "price_scale": 1.229007216354953,
+  "price_exp": 1.164144461591221,
+  "reward_scale": 1.0306481481481482,
+  "reward_exp": 1.149391632373114,
+  "softcap_start": 0.7634602194787381,
+  "softcap_strength": 0.38503729423868316,
+  "offline_rate": 0.7275617283950617,
+  "offline_cap_hours": 20,
+  "prestige_enabled": true,
+  "prestige_unlock_hours": 21,
+  "prestige_gain_scale": 0.3443904320987654
+}

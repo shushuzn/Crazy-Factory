@@ -1,0 +1,175 @@
+{
+  "baseline": {
+    "params": {
+      "price_scale": 1,
+      "price_exp": 1.12,
+      "reward_scale": 1,
+      "reward_exp": 1.08,
+      "softcap_start": 0.65,
+      "softcap_strength": 0.25,
+      "offline_rate": 0.7,
+      "offline_cap_hours": 8,
+      "prestige_enabled": false,
+      "prestige_unlock_hours": 24,
+      "prestige_gain_scale": 0.15
+    },
+    "score": {
+      "accepted": true,
+      "constraint_failed": null,
+      "fail_rate": 0,
+      "V_total": 0.3000320313559369,
+      "components": {
+        "growth_momentum": 0.013803468828830287,
+        "return_quality": 0,
+        "upgrade_satisfaction": 1,
+        "progress_clarity": 1,
+        "stability_score": 0.013239199465797116
+      },
+      "bottleneck": {
+        "longest_stall_median_seconds": 1120
+      }
+    }
+  },
+  "top1": {
+    "params": {
+      "price_scale": 1.229007216354953,
+      "price_exp": 1.164144461591221,
+      "reward_scale": 1.0306481481481482,
+      "reward_exp": 1.149391632373114,
+      "softcap_start": 0.7634602194787381,
+      "softcap_strength": 0.38503729423868316,
+      "offline_rate": 0.7275617283950617,
+      "offline_cap_hours": 20,
+      "prestige_enabled": true,
+      "prestige_unlock_hours": 21,
+      "prestige_gain_scale": 0.3443904320987654
+    },
+    "score": {
+      "accepted": true,
+      "constraint_failed": null,
+      "fail_rate": 0,
+      "V_total": 0.5282867586349047,
+      "components": {
+        "growth_momentum": 0,
+        "return_quality": 1,
+        "upgrade_satisfaction": 1,
+        "progress_clarity": 0.8787470629401772,
+        "stability_score": 0.011934147620075428
+      },
+      "bottleneck": {
+        "longest_stall_median_seconds": 1005
+      }
+    }
+  },
+  "topk": [
+    {
+      "params": {
+        "price_scale": 1.229007216354953,
+        "price_exp": 1.164144461591221,
+        "reward_scale": 1.0306481481481482,
+        "reward_exp": 1.149391632373114,
+        "softcap_start": 0.7634602194787381,
+        "softcap_strength": 0.38503729423868316,
+        "offline_rate": 0.7275617283950617,
+        "offline_cap_hours": 20,
+        "prestige_enabled": true,
+        "prestige_unlock_hours": 21,
+        "prestige_gain_scale": 0.3443904320987654
+      },
+      "score": {
+        "accepted": true,
+        "constraint_failed": null,
+        "fail_rate": 0,
+        "V_total": 0.5282867586349047,
+        "components": {
+          "growth_momentum": 0,
+          "return_quality": 1,
+          "upgrade_satisfaction": 1,
+          "progress_clarity": 0.8787470629401772,
+          "stability_score": 0.011934147620075428
+        },
+        "bottleneck": {
+          "longest_stall_median_seconds": 1005
+        }
+      }
+    },
+    {
+      "params": {
+        "price_scale": 1.229007216354953,
+        "price_exp": 1.164144461591221,
+        "reward_scale": 1.0306481481481482,
+        "reward_exp": 1.149391632373114,
+        "softcap_start": 0.7634602194787381,
+        "softcap_strength": 0.40845792049922264,
+        "offline_rate": 0.7275617283950617,
+        "offline_cap_hours": 19,
+        "prestige_enabled": true,
+        "prestige_unlock_hours": 21,
+        "prestige_gain_scale": 0.3443904320987654
+      },
+      "score": {
+        "accepted": true,
+        "constraint_failed": null,
+        "fail_rate": 0,
+        "V_total": 0.5282867586349047,
+        "components": {
+          "growth_momentum": 0,
+          "return_quality": 1,
+          "upgrade_satisfaction": 1,
+          "progress_clarity": 0.8787470629401772,
+          "stability_score": 0.011934147620075428
+        },
+        "bottleneck": {
+          "longest_stall_median_seconds": 1005
+        }
+      }
+    },
+    {
+      "params": {
+        "price_scale": 1.2964370003055703,
+        "price_exp": 1.1587902949245543,
+        "reward_scale": 1.0306481481481482,
+        "reward_exp": 1.149391632373114,
+        "softcap_start": 0.8,
+        "softcap_strength": 0.38804269547325104,
+        "offline_rate": 0.7275617283950617,
+        "offline_cap_hours": 20,
+        "prestige_enabled": true,
+        "prestige_unlock_hours": 21,
+        "prestige_gain_scale": 0.3443904320987654
+      },
+      "score": {
+        "accepted": true,
+        "constraint_failed": null,
+        "fail_rate": 0,
+        "V_total": 0.5282827043114339,
+        "components": {
+          "growth_momentum": 0,
+          "return_quality": 1,
+          "upgrade_satisfaction": 1,
+          "progress_clarity": 0.8787062466136465,
+          "stability_score": 0.011933593298944046
+        },
+        "bottleneck": {
+          "longest_stall_median_seconds": 1005
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "runs_per_eval": 500,
+    "generations": 8,
+    "population": 20,
+    "timestamp": "2026-02-28T05:24:30.357Z"
+  },
+  "metrics": {
+    "risk_adjusted_return_180": 0.5282867586349047,
+    "cagr_180": 0,
+    "max_drawdown_180": 0.2976131704759849,
+    "active_system_count": 10,
+    "market_stability_score": 0.011934147620075428,
+    "bankruptcy_flag": false,
+    "blowup_rate": 0,
+    "fail_rate": 0
+  }
+}
