@@ -103,11 +103,12 @@ function scoreRuns(runs) {
     const constraintFailed = null;
 
     // V_idle components
-    // Use final/initial production ratio for growth momentum (handles prestige resets)
-    const finalProds = runs.filter(r => r.ok).map(r => r.prods[r.prods.length - 1] || 1);
+    // Use max/initial production ratio for growth momentum (captures peak growth)
+    const maxProds = runs.filter(r => r.ok).map(r => Math.max(...r.prods, 1));
     const initialProd = runs.filter(r => r.ok)[0]?.prods[0] || 1;
-    const meanFinalProd = mean(finalProds);
-    const growthRatio = Math.log10(Math.max(1, meanFinalProd)) / Math.log10(Math.max(1, initialProd * 1000));
+    const meanMaxProd = mean(maxProds);
+    // Reduced denominator from 1000 to 100 to allow higher growth scores
+    const growthRatio = Math.log10(Math.max(1, meanMaxProd)) / Math.log10(Math.max(1, initialProd * 100));
     const growthMomentum = clamp(growthRatio, 0, 1);
 
     const meanClaimActions = mean(claimActions);

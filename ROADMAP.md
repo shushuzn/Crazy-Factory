@@ -218,13 +218,13 @@
 
 <!-- AUTO:METRICS-START -->
 [Mode]
-⚡ Optimization Mode（优化模式）
+🛡 Hardening Mode（强化模式）
 
 [North Star]
-61.5% (trend: up)
+84.2% (trend: up)
 
 [Supporting Metrics]
-- growth_momentum: 11.8%
+- growth_momentum: 89.3%
 - return_quality: 100.0%
 - upgrade_satisfaction: 100.0%
 - progress_clarity: 90.3%
@@ -234,7 +234,7 @@
 低
 
 [Task]
-reach-65-percent / 继续优化以突破 65% North Star
+enter-hardening-mode / North Star 已超过 85% 阈值，准备进入强化模式
 
 [Impact]
 提升回归后继续玩的比例，稳步推高 North Star。
