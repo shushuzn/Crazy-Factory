@@ -234,28 +234,30 @@
 低
 
 [Task]
-⏩ P4-T2-audio-visual-feedback / 音效/视觉反馈优化
+⏩ P4-T3-tutorial / 新手引导系统
 
 [Impact]
-增强游戏反馈体验，新增成就解锁、技能升级、建筑购买的视觉和音效反馈。提升玩家操作感知和成就感。North Star 维持 84.2%。
+为新玩家提供逐步引导，介绍游戏核心机制（点击生产、购买产业、研发升级、市场系统）。降低学习曲线，提升首日留存。North Star 维持 84.2%。
 
 [Do]
-- 新增音效：成就解锁、技能升级、Prestige（4种新音效）
-- 新增视觉效果：粒子系统、Toast提示、技能升级特效
-- 更新 JUICE 配置添加新参数
-- 集成 eventBus 事件到 skill-system
+- 创建 scripts/tutorial-system.js 引导模块
+- 设计 6 步引导流程（欢迎→点击→购买→升级→市场→完成）
+- 实现高亮、提示、步骤导航功能
+- 支持多语言和跳过功能
+- 集成到 game.js
 
 [Verify]
 ```bash
-node tests/update-detection-system.test.js
+# 首次访问自动弹出引导
+# 可点击跳过或完成所有步骤
+# window.resetTutorial() 可重置引导
 ```
-预期结果：11/11 测试通过（反馈系统通过集成测试验证）
 
 [RoadmapPatch]
-Phase 4 Polish & Launch，P4-T2 进行中
+Phase 4 Polish & Launch，P4-T3 进行中
 
 [Next]
-P4-T3 新手引导
+P4-T4 性能优化
 
 ----
 

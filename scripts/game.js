@@ -507,4 +507,30 @@
 
     // 启动滚动更新检测（延迟启动，避免干扰初始加载）
     setTimeout(() => updateDetection.start(), 10000); // 10 秒后启动
+
+    // ════════════════════════════════════════════════
+    // ㉒ 新手引导系统 (P4-T3)
+    // ════════════════════════════════════════════════
+    const tutorialSystem = createTutorialSystem({
+      st,
+      I18N,
+      eventBus,
+      onComplete: () => {
+        pushLog('✅ 新手引导完成！开始你的金融帝国之旅吧！');
+      },
+      onSkip: () => {
+        pushLog('⏭️ 已跳过新手引导');
+      },
+    });
+
+    // 延迟启动新手引导（等游戏完全加载后）
+    setTimeout(() => {
+      tutorialSystem.start();
+    }, 1500);
+
+    // 调试命令：window.resetTutorial() 可重置引导
+    window.resetTutorial = () => {
+      tutorialSystem.reset();
+      location.reload();
+    };
   
