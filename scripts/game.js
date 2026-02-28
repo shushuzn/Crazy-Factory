@@ -461,4 +461,49 @@
     });
 
     loopSystem.startLoop();
+
+    // ════════════════════════════════════════════════
+    // ㉑ 滚动更新检测系统
+    // ════════════════════════════════════════════════
+    const updateDetection = createUpdateDetectionSystem({
+      currentVersion: APP_VERSION,
+      checkIntervalMs: 5 * 60 * 1000, // 5 分钟检测一次
+      versionUrl: './version.json',
+      enabled: !window.location.search.includes('noupdate=1'), // URL参数可禁用
+      onUpdateAvailable: ({ currentVersion, newVersion, dismiss, reload }) => {
+        // 使用游戏内通知系统显示更新提示
+        pushLog(`🚀 新版本 ${newVersion} 可用！当前版本: ${currentVersion}`);
+        // 延迟显示 Toast 避免干扰初始加载
+        setTimeout(() => {
+          if (typeof I18N !== 'undefined' && I18N.getCurrentLang() === 'en') {
+            // 英文提示
+            const toast = document.createElement('div');
+            toast.className = 'update-toast';
+            toast.innerHTML = `
+              <div class="update-toast-content">
+                <span class="update-icon">🚀</span>
+                <span class="update-text">New version ${newVersion} available!</span>
+                <button class="update-btn update-btn-primary" id="updateBtnReload">Reload</button>
+                <button class="update-btn update-btn-secondary" id="updateBtnDismiss">Later</button>
+              </div>
+            `;
+            document.body.appendChild(toast);
+            toast.querySelector('#updateBtnReload').addEventListener('click', reload);
+            toast.querySelector('#updateBtnDismiss').addEventListener('click', () => {
+              dismiss();
+              toast.remove();
+            });
+          }
+        }, 2000);
+      },
+      onError: (err) => {
+        // 静默处理错误，不干扰用户体验
+        if (window.console && console.debug) {
+          console.debug('Update check failed:', err.message);
+        }
+      },
+    });
+
+    // 启动滚动更新检测（延迟启动，避免干扰初始加载）
+    setTimeout(() => updateDetection.start(), 10000); // 10 秒后启动
   
