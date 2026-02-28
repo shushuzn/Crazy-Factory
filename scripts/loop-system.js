@@ -8,6 +8,7 @@ const createLoopSystem = ({
   SAVE_INTERVAL,
   getTotalGPS,
   tickMarket,
+  tickEvent,
   tryAutoBuy,
   saveGame,
   render,
@@ -29,6 +30,7 @@ const createLoopSystem = ({
       st.lifetimeGears += gain;
       st.accumulator -= FIXED_STEP;
       tickMarket(FIXED_STEP);
+      if (tickEvent) tickEvent(FIXED_STEP);
 
       if (st.marketMomentumTimer > 0) {
         st.marketMomentumTimer = Math.max(0, st.marketMomentumTimer - FIXED_STEP * st.gameSpeed);

@@ -254,6 +254,19 @@
     });
     const { tickMarket, renderMarket } = marketSystem;
 
+    // Event System (P3-T2)
+    const eventSystem = createEventSystem({
+      st,
+      dirty,
+      pushLog,
+      eventBus,
+      buildings,
+      skills,
+      sfxSuccess: sfxBuy,
+      sfxFail: () => { /* optional fail sound */ }
+    });
+    const { tick: tickEvent } = eventSystem;
+
     const claimAchievement = (a) => {
       if(!a.reward||a.claimed) return;
       a.claimed=true; grantReward(a.reward,`成就「${a.name}」`); saveGame();
@@ -433,6 +446,7 @@
       SAVE_INTERVAL,
       getTotalGPS,
       tickMarket,
+      tickEvent,
       tryAutoBuy,
       saveGame,
       render,
