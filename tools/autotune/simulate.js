@@ -1,6 +1,7 @@
 // Simulate idle game runs for autotuning
 const fs = require('fs');
 const path = require('path');
+const { SimulationConfig } = require('./config');
 
 function clamp(x, lo, hi) {
     return x < lo ? lo : x > hi ? hi : x;
@@ -38,8 +39,9 @@ class SeededRandom {
         this.seed = seed;
     }
     next() {
-        this.seed = (this.seed * 9301 + 49297) % 233280;
-        return this.seed / 233280;
+        const rng = SimulationConfig.rng;
+        this.seed = (this.seed * rng.multiplier + rng.increment) % rng.modulus;
+        return this.seed / rng.modulus;
     }
     random() {
         return this.next();
@@ -81,7 +83,7 @@ function simulateOne(params, seed, cfg) {
     const dt = cfg.dt_seconds;
 
     while (t < horizon_seconds) {
-        const inOffline = rng.random() < 0.08;
+        const inOffline = rng.random() < SimulationConfig.offline.probability;
         let step_dt = dt;
 
         if (inOffline) {
@@ -170,12 +172,12 @@ function simulateOne(params, seed, cfg) {
 
 function simulateBatch(params, runs, seed0) {
     const cfg = {
-        horizon_hours: 24.0,
-        dt_seconds: 5,
-        base_income_per_sec: 1.0,
-        upgrade_count: 40,
-        meaningful_gain_ratio: 0.08,
-        stall_window_minutes: 30,
+        horizon_hours: SimulationConfig.horizon.hours,
+        dt_seconds: SimulationConfig.timeStep.seconds,
+        base_income_per_sec: SimulationConfig.economy.baseIncomePerSec,
+        upgrade_count: SimulationConfig.economy.upgradeCount,
+        meaningful_gain_ratio: SimulationConfig.economy.meaningfulGainRatio,
+        stall_window_minutes: SimulationConfig.stallDetection.windowMinutes,
     };
 
     const results = [];

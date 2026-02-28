@@ -1,4 +1,5 @@
 // Score simulation runs for autotuning
+const { ScoringConfig } = require('./config');
 
 function clamp(x, lo, hi) {
     return x < lo ? lo : x > hi ? hi : x;
@@ -52,7 +53,7 @@ function scoreRuns(runs) {
     const failRuns = runs.filter(r => !r.ok);
 
     const failRate = failRuns.length / Math.max(1, runs.length);
-    if (failRate > 0.02) {
+    if (failRate > ScoringConfig.constraints.maxFailRate) {
         return {
             accepted: false,
             constraint_failed: "sim_fail_rate",
@@ -102,32 +103,33 @@ function scoreRuns(runs) {
     // Constraints
     const constraintFailed = null;
 
+    // Use config for all parameters
+    const cfg = ScoringConfig;
+
     // V_idle components
     // Use max/initial production ratio for growth momentum (captures peak growth)
     const maxProds = runs.filter(r => r.ok).map(r => Math.max(...r.prods, 1));
     const initialProd = runs.filter(r => r.ok)[0]?.prods[0] || 1;
     const meanMaxProd = mean(maxProds);
-    // Reduced denominator from 1000 to 100 to allow higher growth scores
-    const growthRatio = Math.log10(Math.max(1, meanMaxProd)) / Math.log10(Math.max(1, initialProd * 100));
-    const growthMomentum = clamp(growthRatio, 0, 1);
+    const growthRatio = Math.log10(Math.max(1, meanMaxProd)) / Math.log10(Math.max(1, initialProd * cfg.growthMomentum.denominatorMultiplier));
+    const growthMomentum = clamp(growthRatio, cfg.growthMomentum.min, cfg.growthMomentum.max);
 
     const meanClaimActions = mean(claimActions);
-    const returnQuality = clamp(meanClaimActions * 0.15, 0, 1);
+    const returnQuality = clamp(meanClaimActions * cfg.returnQuality.claimActionMultiplier, cfg.returnQuality.min, cfg.returnQuality.max);
 
     const meanMu = mean(meaningfulUpgrades);
-    const upgradeSatisfaction = clamp(meanMu / 15, 0, 1);
+    const upgradeSatisfaction = clamp(meanMu / cfg.upgradeSatisfaction.meaningfulUpgradeDivisor, cfg.upgradeSatisfaction.min, cfg.upgradeSatisfaction.max);
 
     const meanCurveHealth = mean(curveHealths);
-    const progressClarity = clamp(meanCurveHealth, 0, 1);
+    const progressClarity = clamp(meanCurveHealth, cfg.progressClarity.min, cfg.progressClarity.max);
 
     const meanActive = mean(activeSecs);
     const meanOffline = mean(offlineSecs);
     const activityRatio = meanActive / Math.max(1, meanActive + meanOffline);
-    const stabilityScore = clamp(activityRatio * meanCurveHealth, 0, 1);
+    const stabilityScore = clamp(activityRatio * meanCurveHealth, cfg.stabilityScore.min, cfg.stabilityScore.max);
 
     // Constrained optimization: require minimum return quality
-    const minReturnQuality = 0.15; // At least 15% return quality required
-    if (returnQuality < minReturnQuality) {
+    if (returnQuality < cfg.constraints.minReturnQuality) {
         return {
             accepted: false,
             constraint_failed: "low_return_quality",
@@ -136,10 +138,9 @@ function scoreRuns(runs) {
         };
     }
 
-    // Time-discounted V_total (simplified)
-    // Rebalanced weights: growth 30%, return 30%, upgrades 20%, clarity 10%, stability 10%
-    const decay = 0.98;
-    const V_total = (growthMomentum * 0.30 + returnQuality * 0.30 + upgradeSatisfaction * 0.2 + progressClarity * 0.1 + stabilityScore * 0.1) * decay;
+    // Time-discounted V_total using configured weights
+    const w = cfg.vTotal.weights;
+    const V_total = (growthMomentum * w.growthMomentum + returnQuality * w.returnQuality + upgradeSatisfaction * w.upgradeSatisfaction + progressClarity * w.progressClarity + stabilityScore * w.stabilityScore) * cfg.vTotal.decay;
 
     return {
         accepted: true,
