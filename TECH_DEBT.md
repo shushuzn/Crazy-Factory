@@ -19,20 +19,20 @@
 
 ---
 
-### 2. return_quality 与 growth_momentum 权衡
+### 2. return_quality 与 growth_momentum 权衡 ✅ 已偿还
 **位置**: `tools/autotune/score.js`
 
 **问题**:
-- 当前 top1 参数 return_quality 仅 4.1%（过低）
-- growth_momentum 83.5% 但 return_quality 损失严重
-- 权重配置可能不合理
+- ~~当前 top1 参数 return_quality 仅 4.1%（过低）~~
+- ~~growth_momentum 83.5% 但 return_quality 损失严重~~
+- ~~权重配置可能不合理~~
 
-**技术债务**:
-- 需要调整权重或引入帕累托前沿选择
-- 考虑多目标优化而非单目标
-- 定义可接受的权衡边界
+**偿还措施** (2026-02-28):
+- 添加 return_quality >= 15% 的硬性约束
+- 调整权重: growth 35%→30%, return 25%→30%
+- 结果: return_quality 100%, growth_momentum 11.8%, North Star 61.5%
 
-**优先级**: 高
+**优先级**: ~~高~~ ✅ 已完成
 
 ---
 

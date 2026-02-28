@@ -1,13 +1,13 @@
 {
-  "price_scale": 1.423174984396786,
-  "price_exp": 1.0181493336976162,
-  "reward_scale": 1.8,
+  "price_scale": 0.6377393363066989,
+  "price_exp": 1.0094685784369761,
+  "reward_scale": 1.6472638031550069,
   "reward_exp": 1.35,
-  "softcap_start": 0.4992290594993141,
-  "softcap_strength": 0.3744675925925926,
-  "offline_rate": 0.9123809401479122,
+  "softcap_start": 0.6830717436884404,
+  "softcap_strength": 0.40679591049382713,
+  "offline_rate": 1.1069434979759043,
   "offline_cap_hours": 3,
   "prestige_enabled": true,
-  "prestige_unlock_hours": 25,
-  "prestige_gain_scale": 0.5211754157398675
+  "prestige_unlock_hours": 22,
+  "prestige_gain_scale": 0.6
 }

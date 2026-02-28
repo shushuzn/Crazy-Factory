@@ -124,9 +124,21 @@ function scoreRuns(runs) {
     const activityRatio = meanActive / Math.max(1, meanActive + meanOffline);
     const stabilityScore = clamp(activityRatio * meanCurveHealth, 0, 1);
 
+    // Constrained optimization: require minimum return quality
+    const minReturnQuality = 0.15; // At least 15% return quality required
+    if (returnQuality < minReturnQuality) {
+        return {
+            accepted: false,
+            constraint_failed: "low_return_quality",
+            fail_rate: failRate,
+            V_total: 0,
+        };
+    }
+
     // Time-discounted V_total (simplified)
+    // Rebalanced weights: growth 30%, return 30%, upgrades 20%, clarity 10%, stability 10%
     const decay = 0.98;
-    const V_total = (growthMomentum * 0.35 + returnQuality * 0.25 + upgradeSatisfaction * 0.2 + progressClarity * 0.1 + stabilityScore * 0.1) * decay;
+    const V_total = (growthMomentum * 0.30 + returnQuality * 0.30 + upgradeSatisfaction * 0.2 + progressClarity * 0.1 + stabilityScore * 0.1) * decay;
 
     return {
         accepted: true,
