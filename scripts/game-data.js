@@ -55,16 +55,41 @@
     //    新增 2 层：中央银行 + 金融集团（M3 新建筑层级）
     //    解锁阈值经过 10 分钟曲线校准（M1 调优）
     // ════════════════════════════════════════════════
+    // P6-T2: 产业链联动配置
     const buildings = [
-      // id            name         basePrice   dps    owned  unlock(累计)  emoji
-      { id:"workshop",   name:"手工作坊",  basePrice:15,        dps:1,       owned:0, unlock:0,          emoji:"🔧" },
-      { id:"factory",    name:"轻工厂",    basePrice:110,       dps:8,       owned:0, unlock:250,        emoji:"🏭" },
-      { id:"logistics",  name:"物流公司",  basePrice:1200,      dps:47,      owned:0, unlock:2000,       emoji:"🚛" },
-      { id:"realestate", name:"房地产",    basePrice:13000,     dps:260,     owned:0, unlock:15000,      emoji:"🏢" },
-      { id:"bank",       name:"商业银行",  basePrice:140000,    dps:1400,    owned:0, unlock:100000,     emoji:"🏦" },
-      { id:"fund",       name:"量化基金",  basePrice:1500000,   dps:7800,    owned:0, unlock:800000,     emoji:"📊" },
-      { id:"central",    name:"中央银行",  basePrice:20000000,  dps:44000,   owned:0, unlock:12000000,   emoji:"🏛️" },  // M3 新增
-      { id:"conglom",    name:"金融集团",  basePrice:300000000, dps:260000,  owned:0, unlock:180000000,  emoji:"🌐" },  // M3 新增
+      // id            name         basePrice   dps    owned  unlock(累计)  emoji  synergy(产业链)
+      {
+        id:"workshop",   name:"手工作坊",  basePrice:15,        dps:1,       owned:0, unlock:0,          emoji:"🔧",
+        synergy: { upstream: [], downstream: ["factory"], bonusPerDownstream: 0.05, desc: "为下游轻工厂提供原材料，每个+5%产出" }
+      },
+      {
+        id:"factory",    name:"轻工厂",    basePrice:110,       dps:8,       owned:0, unlock:250,        emoji:"🏭",
+        synergy: { upstream: ["workshop"], downstream: ["logistics"], bonusPerUpstream: 0.03, bonusPerDownstream: 0.04, desc: "依赖手工作坊原料，每个+3%产出；为物流提供货物，每个+4%" }
+      },
+      {
+        id:"logistics",  name:"物流公司",  basePrice:1200,      dps:47,      owned:0, unlock:2000,       emoji:"🚛",
+        synergy: { upstream: ["factory"], downstream: ["realestate"], bonusPerUpstream: 0.04, bonusPerDownstream: 0.03, desc: "运输工厂货物，每个上游+4%；支撑房地产物流，每个+3%" }
+      },
+      {
+        id:"realestate", name:"房地产",    basePrice:13000,     dps:260,     owned:0, unlock:15000,      emoji:"🏢",
+        synergy: { upstream: ["logistics"], downstream: ["bank"], bonusPerUpstream: 0.03, bonusPerDownstream: 0.05, desc: "物流支撑地产发展，每个上游+3%；为银行提供抵押资产，每个+5%" }
+      },
+      {
+        id:"bank",       name:"商业银行",  basePrice:140000,    dps:1400,    owned:0, unlock:100000,     emoji:"🏦",
+        synergy: { upstream: ["realestate"], downstream: ["fund"], bonusPerUpstream: 0.05, bonusPerDownstream: 0.04, desc: "房地产抵押贷款，每个上游+5%；为基金提供资金，每个+4%" }
+      },
+      {
+        id:"fund",       name:"量化基金",  basePrice:1500000,   dps:7800,    owned:0, unlock:800000,     emoji:"📊",
+        synergy: { upstream: ["bank"], downstream: ["central"], bonusPerUpstream: 0.04, bonusPerDownstream: 0.05, desc: "银行资金支持，每个上游+4%；影响央行政策，每个+5%" }
+      },
+      {
+        id:"central",    name:"中央银行",  basePrice:20000000,  dps:44000,   owned:0, unlock:12000000,   emoji:"🏛️",
+        synergy: { upstream: ["fund"], downstream: ["conglom"], bonusPerUpstream: 0.05, bonusPerDownstream: 0.06, desc: "监管基金市场，每个上游+5%；为金融集团提供清算，每个+6%" }
+      },
+      {
+        id:"conglom",    name:"金融集团",  basePrice:300000000, dps:260000,  owned:0, unlock:180000000,  emoji:"🌐",
+        synergy: { upstream: ["central"], downstream: [], bonusPerUpstream: 0.06, desc: "央行政策支持，每个上游+6%" }
+      },
     ];
 
     // ════════════════════════════════════════════════

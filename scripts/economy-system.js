@@ -57,7 +57,12 @@ const createEconomySystem = ({
     const hedge = Math.max(0, Math.min(0.6, Number(st.policyHedge) || 0));
     return Math.min(1, baseDrag + (1 - baseDrag) * hedge);
   };
-  const getTotalGPS = () => baseGPS() * st.gpsMultiplier * resMult() * skillGPS() * mktMult() * skillMasteryMult() * marketMomentumGPSMult() * policyRateDrag();
+
+  // P6-T2: 产业链加成（由外部传入）
+  let synergyMult = () => 1.0;
+  const setSynergyMultiplier = (fn) => { synergyMult = fn; };
+
+  const getTotalGPS = () => baseGPS() * st.gpsMultiplier * resMult() * skillGPS() * mktMult() * skillMasteryMult() * marketMomentumGPSMult() * policyRateDrag() * synergyMult();
   const getManualGain = () => st.manualPower * st.manualMult * (1 + skillLv('manual_mastery') * 0.3) * marketMomentumManualMult() * policyRateDrag();
 
   const getGpsBreakdown = () => {
@@ -202,6 +207,7 @@ const createEconomySystem = ({
     mktMult,
     getTotalGPS,
     getManualGain,
+    setSynergyMultiplier,
     getGpsBreakdown,
     affordableCount,
     purchaseCost,

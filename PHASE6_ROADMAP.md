@@ -97,11 +97,43 @@ const createDerivativesSystem = ({
 
 ---
 
-## P6-T2: 产业链联动
+## P6-T2: 产业链联动 🚧 进行中
 
 **优先级**: 🔴 高  
 **预计工期**: 2-3 周  
-**前置依赖**: 无（建议优先实施）
+**前置依赖**: 无（建议优先实施）  
+**进度**: 核心框架已实现，GPS加成已集成，UI面板已添加
+
+### ✅ 已完成任务
+
+- [x] **1. 建筑数据 synergy 属性配置** (scripts/game-data.js)
+  - 为全部8种建筑添加上下游联动关系
+  - 设定加成比例：上游3-6%，下游3-6%，根据建筑类型不同
+  - Workshop→Factory→Logistics→RealEstate→Bank→Fund→CentralBank→Conglomerate
+
+- [x] **2. synergy-system.js 加成计算模块** (scripts/synergy-system.js)
+  - 单个建筑加成计算 `calculateBuildingSynergy()`
+  - 全局加成汇总 `calculateGlobalSynergy()`
+  - 上游/下游计数与加成计算逻辑
+  - 事件通知机制 `synergy:activated`
+
+- [x] **3. GPS 计算集成产业链加成** (scripts/economy-system.js)
+  - 添加 `setSynergyMultiplier()` 回调接口
+  - 修改 GPS 公式：`baseGPS * gpsMultiplier * ... * synergyMult`
+
+- [x] **4. UI 提示显示加成** (scripts/game.js)
+  - 产业链联动面板渲染 `renderGlobalSynergyPanel()`
+  - 动态插入到排行榜和每日任务之间
+  - 30秒自动刷新机制
+  - 调试命令：`window.getSynergyInfo(buildingId)`
+
+### 待完成任务
+
+- [ ] **5. 测试与平衡调整**
+  - 验证各建筑加成数值是否合理（目标：总加成15-25%）
+  - 检查极端情况下加成是否会过高
+  - 根据测试反馈微调上下游加成比例
+  - 确保与现有经济系统的平衡性
 
 ### 技术方案
 

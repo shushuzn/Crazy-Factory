@@ -715,4 +715,62 @@
       console.log('Invite data cleared');
       location.reload();
     };
+
+    // ════════════════════════════════════════════════
+    // ㉗ 产业链联动系统 (P6-T2)
+    // ════════════════════════════════════════════════
+    const synergySystem = createSynergySystem({
+      buildings,
+      st,
+      eventBus,
+      pushLog,
+      I18N,
+    });
+
+    // 初始化产业链系统
+    synergySystem.init();
+
+    // 将产业链加成应用到经济系统
+    economy.setSynergyMultiplier(() => {
+      const global = synergySystem.calculateGlobalSynergy();
+      return global.globalMultiplier;
+    });
+
+    // 添加产业链面板到UI（在排行榜之后）
+    setTimeout(() => {
+      const statsPanel = document.querySelector('.stats');
+      if (statsPanel) {
+        const synergyContainer = document.createElement('div');
+        synergyContainer.id = 'synergyContainer';
+        synergyContainer.innerHTML = synergySystem.renderGlobalSynergyPanel();
+
+        // 插入在排行榜之后
+        const leaderboardContainer = document.getElementById('leaderboardContainer');
+        if (leaderboardContainer && leaderboardContainer.nextSibling) {
+          statsPanel.insertBefore(synergyContainer, leaderboardContainer.nextSibling);
+        } else {
+          statsPanel.insertBefore(synergyContainer, statsPanel.firstChild);
+        }
+      }
+    }, 2800);
+
+    // 定期刷新产业链面板（每30秒）
+    setInterval(() => {
+      const container = document.getElementById('synergyContainer');
+      if (container) {
+        container.innerHTML = synergySystem.renderGlobalSynergyPanel();
+      }
+    }, 30000);
+
+    // 监听产业链加成变化
+    eventBus.on('synergy:activated', ({ building, bonus }) => {
+      pushLog(`🔗 产业链加成激活！${building} 获得 ${((bonus - 1) * 100).toFixed(0)}% 加成`);
+    });
+
+    // 调试命令：window.getSynergyInfo() 查看产业链详情
+    window.getSynergyInfo = (buildingId) => {
+      const info = synergySystem.getBuildingSynergyInfo(buildingId);
+      console.log('Synergy Info:', info);
+      return info;
+    };
   
