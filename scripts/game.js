@@ -773,4 +773,98 @@
       console.log('Synergy Info:', info);
       return info;
     };
+
+    // ════════════════════════════════════════════════
+    // ㉘ 金融衍生品系统 (P6-T1)
+    // ════════════════════════════════════════════════
+    const derivativesSystem = createDerivativesSystem({
+      st,
+      market,
+      eventBus,
+      pushLog,
+      I18N,
+    });
+
+    // 初始化衍生品系统
+    derivativesSystem.init();
+
+    // 添加衍生品面板到UI（在产业链面板之后）
+    setTimeout(() => {
+      const statsPanel = document.querySelector('.stats');
+      if (statsPanel) {
+        const derivativesContainer = document.createElement('div');
+        derivativesContainer.id = 'derivativesContainer';
+        derivativesContainer.innerHTML =
+          derivativesSystem.renderFuturesPanel() +
+          derivativesSystem.renderOptionsPanel() +
+          derivativesSystem.renderStatsPanel();
+
+        // 插入在产业链面板之后
+        const synergyContainer = document.getElementById('synergyContainer');
+        if (synergyContainer && synergyContainer.nextSibling) {
+          statsPanel.insertBefore(derivativesContainer, synergyContainer.nextSibling);
+        } else {
+          statsPanel.appendChild(derivativesContainer);
+        }
+      }
+    }, 3200);
+
+    // 定期刷新衍生品面板（每10秒）
+    setInterval(() => {
+      const container = document.getElementById('derivativesContainer');
+      if (container) {
+        container.innerHTML =
+          derivativesSystem.renderFuturesPanel() +
+          derivativesSystem.renderOptionsPanel() +
+          derivativesSystem.renderStatsPanel();
+      }
+    }, 10000);
+
+    // 监听衍生品事件
+    eventBus.on('futures:opened', ({ contract, margin }) => {
+      pushLog(`📈 期货${contract.type === 'long' ? '做多' : '做空'}开仓成功，保证金: ${formatNumber(margin)}`);
+    });
+
+    eventBus.on('futures:closed', ({ contract, pnl }) => {
+      const profit = pnl >= 0;
+      pushLog(`${profit ? '📈' : '📉'} 期货平仓: ${profit ? '盈利' : '亏损'} ${formatNumber(Math.abs(pnl))}`);
+    });
+
+    eventBus.on('futures:liquidated', ({ contract, pnl }) => {
+      pushLog(`💥 期货爆仓！亏损: ${formatNumber(Math.abs(pnl))}`);
+    });
+
+    eventBus.on('options:purchased', ({ contract, premium }) => {
+      pushLog(`🛡️ 购买${contract.type === 'call' ? '看涨' : '看跌'}期权，权利金: ${formatNumber(premium)}`);
+    });
+
+    // 调试命令：window.openFutures(type, leverage, value) 开期货仓
+    window.openFutures = (type, leverage, contractValue) => {
+      const result = derivativesSystem.openFutures({ type, leverage, contractValue });
+      console.log('Open Futures:', result);
+      return result;
+    };
+
+    // 调试命令：window.closeFuturesPosition(id) 平期货仓
+    window.closeFuturesPosition = (contractId) => {
+      const result = derivativesSystem.closeFutures(contractId);
+      console.log('Close Futures:', result);
+      return result;
+    };
+
+    // 调试命令：window.buyOptions(type, strikePrice, value, expiryDays) 购买期权
+    window.buyOptions = (type, strikePrice, contractValue, expiryDays) => {
+      const result = derivativesSystem.buyOptions({ type, strikePrice, contractValue, expiryDays });
+      console.log('Buy Options:', result);
+      return result;
+    };
+
+    // 调试命令：window.getDerivativesStats() 查看衍生品统计
+    window.getDerivativesStats = () => {
+      const stats = derivativesSystem.getStats();
+      const config = derivativesSystem.getConfig();
+      console.log('Derivatives Stats:', stats);
+      console.log('Derivatives Config:', config);
+      return { stats, config };
+    };
   
