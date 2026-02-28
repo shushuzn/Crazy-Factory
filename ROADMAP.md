@@ -221,7 +221,7 @@
 ⚡ Optimization Mode（优化模式）
 
 [North Star]
-53.1% (trend: up)
+53.1% (trend: flat)
 
 [Supporting Metrics]
 - growth_momentum: 0.0%
@@ -234,7 +234,7 @@
 低
 
 [Task]
-improve-return-quality / return_quality +5% 以上，且 stability 不下降
+improve-return-quality / 继续微调以突破 55% North Star
 
 [Impact]
 提升回归后继续玩的比例，稳步推高 North Star。
@@ -262,7 +262,7 @@ improve-return-quality
 - accepted: true
 - constraint_failed: null
 - fail_rate: 0
-- longest_stall_median_seconds: 1075
+- longest_stall_median_seconds: 1065
 <!-- AUTO:METRICS-END -->
 
 ## 当前版本能力（摘要）
