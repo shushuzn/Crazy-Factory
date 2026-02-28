@@ -50,6 +50,30 @@ const createFeedbackSystem = ({ st, JUICE, fmt, manualBtn, manualZone, marketFla
   };
   const sfxMarket = (bull) => playTone(bull ? 330 : 220, 'sawtooth', 0.25, 0.06, bull ? 0 : -20);
 
+  // P4-T2: 新增音效
+  const sfxAchievement = () => {
+    // 胜利音效：上行音阶
+    playTone(523, 'sine', 0.1, 0.1); // C5
+    setTimeout(() => playTone(659, 'sine', 0.1, 0.1), 100); // E5
+    setTimeout(() => playTone(784, 'sine', 0.1, 0.1), 200); // G5
+    setTimeout(() => playTone(1047, 'sine', 0.3, 0.12), 300); // C6
+  };
+
+  const sfxSkill = () => {
+    // 技能升级：科幻感音效
+    playTone(440, 'triangle', 0.05, 0.06);
+    setTimeout(() => playTone(554, 'triangle', 0.05, 0.06), 60);
+    setTimeout(() => playTone(659, 'triangle', 0.1, 0.08), 120);
+  };
+
+  const sfxPrestige = () => {
+    // Prestige：庄重音效
+    playTone(262, 'sine', 0.2, 0.1); // C4
+    setTimeout(() => playTone(330, 'sine', 0.2, 0.1), 150); // E4
+    setTimeout(() => playTone(392, 'sine', 0.2, 0.1), 300); // G4
+    setTimeout(() => playTone(523, 'sine', 0.4, 0.12), 450); // C5
+  };
+
   const spawnFloat = (x, y, text, color = '#fbbf24') => {
     const el = document.createElement('div');
     el.className = 'float-num';
@@ -93,5 +117,122 @@ const createFeedbackSystem = ({ st, JUICE, fmt, manualBtn, manualZone, marketFla
     setTimeout(() => gameShellEl.classList.remove('screen-shake'), JUICE.marketShakeMs);
   });
 
-  return { eventBus, sfxBuy, sfxUpgrade, sfxMarket, spawnFloat };
+  // P4-T2: 新增视觉反馈效果
+  const spawnParticles = (x, y, count = 8, color = '#fbbf24') => {
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      p.style.cssText = `
+        position: fixed;
+        left: ${x}px;
+        top: ${y}px;
+        width: 6px;
+        height: 6px;
+        background: ${color};
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 9999;
+      `;
+      document.body.appendChild(p);
+
+      const angle = (Math.PI * 2 * i) / count;
+      const velocity = 50 + Math.random() * 50;
+      const tx = Math.cos(angle) * velocity;
+      const ty = Math.sin(angle) * velocity;
+
+      p.animate([
+        { transform: 'translate(0,0) scale(1)', opacity: 1 },
+        { transform: `translate(${tx}px, ${ty}px) scale(0)`, opacity: 0 }
+      ], {
+        duration: 600 + Math.random() * 200,
+        easing: 'cubic-bezier(0,.9,.57,1)',
+      }).onfinish = () => p.remove();
+    }
+  };
+
+  const showToast = (message, type = 'info') => {
+    const toast = document.createElement('div');
+    const colors = {
+      info: '#3b82f6',
+      success: '#10b981',
+      warning: '#f59e0b',
+      achievement: '#8b5cf6',
+    };
+    toast.className = 'game-toast';
+    toast.style.cssText = `
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: ${colors[type] || colors.info};
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 500;
+      z-index: 10000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      animation: toastSlideDown 0.3s ease-out;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    // 添加动画样式
+    if (!document.getElementById('toastStyles')) {
+      const style = document.createElement('style');
+      style.id = 'toastStyles';
+      style.textContent = `
+        @keyframes toastSlideDown {
+          from { transform: translateX(-50%) translateY(-100%); opacity: 0; }
+          to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    setTimeout(() => {
+      toast.style.animation = 'toastSlideDown 0.3s ease-out reverse';
+      setTimeout(() => toast.remove(), 300);
+    }, JUICE.toastDurationMs || 2500);
+  };
+
+  // 事件监听：成就解锁
+  eventBus.on('achievement:unlocked', ({ name, x, y }) => {
+    sfxAchievement();
+    spawnParticles(x, y, 12, '#8b5cf6');
+    showToast(`🏆 成就解锁: ${name}`, 'achievement');
+  });
+
+  // 事件监听：技能升级
+  eventBus.on('skill:upgraded', ({ name, level, x, y }) => {
+    sfxSkill();
+    spawnParticles(x, y, 10, '#3b82f6');
+    showToast(`✨ ${name} 升级到 Lv.${level}`, 'success');
+  });
+
+  // 事件监听：建筑批量购买
+  eventBus.on('building:bulkBuy', ({ count, x, y }) => {
+    if (count >= 10) {
+      spawnParticles(x, y, Math.min(count / 2, 20), '#10b981');
+    }
+  });
+
+  // 事件监听：Prestige
+  eventBus.on('prestige:executed', ({ rpGain, x, y }) => {
+    sfxPrestige();
+    spawnParticles(x, y, 20, '#f59e0b');
+    showToast(`🌟 增发股权完成! 获得 ${rpGain} RP`, 'success');
+  });
+
+  return {
+    eventBus,
+    sfxBuy,
+    sfxUpgrade,
+    sfxMarket,
+    sfxAchievement,
+    sfxSkill,
+    sfxPrestige,
+    spawnFloat,
+    spawnParticles,
+    showToast,
+  };
 };

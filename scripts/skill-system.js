@@ -7,6 +7,7 @@ const createSkillSystem = ({
   pushLog,
   saveGame,
   sfxUpgrade,
+  eventBus,
   SKILL_MASTERY_STEP,
   SKILL_MASTERY_BONUS
 }) => {
@@ -41,6 +42,18 @@ const createSkillSystem = ({
     refreshSkillMastery(false);
     dirty.skills = dirty.logs = true;
     saveGame();
+
+    // P4-T2: 触发技能升级视觉反馈
+    if (eventBus) {
+      const btn = document.querySelector(`[data-skbuy="${id}"]`);
+      const rect = btn ? btn.getBoundingClientRect() : null;
+      eventBus.emit('skill:upgraded', {
+        name: sk.name,
+        level: sk.level,
+        x: rect ? rect.left + rect.width / 2 : window.innerWidth / 2,
+        y: rect ? rect.top + rect.height / 2 : window.innerHeight / 2,
+      });
+    }
   };
 
   return {

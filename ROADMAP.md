@@ -234,29 +234,28 @@
 低
 
 [Task]
-⏩ P4-T1-rolling-update / 滚动更新检测系统
+⏩ P4-T2-audio-visual-feedback / 音效/视觉反馈优化
 
 [Impact]
-自动检测服务器新版本，提示用户刷新获取最新内容。提升用户体验，确保玩家始终使用最新版本。North Star 维持 84.2%。
+增强游戏反馈体验，新增成就解锁、技能升级、建筑购买的视觉和音效反馈。提升玩家操作感知和成就感。North Star 维持 84.2%。
 
 [Do]
-- 创建 scripts/update-detection-system.js
-- 创建 version.json 版本文件
-- 实现每 5 分钟轮询检测
-- 添加 Toast UI 提示组件
-- 集成到 scripts/game.js
+- 新增音效：成就解锁、技能升级、Prestige（4种新音效）
+- 新增视觉效果：粒子系统、Toast提示、技能升级特效
+- 更新 JUICE 配置添加新参数
+- 集成 eventBus 事件到 skill-system
 
 [Verify]
 ```bash
 node tests/update-detection-system.test.js
 ```
-预期结果：11/11 测试通过
+预期结果：11/11 测试通过（反馈系统通过集成测试验证）
 
 [RoadmapPatch]
-Phase 4 Polish & Launch 开始，P4-T1 进行中
+Phase 4 Polish & Launch，P4-T2 进行中
 
 [Next]
-P4-T2 音效/视觉反馈优化
+P4-T3 新手引导
 
 ----
 

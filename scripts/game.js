@@ -218,6 +218,7 @@
       pushLog,
       saveGame,
       sfxUpgrade,
+      eventBus,
       SKILL_MASTERY_STEP,
       SKILL_MASTERY_BONUS,
     });

@@ -172,6 +172,11 @@
       marketShakePx: 6,            // 市场切换屏幕抖动强度
       marketShakeMs: 220,          // 市场切换屏幕抖动时间
       clickPulseResetReflow: true, // 允许强制 reflow 来稳定触发点击 pulse
+      // P4-T2: 新增反馈参数
+      toastDurationMs: 2500,       // Toast 提示显示时长
+      particleCountMax: 20,        // 粒子效果最大数量
+      achievementParticleColor: '#8b5cf6', // 成就解锁粒子颜色
+      skillParticleColor: '#3b82f6',       // 技能升级粒子颜色
     };
 
     // ════════════════════════════════════════════════
