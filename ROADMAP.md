@@ -213,8 +213,13 @@
   - 完成：2026-02-27
   - 指标影响：North Star +（宏观事件与自动经营形成闭环，降低操作摩擦）
   - 证据：自动投资按 `macroPreferredBuildingId` 切换目标并写入 `🤖 自动预案切换` 日志；市场栏展示当前预案目标
-- [NEXT] M8-T11 宏观策略回归：预案收益对比与阈值门禁
+- [DONE] M8-T11 宏观策略回归：预案收益对比与阈值门禁
   - 验收：给出预案开关对比报告，并新增 1 条阈值检查
+  - 完成：2026-03-06
+  - 指标影响：North Star +（预案开关收益差异可量化，且新增波动门禁避免高收益伴随高抖动）
+  - 证据：新增 `scripts/run_macro_plan_regression_check.js`；`--switches 600 --seed 42 --json` 输出 `liftPerSwitch=8.0631`、`volatilityRatio=1.2052`、`thresholdGate.passed=true`
+- [NEXT] M8-T12 宏观策略稳健化：预案参数敏感性扫描
+  - 验收：覆盖至少 3 组 `preferred-bonus/plan-switch-cost` 参数，并给出推荐安全区间
 
 <!-- AUTO:METRICS-START -->
 [Mode]
