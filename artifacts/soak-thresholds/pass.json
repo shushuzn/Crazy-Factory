@@ -1,0 +1,21 @@
+{
+  "durationSec": 60,
+  "frames": 3600,
+  "wallSec": 0.003,
+  "avgFps": 896329.39,
+  "heapPeakMB": 3.42,
+  "saveWrites": 11,
+  "writesPerMinAvg": 9.9,
+  "writesPerMinStd": 1.53,
+  "thresholds": {
+    "minFps": 55,
+    "maxHeapMb": 256,
+    "maxWritesStd": 3
+  },
+  "checks": {
+    "fpsOk": true,
+    "writesStdOk": true,
+    "heapOk": true
+  },
+  "conclusion": "FPS稳定 / 写入频次稳定 / Heap峰值正常"
+}
