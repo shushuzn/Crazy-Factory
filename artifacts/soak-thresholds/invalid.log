@@ -1,0 +1,14 @@
+未知参数: --bad-flag
+用法:
+  node scripts/run_soak_check.js [options]
+
+选项:
+  -s, --seconds <n>         巡检时长（秒），默认 1800
+      --min-fps <n>         最低平均 FPS，默认 55
+      --max-heap-mb <n>     Heap 峰值上限（MB），默认 256
+      --max-writes-std <n>  writesPerMin 标准差上限，默认 1
+  -h, --help                显示帮助信息
+
+退出码:
+  0  所有阈值检查通过
+  1  任意阈值检查失败或参数非法
