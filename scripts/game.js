@@ -124,6 +124,7 @@
         <button class="btn upgrade-btn" data-upgrade="${u.id}">研发（${fmt(u.price)}）</button>`;
       upgradeListEl.appendChild(row);
       upgradeViewMap.set(u.id,{
+        row,
         btn:row.querySelector(`[data-upgrade="${u.id}"]`),
         lockEl:row.querySelector(`[data-ulock="${u.id}"]`),
       });
@@ -496,8 +497,41 @@
     // ════════════════════════════════════════════════
     // ⑳ 初始化 & 主循环
     // ════════════════════════════════════════════════
+    // 虚拟滚动可见性追踪（跳过离屏建筑的 DOM 更新，减少 JS 执行时间）
+    // 灵感：gamedev 论坛虚拟列表模式 — 只渲染可视区域元素
+    const _visibleBuildingIds = new Set();
+    window.__visibleBuildingIds = _visibleBuildingIds; // render-system.js 通过 window 访问
+    const _bldObserver = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        const id = e.target.dataset.buildingId;
+        if (e.isIntersecting) _visibleBuildingIds.add(id);
+        else _visibleBuildingIds.delete(id);
+      }
+    }, { threshold: 0.1 });
+
     buildings.forEach(createBuildingRow);
+    // 标记 buildingId 并开始观察
+    buildings.forEach((b) => {
+      const v = buildingViewMap.get(b.id);
+      if (v) { v.row.dataset.buildingId = b.id; _bldObserver.observe(v.row); }
+    });
+
+    // 升级列表虚拟滚动可见性追踪
+    const _visibleUpgradeIds = new Set();
+    window.__visibleUpgradeIds = _visibleUpgradeIds;
+    const _upgObserver = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        const id = e.target.dataset.upgradeId;
+        if (e.isIntersecting) _visibleUpgradeIds.add(id);
+        else _visibleUpgradeIds.delete(id);
+      }
+    }, { threshold: 0.1 });
+
     upgrades.forEach(createUpgradeRow);
+    upgrades.forEach((u) => {
+      const v = upgradeViewMap.get(u.id);
+      if (v) { v.row.dataset.upgradeId = u.id; _upgObserver.observe(v.row); }
+    });
     skills.forEach(createSkillRow);
     achievements.forEach(createAchievRow);
     renderChangelog();

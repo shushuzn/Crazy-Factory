@@ -136,8 +136,11 @@ const createRenderSystem = ({
     if(dirty.market) renderMarket();
 
     if(dirty.buildings){
+      const _vis = window.__visibleBuildingIds;
       for(const b of buildings){
         const v=buildingViewMap.get(b.id); if(!v) continue;
+        // 虚拟滚动优化：不可见建筑跳过 DOM 更新（保留 JS 计算，但省去 DOM 操作）
+        if (_vis && _vis.size > 0 && !_vis.has(b.id)) continue;
         const cnt=affordableCount(b,st.gears,st.purchaseMode);
         const pc =st.purchaseMode==='max'?cnt:Math.min(cnt,Number(st.purchaseMode)||1);
         const spc=Math.max(1,pc||0);
@@ -156,8 +159,11 @@ const createRenderSystem = ({
     }
 
     if(dirty.upgrades){
+      const _visUpg = window.__visibleUpgradeIds;
       for(const u of upgrades){
         const v=upgradeViewMap.get(u.id); if(!v) continue;
+        // 虚拟滚动优化：不可见升级跳过 DOM 更新
+        if (_visUpg && _visUpg.size > 0 && !_visUpg.has(u.id)) continue;
         if(u.purchased){
           if(_changed(u._ck.btn,'已研发')) v.btn.textContent='已研发';
           v.btn.disabled=true;

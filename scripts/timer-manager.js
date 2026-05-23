@@ -76,6 +76,33 @@ const createTimerManager = () => {
     }
   };
 
+  // scheduler.postTask 优先级调度（支持 background/low 优先级，不支持时回退到 requestIdleCallback）
+  // 灵感来源：https://arxiv.org/abs/2204.10455 — V8 GC 优化思想：区分任务优先级，避免低优先级任务触发 GC pause
+  const _runPostTask = (deadline) => {
+    while (tasks.some(t => t.enabled && performance.now() - t.lastRun >= t.intervalMs)) {
+      const t = tasks.find(t => t.enabled && performance.now() - t.lastRun >= t.intervalMs);
+      if (!t) break;
+      try { t.fn(); } catch (e) { console.error('[TimerManager:postTask]', t.fn.name || 'anonymous', e); }
+      t.lastRun = performance.now();
+    }
+    if (window.scheduler && window.scheduler.postTask) {
+      _idleHandle = window.scheduler.postTask(_runPostTask, { priority: 'background', timeout: 2000 });
+    } else if (typeof requestIdleCallback !== 'undefined') {
+      _idleHandle = requestIdleCallback(_runPostTask, { timeout: 2000 });
+    }
+  };
+
+  const schedulePostTask = (fn, intervalMs) => {
+    schedule(fn, intervalMs);
+    if (_idleHandle === null) {
+      if (window.scheduler && window.scheduler.postTask) {
+        _idleHandle = window.scheduler.postTask(_runPostTask, { priority: 'background', timeout: 2000 });
+      } else if (typeof requestIdleCallback !== 'undefined') {
+        _idleHandle = requestIdleCallback(_runPostTask, { timeout: 2000 });
+      }
+    }
+  };
+
   const setEnabled = (fn, enabled) => {
     const t = tasks.find((t) => t.fn === fn);
     if (t) t.enabled = enabled;

@@ -21,39 +21,47 @@ const createFeedbackSystem = ({ st, JUICE, fmt, manualBtn, manualZone, marketFla
     _canvas.height = window.innerHeight;
   });
 
-  // 粒子对象池
+  // 粒子对象池（预分配 + 溢出静默丢弃，避免热路径对象创建）
+  // 灵感来源：https://arxiv.org/abs/2204.10455 — V8 GC square-root heap limit 规则
+  // 核心思想：减少对象分配频率，让 GC 触发更少；预分配固定大小池，无堆碎片
   const MAX_PARTICLES = 60;
+  const MAX_FLOATS = 20;
   const _pools = {
     particles: [],   // { x, y, vx, vy, color, radius, life, maxLife, active }
     floats:      [], // { x, y, text, color, vy, life, maxLife, active }
   };
 
-  // 粒子池获取/归还
+  // 预分配所有池对象（初始化时一次性分配，运行时不再创建新对象，减少 GC pressure）
+  for (let i = 0; i < MAX_PARTICLES; i++) _pools.particles.push({ active: false });
+  for (let i = 0; i < MAX_FLOATS; i++) _pools.floats.push({ active: false });
+
+  // 粒子池获取/归还（复用已有对象，不在运行时创建新对象）
   const _acquireParticle = (x, y, count, color) => {
-    for (let i = 0; i < count; i++) {
-      const angle = (Math.PI * 2 * i) / count;
+    let acquired = 0;
+    for (const p of _pools.particles) {
+      if (p.active) continue;
+      const angle = (Math.PI * 2 * acquired) / count;
       const velocity = 50 + Math.random() * 50;
-      const vx = Math.cos(angle) * velocity;
-      const vy = Math.sin(angle) * velocity;
-      const maxLife = 600 + Math.random() * 200;
-      const p = _pools.particles.find(p => !p.active) || { active: false };
-      if (!p.active) {
-        p.x = x; p.y = y; p.vx = vx; p.vy = vy;
-        p.color = color; p.radius = 3;
-        p.life = maxLife; p.maxLife = maxLife; p.active = true;
-        if (!_pools.particles.includes(p)) _pools.particles.push(p);
-      }
+      p.x = x; p.y = y;
+      p.vx = Math.cos(angle) * velocity;
+      p.vy = Math.sin(angle) * velocity;
+      p.color = color; p.radius = 3;
+      p.maxLife = 600 + Math.random() * 200;
+      p.life = p.maxLife;
+      p.active = true;
+      if (++acquired >= count) break;
     }
   };
 
   const _acquireFloat = (x, y, text, color) => {
-    const maxLife = 1000;
-    const p = _pools.floats.find(p => !p.active) || { active: false };
-    if (!p.active) {
+    for (const p of _pools.floats) {
+      if (p.active) continue;
       p.x = x; p.y = y; p.text = text; p.color = color;
-      p.vy = -60; p.life = maxLife; p.maxLife = maxLife; p.active = true;
-      if (!_pools.floats.includes(p)) _pools.floats.push(p);
+      p.vy = -60; p.maxLife = 1000; p.life = p.maxLife;
+      p.active = true;
+      return; // 找到空闲槽就立即返回，不再遍历
     }
+    // 池满时静默丢弃（不创建临时对象，不触发 GC）
   };
 
   // RAF 驱动的 Canvas tick（由 game.js 的 loop-system onAfterFrame 调用）
