@@ -61,6 +61,12 @@ const createRenderSystem = ({
   // 值变化缓存：避免值未变时重复写入 DOM
   const _prevVals = new Map(); // `${buildingId}:${field}` -> previous string value
 
+  // 增量日志渲染状态（提升到闭包顶层，避免每次 render() 重建）
+  let _renderedLogKeys = [];
+
+  // 统计面板缓存（dirty.stats 时才更新，避免每帧 reduce/filter）
+  let _statsCache = { bldCount: 0, purchasedUpgrades: 0, totalUpgrades: 0, doneAchiev: 0, totalAchiev: 0 };
+
   const _changed = (key, next) => {
     if (_prevVals.get(key) !== next) { _prevVals.set(key, next); return true; }
     return false;
@@ -129,6 +135,7 @@ const createRenderSystem = ({
         if(_changed(b.id+'|hint', hintTxt)) v.hintEl.textContent=hintTxt;
       }
       dirty.buildings = false;
+      _statsCache.bldCount = buildings.reduce((s, b) => s + b.owned, 0);
     }
 
     if(dirty.upgrades){
@@ -148,6 +155,8 @@ const createRenderSystem = ({
         if(_changed(u.id+'|disabled',String(isDisabled))) v.btn.disabled=isDisabled;
       }
       dirty.upgrades = false;
+      _statsCache.purchasedUpgrades = upgrades.filter(u => u.purchased).length;
+      _statsCache.totalUpgrades = upgrades.length;
     }
 
     if(dirty.quest) renderQuest();
@@ -185,6 +194,8 @@ const createRenderSystem = ({
         if(_changed(a.id+'|badge',badgeTxt)) v.badge.textContent=badgeTxt;
       }
       dirty.achievements = false;
+      _statsCache.doneAchiev = achievements.filter(a => a.done).length;
+      _statsCache.totalAchiev = achievements.length;
     }
 
     if(st.pendingOfflineGears>0){
@@ -198,7 +209,6 @@ const createRenderSystem = ({
     rewardFeedEl.textContent=st.lastRewardText||'';
 
     // 增量日志渲染：只创建/删除差异节点，不做 innerHTML='' 全量重建
-  let _renderedLogKeys = []; // ['log-0', 'log-1', ...]
 
   if(dirty.logs){
     const newLogs = st.logs.slice(0, 8);
@@ -236,9 +246,9 @@ const createRenderSystem = ({
   }
 
     if(dirty.stats){
-      statBldEl.textContent  =`产业数：${buildings.reduce((s,b)=>s+b.owned,0)}`;
-      statUpgEl.textContent  =`已研发：${upgrades.filter(u=>u.purchased).length}/${upgrades.length}`;
-      statAchEl.textContent  =`成就：${achievements.filter(a=>a.done).length}/${achievements.length}`;
+      statBldEl.textContent  =`产业数：${_statsCache.bldCount}`;
+      statUpgEl.textContent  =`已研发：${_statsCache.purchasedUpgrades}/${_statsCache.totalUpgrades}`;
+      statAchEl.textContent  =`成就：${_statsCache.doneAchiev}/${_statsCache.totalAchiev}`;
       statQstEl.textContent  =`任务：${Math.min(st.questIndex,questChain.length)}/${questChain.length}`;
       statModeEl.textContent =`自动投资：${st.autoBuy?'开':'关'}`;
       statLifeEl.textContent =`历史资本：${fmt(st.lifetimeGears)}`;

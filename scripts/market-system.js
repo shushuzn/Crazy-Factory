@@ -23,12 +23,15 @@ const createMarketSystem = ({
 }) => {
   const clampRate = (x) => Math.max(POLICY_RATE_MIN, Math.min(POLICY_RATE_MAX, x));
 
+  // 预取宏事件数组（消除 getActiveMacro/getEventById 内每次 (MACRO_EVENTS || []) 分配）
+  const _macroEvents = MACRO_EVENTS ?? [];
+
   const getActiveMacro = () => {
     if (!st.macroEventId) return null;
-    return (MACRO_EVENTS || []).find((e) => e.id === st.macroEventId) || null;
+    return _macroEvents.find((e) => e.id === st.macroEventId) ?? null;
   };
 
-  const getEventById = (id) => (MACRO_EVENTS || []).find((e) => e.id === id) || null;
+  const getEventById = (id) => _macroEvents.find((e) => e.id === id) ?? null;
 
   const chooseDirectionByBias = (biasUp) => (Math.random() < biasUp ? 0.25 : -0.25);
 
