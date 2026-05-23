@@ -109,13 +109,13 @@
 
         const deltaKeys = Object.keys(delta).filter(k => k !== '_isDelta' && k !== 'savedAt');
         if (deltaKeys.length < _TOP_LEVEL_FIELDS.length) {
-          // 有 diff：写入 delta + 更新持久化的 base snapshot
-          _prevSnapshot = JSON.parse(JSON.stringify(fullData));
+          // 有 diff：写入 delta + 更新持久化的 base snapshot（浅拷贝替代深序列化）
+          _prevSnapshot = { ...fullData };
           localStorage.setItem(SAVE_KEY + '_base', JSON.stringify(_prevSnapshot));
           _saveToIDB(delta).catch(() => localStorage.setItem(SAVE_KEY, JSON.stringify(delta)));
         } else {
           // 无实际 diff（hash 不同但所有值相同，可能是浮点问题），写全量
-          _prevSnapshot = JSON.parse(JSON.stringify(fullData));
+          _prevSnapshot = { ...fullData };
           localStorage.setItem(SAVE_KEY + '_base', JSON.stringify(_prevSnapshot));
           _saveToIDB(fullData).catch(() => localStorage.setItem(SAVE_KEY, JSON.stringify(fullData)));
         }
@@ -204,7 +204,7 @@
       // 重置哈希：确保加载后首次保存必定写入
       _lastSaveHash = null;
       // 重建快照：加载完成后的 d（可能是 delta 合并后的完整状态）作为下次 diff 的基准
-      _prevSnapshot = JSON.parse(JSON.stringify(d));
+      _prevSnapshot = { ...d };
     };
 
     const exportSave = async () => {
