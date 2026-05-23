@@ -240,5 +240,3 @@
       if(!silent){ sfxUpgrade(); pushLog(`研发完成：${u.name}`); }
     };
 
-    // ── 页面卸载前强制存档（减少关闭标签页时数据丢失）──
-    window.addEventListener('beforeunload', () => saveGame());

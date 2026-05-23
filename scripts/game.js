@@ -58,6 +58,13 @@
     // ⑨ 工具函数
     // ════════════════════════════════════════════════
     // ── 数值格式化 ──
+    const _fmtInt = (n) => {
+      // 快速千分位（整数专用，无 GC，无 locale 解析）
+      if (n < 1e3) return String(n);
+      if (n < 1e6) return `${Math.floor(n / 1e3)},${String(n % 1e3).padStart(3,'0')}`;
+      if (n < 1e9) return `${Math.floor(n / 1e6)},${String(Math.floor(n % 1e6 / 1e3)).padStart(3,'0')},${String(n % 1e3).padStart(3,'0')}`;
+      return `${Math.floor(n / 1e9)},${String(Math.floor(n % 1e9 / 1e6)).padStart(3,'0')},${String(Math.floor(n % 1e6 / 1e3)).padStart(3,'0')},${String(n % 1e3).padStart(3,'0')}`;
+    };
     const fmt = (n) => {
       if (!Number.isFinite(n)) return "¥0";
       const abs=Math.abs(n), sg=n<0?"-":"";
@@ -65,7 +72,8 @@
       if(abs>=1e9)  return `${sg}¥${(abs/1e9).toFixed(2)}B`;
       if(abs>=1e6)  return `${sg}¥${(abs/1e6).toFixed(2)}M`;
       if(abs>=1e3)  return `${sg}¥${(abs/1e3).toFixed(2)}K`;
-      return `${sg}¥${abs.toLocaleString("zh-CN",{maximumFractionDigits:1})}`;
+      // abs < 1000：整数用千分位，小数保留 1 位（消除 toLocaleString）
+      return `${sg}¥${Number.isInteger(abs) ? _fmtInt(abs) : abs.toFixed(1).replace(/\.0$/,'')}`;
     };
 
     // 反馈系统初始化（为什么：反馈层高频迭代，独立工厂减少对主循环的干扰）
@@ -362,9 +370,12 @@
     });
 
     // ════════════════════════════════════════════════
-    // ⑲ 事件绑定
+    // ⑲ 事件绑定（含引用保存，页面卸载时统一清理，防止内存泄漏）
     // ════════════════════════════════════════════════
-    manualBtn.addEventListener("click",(e)=>{
+    // 命名 listener 引用（用于 removeEventListener）
+    const _listeners = [];
+
+    const _onManualClick = (e) => {
       const gain=getManualGain();
       st.gears+=gain; st.lifetimeGears+=gain; st.totalClicks++;
       if(st.marketIsBull) {
@@ -376,26 +387,36 @@
       eventBus.emit("manual:clicked", { x: e.clientX, y: e.clientY, gain });
       dirty.gears = dirty.stats = true;
       saveGame();
-    });
+    };
+    manualBtn.addEventListener("click", _onManualClick);
+    _listeners.push([manualBtn, "click", _onManualClick]);
 
-    buildingListEl.addEventListener("click",e=>{
+    const _onBuildingClick = (e) => {
       if(!(e.target instanceof HTMLButtonElement))return;
       const id=e.target.dataset.buy; if(!id)return;
       buyBuilding(id);
       eventBus.emit('building:purchased', { id });
-    });
-    upgradeListEl.addEventListener("click",e=>{
+    };
+    buildingListEl.addEventListener("click", _onBuildingClick);
+    _listeners.push([buildingListEl, "click", _onBuildingClick]);
+
+    const _onUpgradeClick = (e) => {
       if(!(e.target instanceof HTMLButtonElement))return;
       const id=e.target.dataset.upgrade; if(!id)return;
       buyUpgrade(id);
       eventBus.emit('upgrade:purchased', { id });
-    });
-    skillListEl.addEventListener("click",e=>{
+    };
+    upgradeListEl.addEventListener("click", _onUpgradeClick);
+    _listeners.push([upgradeListEl, "click", _onUpgradeClick]);
+
+    const _onSkillClick = (e) => {
       if(!(e.target instanceof HTMLButtonElement))return;
       const id=e.target.dataset.skbuy; if(!id)return; buySkill(id);
-    });
+    };
+    skillListEl.addEventListener("click", _onSkillClick);
+    _listeners.push([skillListEl, "click", _onSkillClick]);
 
-    document.querySelector(".controls").addEventListener("click",e=>{
+    const _onControlsClick = (e) => {
       if(!(e.target instanceof HTMLButtonElement))return;
       const mode=e.target.dataset.mode;
       if(mode){st.purchaseMode=mode;saveGame();return;}
@@ -404,26 +425,27 @@
       const id=e.target.id;
       if(id==="autoBuyBtn"){ st.autoBuy=!st.autoBuy; pushLog(`自动投资已${st.autoBuy?"开启":"关闭"}`); dirty.logs = dirty.stats = true; saveGame(); }
       if(id==="soundBtn")  { st.soundEnabled=!st.soundEnabled; saveGame(); }
-      if(id==="langBtn")   { 
-        const newLang = I18N.toggle(); 
+      if(id==="langBtn")   {
+        const newLang = I18N.toggle();
         e.target.textContent = `语言: ${newLang === 'zh' ? '中文' : 'English'}`;
         pushLog(`语言已切换为: ${newLang === 'zh' ? '中文' : 'English'}`);
         location.reload();
       }
-    });
+      // 以下 4 个按钮（都在 .controls 内）通过事件委托合并到此 handler
+      if(id==="exportSaveBtn"){ _onExportSave(); return; }
+      if(id==="importSaveBtn"){ _onImportSave(); return; }
+      if(id==="prestigeBtn"){ _onPrestige(); return; }
+      if(id==="resetSaveBtn"){ _onResetSave(); return; }
+    };
+    document.querySelector(".controls").addEventListener("click", _onControlsClick);
+    _listeners.push([document.querySelector(".controls"), "click", _onControlsClick]);
 
-    $("exportSaveBtn").addEventListener("click",()=>{exportSave();});
-    $("importSaveBtn").addEventListener("click",()=>{importSave();dirty.gears = dirty.buildings = dirty.upgrades = dirty.skills = dirty.achievements = dirty.quest = dirty.stats = dirty.logs = true;});
-
-    claimBtn.addEventListener("click",()=>{
-      if(st.pendingOfflineGears<=0)return;
-      spawnFloat(window.innerWidth/2,window.innerHeight/2,`+${fmt(st.pendingOfflineGears)} 💤`,"#fbbf24");
-      st.gears+=st.pendingOfflineGears; st.lifetimeGears+=st.pendingOfflineGears;
-      st.pendingOfflineGears=0; dirty.gears = dirty.stats = true;
-      saveGame();
-    });
-
-    $("prestigeBtn").addEventListener("click",()=>{
+    const _onExportSave = () => { exportSave(); };
+    const _onImportSave = () => {
+      importSave();
+      dirty.gears = dirty.buildings = dirty.upgrades = dirty.skills = dirty.achievements = dirty.quest = dirty.stats = dirty.logs = true;
+    };
+    const _onPrestige = () => {
       const gain=GameFormulas.calcPrestigeGain({ lifetimeGears: st.lifetimeGears, divisor: 2000 });
       if(gain<=0){alert("历史资本不足，无法增发股权。");return;}
       if(!confirm(`增发股权可获得 ${gain} RP，本轮进度将重置。继续？`))return;
@@ -438,9 +460,8 @@
       Object.keys(bldBoost).forEach(k=>bldBoost[k]=1);
       dirty.market = dirty.buildings = dirty.upgrades = dirty.skills = dirty.achievements = dirty.quest = dirty.stats = dirty.logs = true;
       saveGame();render(true);
-    });
-
-    $("resetSaveBtn").addEventListener("click",()=>{
+    };
+    const _onResetSave = () => {
       if(!confirm("确认清盘？所有进度将归零。"))return;
       localStorage.removeItem(SAVE_KEY);
       Object.assign(st,{gears:0,purchaseMode:"1",pendingOfflineGears:0,accumulator:0,
@@ -455,7 +476,22 @@
       Object.keys(bldBoost).forEach(k=>bldBoost[k]=1);
       dirty.market = dirty.buildings = dirty.upgrades = dirty.skills = dirty.achievements = dirty.quest = dirty.stats = dirty.logs = true;
       render(true);
-    });
+    };
+    // claimBtn（离线收益）在 #offlineNotice 内，不在 .controls，统一管理
+    const _onClaim = () => {
+      if(st.pendingOfflineGears<=0)return;
+      spawnFloat(window.innerWidth/2,window.innerHeight/2,`+${fmt(st.pendingOfflineGears)} 💤`,"#fbbf24");
+      st.gears+=st.pendingOfflineGears; st.lifetimeGears+=st.pendingOfflineGears;
+      st.pendingOfflineGears=0; dirty.gears = dirty.stats = true;
+      saveGame();
+    };
+    claimBtn.addEventListener("click", _onClaim);
+    _listeners.push([claimBtn, "click", _onClaim]);
+
+    // Tab 可见性处理
+    document.addEventListener('visibilitychange', loopSystem.handleVisibilityChange);
+    _listeners.push([document, 'visibilitychange', loopSystem.handleVisibilityChange]);
+
 
     // ════════════════════════════════════════════════
     // ⑳ 初始化 & 主循环
@@ -486,9 +522,6 @@
     });
 
     loopSystem.startLoop();
-
-    // Tab 可见性处理：切后台暂停 RAF 循环，节省 CPU 和电池
-    document.addEventListener('visibilitychange', loopSystem.handleVisibilityChange);
 
     // ════════════════════════════════════════════════
     // ㉑ 滚动更新检测系统
@@ -649,6 +682,21 @@
       console.log('Analytics data cleared');
       location.reload();
     };
+
+    // ════════════════════════════════════════════════
+    // ㉕ 统一 beforeunload（整合 save/analytics 子系统的卸载逻辑）
+    // ════════════════════════════════════════════════
+    const _cleanupListeners = () => {
+      for (const [el, type, fn] of _listeners) {
+        el.removeEventListener(type, fn);
+      }
+      _listeners.length = 0;
+    };
+    window.addEventListener('beforeunload', () => {
+      _cleanupListeners();
+      saveGame();
+      analyticsSystem.endSession();
+    });
 
     // ════════════════════════════════════════════════
     // ㉕ 排行榜系统 (P5-T1)

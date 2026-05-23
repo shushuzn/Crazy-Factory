@@ -121,6 +121,11 @@ const createAnalyticsSystem = ({
     data.totalPlayTime += duration;
 
     const date = new Date().toISOString().split('T')[0];
+    // 30 天过期清理
+    const cutoff = Date.now() - 30 * 86400000;
+    for (const k of Object.keys(data.dailyStats)) {
+      if (k < date && new Date(k).getTime() < cutoff) delete data.dailyStats[k];
+    }
     if (!data.dailyStats[date]) {
       data.dailyStats[date] = { sessions: 0, playTime: 0, events: {} };
     }
@@ -158,6 +163,11 @@ const createAnalyticsSystem = ({
     }
 
     const date = new Date().toISOString().split('T')[0];
+    // 30 天以前的 dailyStats 过期删除（防止 localStorage 无限膨胀）
+    const cutoff = Date.now() - 30 * 86400000;
+    for (const k of Object.keys(data.dailyStats)) {
+      if (k < date && new Date(k).getTime() < cutoff) delete data.dailyStats[k];
+    }
     if (!data.dailyStats[date]) {
       data.dailyStats[date] = { sessions: 0, playTime: 0, events: {} };
     }
@@ -269,8 +279,6 @@ const createAnalyticsSystem = ({
       eventBus.on('dailyQuest:completed', () => track('dailyQuestsCompleted'));
     }
 
-    // 页面关闭时结束会话
-    window.addEventListener('beforeunload', endSession);
 
     // 定期保存（统一由 RAF 驱动，移除独立 setInterval）
     const _persistSession = () => {
