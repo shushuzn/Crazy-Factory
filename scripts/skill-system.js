@@ -10,12 +10,22 @@ const createSkillSystem = ({
   SKILL_MASTERY_STEP,
   SKILL_MASTERY_BONUS
 }) => {
-  const getTotalSkillLevels = () => skills.reduce((sum, sk) => sum + sk.level, 0);
+  // 预缓存 totalSkillLevels：getTotalSkillLevels() 在 render-system 每帧调用
+  let _totalSkillLevelsCache = null;
+  let _skillLevelsDirty = true;
+  const getTotalSkillLevels = () => {
+    if (!_skillLevelsDirty) return _totalSkillLevelsCache;
+    _totalSkillLevelsCache = skills.reduce((sum, sk) => sum + sk.level, 0);
+    _skillLevelsDirty = false;
+    return _totalSkillLevelsCache;
+  };
+  const _invalidateSkillLevels = () => { _skillLevelsDirty = true; };
   const getSkillTier = () => Math.floor(getTotalSkillLevels() / SKILL_MASTERY_STEP);
   const getSkillMasteryMult = () => 1 + st.skillMasteryTier * SKILL_MASTERY_BONUS;
 
   // 统一在这里校准专精等级：避免 load/prestige/reset 后等级与UI脱节。
   const refreshSkillMastery = (silent = true) => {
+    _invalidateSkillLevels(); // 先失效缓存，确保 prestige/load 后用最新值
     const newTier = getSkillTier();
     const prevTier = st.skillMasteryTier || 0;
     st.skillMasteryTier = newTier;
@@ -40,6 +50,7 @@ const createSkillSystem = ({
     pushLog(`技能升级：${sk.name} Lv.${sk.level}`);
     refreshSkillMastery(false);
     dirty.skills = dirty.logs = true;
+    _invalidateSkillLevels();
     saveGame();
   };
 

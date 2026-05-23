@@ -59,6 +59,8 @@ const createGlobalMarketSystem = ({
 
   // 预计算地区 ID 列表（消除每秒 updateRegionPrices 和 triggerRandomEvent 重复 Object.keys 调用）
   const _regionIds = ['asia', 'europe', 'america'];
+  // 预计算 REGIONS 静态键（UI 渲染时使用，替代 Object.keys(REGIONS) 每调用分配）
+  const _regionKeys = Object.freeze(['asia', 'europe', 'america']);
 
   // 预计算总权重（消除 rollRandomEvent 内每次 reduce 分配）
   // 地区特定事件列表（非动态，无需预计算）
@@ -454,7 +456,7 @@ const createGlobalMarketSystem = ({
 
   const getRegionData = (regionId) => st.globalMarket.regions[regionId];
 
-  const getAllRegions = () => Object.keys(REGIONS).map(id => ({
+  const getAllRegions = () => _regionKeys.map(id => ({
     id,
     ...REGIONS[id],
     data: st.globalMarket.regions[id],
@@ -550,7 +552,7 @@ const createGlobalMarketSystem = ({
     const lang = getLang();
     const investments = getInvestments();
 
-    const investmentHtml = Object.keys(REGIONS).map(regionId => {
+    const investmentHtml = _regionKeys.map(regionId => {
       const amount = investments[regionId] || 0;
       const region = st.globalMarket.regions[regionId];
       const returnRate = (0.001 * region.investmentBonus * 100).toFixed(2);

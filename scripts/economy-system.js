@@ -19,8 +19,13 @@ const createEconomySystem = ({
   sfxBuy,
   applyUpgradeEffect
 }) => {
-  const bld = (id) => buildings.find((b) => b.id === id);
-  const skillLv = (id) => skills.find((s) => s.id === id)?.level || 0;
+  // 预计算查找表（消除 O(n) find 在热路径中的每帧调用）
+  const _bldMap = new Map(buildings.map(b => [b.id, b]));
+  const _skillMap = new Map(skills.map(s => [s.id, s]));
+  const _upgradeMap = new Map(upgrades.map(u => [u.id, u]));
+
+  const bld = (id) => _bldMap.get(id) || null;
+  const skillLv = (id) => _skillMap.get(id)?.level || 0;
   const discount = () => Math.max(0.6, 1 - skillLv('bulk_discount') * 0.04);
   const price = (b, off = 0) => Math.floor(b.basePrice * Math.pow(PRICE_GROWTH, b.owned + off) * discount());
 
@@ -91,7 +96,7 @@ const createEconomySystem = ({
   const upgradeLockedReason = (u) => {
     if (st.researchPoints < u.unlockRP) return `需要 ${u.unlockRP} RP`;
     if (u.requires) {
-      const r = upgrades.find((x) => x.id === u.requires);
+      const r = _upgradeMap.get(u.requires);
       if (r && !r.purchased) return `前置：${r.name}`;
     }
     if (u.type === 'bldBoost') {
