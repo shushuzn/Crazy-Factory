@@ -122,36 +122,52 @@ const createDailyQuestSystem = ({
     return range[Math.floor(Math.random() * range.length)];
   };
 
-  // 获取或初始化任务数据
-  const getQuestData = () => {
-    if (shouldReset()) {
+  // 任务数据内存缓存（避免 getQuestData 每帧读取 localStorage）
+  let _questCache = null;
+  let _cacheDate = null;
+
+  const _loadQuestData = () => {
+    const today = getTodayString();
+    if (_questCache && _cacheDate === today) return _questCache;
+
+    // 日期变更时强制重新生成
+    const lastReset = localStorage.getItem(LAST_RESET_KEY);
+    if (lastReset !== today) {
       const newQuests = generateQuests();
-      const data = {
-        date: getTodayString(),
-        quests: newQuests,
-        allClaimed: false,
-      };
+      const data = { date: today, quests: newQuests, allClaimed: false };
       saveQuestData(data);
-      localStorage.setItem(LAST_RESET_KEY, getTodayString());
+      localStorage.setItem(LAST_RESET_KEY, today);
+      _questCache = data;
+      _cacheDate = today;
       return data;
     }
 
     const saved = localStorage.getItem(DAILY_QUEST_KEY);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        _questCache = JSON.parse(saved);
+        _cacheDate = today;
+        return _questCache;
       } catch {}
     }
 
     const newQuests = generateQuests();
-    const data = {
-      date: getTodayString(),
-      quests: newQuests,
-      allClaimed: false,
-    };
+    const data = { date: today, quests: newQuests, allClaimed: false };
     saveQuestData(data);
+    _questCache = data;
+    _cacheDate = today;
     return data;
   };
+
+  // 保存任务数据
+  const saveQuestData = (data) => {
+    localStorage.setItem(DAILY_QUEST_KEY, JSON.stringify(data));
+    _questCache = data;
+    _cacheDate = getTodayString();
+  };
+
+  // 获取或初始化任务数据
+  const getQuestData = () => _loadQuestData();
 
   // 保存任务数据
   const saveQuestData = (data) => {
