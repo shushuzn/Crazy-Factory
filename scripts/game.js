@@ -523,6 +523,10 @@
 
     loopSystem.startLoop();
 
+    // 注入国债面板
+    treasurySystem.injectPanel('treasuryContainer');
+    treasurySystem.bindEvents('treasuryContainer');
+
     // ════════════════════════════════════════════════
     // ㉑ 滚动更新检测系统
     // ════════════════════════════════════════════════
@@ -1047,7 +1051,27 @@
     };
 
     // ════════════════════════════════════════════════
-    // ㉚ 危机事件系统 (P6-T4)
+    // ㉚ 国债系统
+    // ════════════════════════════════════════════════
+    const treasurySystem = createTreasurySystem({
+      st,
+      eventBus,
+      pushLog,
+      I18N,
+      fmt,
+    });
+    treasurySystem.initTreasuryData();
+
+    // 定期结算国债利息（每30秒，统一由 RAF 驱动）
+    window.__timerManager.schedule(() => {
+      treasurySystem.tickBonds(30);
+      treasurySystem.tickMaturities();
+      const container = document.getElementById('treasuryContainer');
+      if (container) treasurySystem.injectPanel('treasuryContainer');
+    }, 30000);
+
+    // ════════════════════════════════════════════════
+    // ㉛ 危机事件系统 (P6-T4)
     // ════════════════════════════════════════════════
     const crisisSystem = createCrisisSystem({
       st,

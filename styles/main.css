@@ -224,6 +224,35 @@
     .badge { font-size:.74rem; font-weight:700; border-radius:999px; padding:4px 10px; border:1px solid var(--border); background:#0f2035; color:var(--muted); white-space:nowrap; }
     .badge.done { background:#064e3b; color:#6ee7b7; border-color:#10b981; }
 
+    /* 国债系统 */
+    .treasury-panel { background:var(--panel-2); border:1px solid var(--border); border-radius:14px; padding:14px 16px; }
+    .treasury-summary { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:12px; }
+    .treasury-summary-item { background:var(--chip); border:1px solid var(--border); border-radius:8px; padding:8px 12px; text-align:center; }
+    .treasury-summary-item .label { font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+    .treasury-summary-item .value { font-size:1.1rem; font-weight:700; font-variant-numeric:tabular-nums; margin-top:2px; }
+    .treasury-tiers { display:grid; gap:8px; }
+    .treasury-tier { background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:10px 14px; }
+    .treasury-tier-header { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+    .treasury-tier-header strong { flex:1; }
+    .treasury-tier-meta { font-size:.78rem; color:var(--muted); margin-bottom:8px; }
+    .treasury-tier-buy { display:flex; gap:6px; align-items:center; }
+    .treasury-input {
+      flex:1; background:#0a1525; border:1px solid var(--border); border-radius:6px;
+      color:var(--text); padding:6px 10px; font-size:.85rem; font-family:inherit;
+      min-width:0;
+    }
+    .treasury-input:focus { outline:none; border-color:var(--accent); }
+    .treasury-buy-btn { padding:6px 14px; font-size:.82rem; }
+    .treasury-bond-row { display:grid; grid-template-columns:1fr auto auto; gap:10px; align-items:center; background:var(--panel-2); border:1px solid var(--border); border-radius:8px; padding:8px 12px; margin-bottom:6px; }
+    .treasury-bond-info { display:flex; flex-direction:column; gap:2px; }
+    .treasury-bond-info strong { font-size:.88rem; }
+    .treasury-bond-info .muted { font-size:.76rem; color:var(--muted); }
+    .treasury-bond-progress { flex:1; min-width:60px; }
+    .treasury-bond-actions { }
+    .treasury-redeem-btn { padding:5px 12px; font-size:.78rem; background:linear-gradient(135deg,#059669,#047857); color:#d1fae5; border:none; border-radius:6px; cursor:pointer; font-weight:600; }
+    .treasury-redeem-btn:disabled { background:#1e3a5f; color:#475569; cursor:not-allowed; }
+    .treasury-bond-row .muted { color:var(--muted); }
+
     /* 离线横幅 */
     .offline-banner {
       background:linear-gradient(135deg,rgba(251,191,36,.1),rgba(251,191,36,.04));
