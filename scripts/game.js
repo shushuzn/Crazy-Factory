@@ -487,6 +487,9 @@
 
     loopSystem.startLoop();
 
+    // Tab 可见性处理：切后台暂停 RAF 循环，节省 CPU 和电池
+    document.addEventListener('visibilitychange', loopSystem.handleVisibilityChange);
+
     // ════════════════════════════════════════════════
     // ㉑ 滚动更新检测系统
     // ════════════════════════════════════════════════

@@ -15,8 +15,11 @@ const createLoopSystem = ({
   onAfterFrame = null,
 }) => {
   let lastSave = performance.now();
+  let _rafId = null; // RAF handle for cleanup
+  let _isRunning = false;
 
   const tick = (now) => {
+    if (!_isRunning) return;
     const dt = Math.min((now - st.lastTimestamp) / 1000, MAX_ACCUMULATED_SECS);
     st.rafTickCount = (st.rafTickCount || 0) + 1;
     if (!st.rafWindowStart) st.rafWindowStart = Date.now();
@@ -61,13 +64,35 @@ const createLoopSystem = ({
 
     render();
     if (onAfterFrame) onAfterFrame(dt);
-    requestAnimationFrame(tick);
+    _rafId = requestAnimationFrame(tick);
   };
 
   const startLoop = () => {
+    _isRunning = true;
     render(true);
-    requestAnimationFrame(tick);
+    _rafId = requestAnimationFrame(tick);
   };
 
-  return { startLoop };
+  // 停止循环：用于 visibilitychange 暂停或页面卸载
+  const stopLoop = () => {
+    _isRunning = false;
+    if (_rafId !== null) {
+      cancelAnimationFrame(_rafId);
+      _rafId = null;
+    }
+  };
+
+  // Tab 可见性处理：切后台暂停 RAF 循环
+  const handleVisibilityChange = () => {
+    if (document.hidden) {
+      stopLoop();
+    } else {
+      // 恢复：重置时间戳避免 dt 过大，并重启循环
+      st.lastTimestamp = performance.now();
+      st.accumulator = 0;
+      if (!_isRunning) startLoop();
+    }
+  };
+
+  return { startLoop, stopLoop, handleVisibilityChange };
 };
