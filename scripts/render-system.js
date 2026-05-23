@@ -58,8 +58,8 @@ const createRenderSystem = ({
 }) => {
   let lastRender = 0;
 
-  // 值变化缓存：直接存原始值（而非 String()），消除布尔/数值比较时的多余 allocation）
-  const _prevVals = new Map(); // `${buildingId}:${field}` -> previous value (any type)
+  // 值变化缓存：直接存原始值 + 键由 game.js 初始化时预计算（消除每帧 b.id+'|field' 拼接分配）
+  const _prevVals = new Map();
 
   // 增量日志渲染状态（提升到闭包顶层，避免每次 render() 重建）
   let _renderedLogKeys = [];
@@ -131,14 +131,14 @@ const createRenderSystem = ({
         const pc =st.purchaseMode==='max'?cnt:Math.min(cnt,Number(st.purchaseMode)||1);
         const spc=Math.max(1,pc||0);
         const unlocked=isBldUnlocked(b);
-        if(_changed(b.id+'|owned', b.owned)) v.ownedEl.textContent=b.owned;
+        if(_changed(b._ck.owned, b.owned)) v.ownedEl.textContent=b.owned;
         const buyLabel=`购买 ×${spc}（${fmt(purchaseCost(b,spc))}）`;
-        if(_changed(b.id+'|buy', buyLabel)) v.buyBtn.textContent=buyLabel;
+        if(_changed(b._ck.buy, buyLabel)) v.buyBtn.textContent=buyLabel;
         v.buyBtn.disabled=!(cnt>0&&unlocked);
         const lockTxt=!unlocked?`解锁条件：历史资本 ${fmt(b.unlock)}`:'';
-        if(_changed(b.id+'|lock', lockTxt)) v.lockEl.textContent=lockTxt;
+        if(_changed(b._ck.lock, lockTxt)) v.lockEl.textContent=lockTxt;
         const hintTxt=(unlocked&&cnt<=0)?`还差 ${fmt(price(b)-st.gears)}`:'';
-        if(_changed(b.id+'|hint', hintTxt)) v.hintEl.textContent=hintTxt;
+        if(_changed(b._ck.hint, hintTxt)) v.hintEl.textContent=hintTxt;
       }
       dirty.buildings = false;
       _statsCache.bldCount = buildings.reduce((s, b) => s + b.owned, 0);
@@ -148,17 +148,17 @@ const createRenderSystem = ({
       for(const u of upgrades){
         const v=upgradeViewMap.get(u.id); if(!v) continue;
         if(u.purchased){
-          if(_changed(u.id+'|btn','已研发')) v.btn.textContent='已研发';
+          if(_changed(u._ck.btn,'已研发')) v.btn.textContent='已研发';
           v.btn.disabled=true;
-          if(_changed(u.id+'|lock','')) v.lockEl.textContent='';
+          if(_changed(u._ck.lock,'')) v.lockEl.textContent='';
           continue;
         }
         const lr=upgradeLockedReason(u);
         const btnTxt=`研发（${fmt(u.price)}）`;
         const isDisabled=st.gears<u.price||Boolean(lr);
-        if(_changed(u.id+'|lock',lr)) v.lockEl.textContent=lr;
-        if(_changed(u.id+'|btn',btnTxt)) v.btn.textContent=btnTxt;
-        if(_changed(u.id+'|disabled', isDisabled)) v.btn.disabled=isDisabled;
+        if(_changed(u._ck.lock,lr)) v.lockEl.textContent=lr;
+        if(_changed(u._ck.btn,btnTxt)) v.btn.textContent=btnTxt;
+        if(_changed(u._ck.disabled, isDisabled)) v.btn.disabled=isDisabled;
       }
       dirty.upgrades = false;
       _statsCache.purchasedUpgrades = upgrades.filter(u => u.purchased).length;
@@ -171,15 +171,15 @@ const createRenderSystem = ({
       for(const sk of skills){
         const v=skillViewMap.get(sk.id); if(!v) continue;
         const metaTxt=`等级 ${sk.level}/${sk.maxLevel}`;
-        if(_changed(sk.id+'|meta',metaTxt)) v.meta.textContent=metaTxt;
+        if(_changed(sk._ck.meta,metaTxt)) v.meta.textContent=metaTxt;
         if(sk.level>=sk.maxLevel){
-          if(_changed(sk.id+'|btn','已满级')) v.btn.textContent='已满级';
+          if(_changed(sk._ck.btn,'已满级')) v.btn.textContent='已满级';
           v.btn.disabled=true;
         }else{
           const isDisabled=st.researchPoints<sk.costRP;
           const btnTxt=`升级（${sk.costRP} RP）`;
-          if(_changed(sk.id+'|btn',btnTxt)) v.btn.textContent=btnTxt;
-          if(_changed(sk.id+'|disabled', isDisabled)) v.btn.disabled=isDisabled;
+          if(_changed(sk._ck.btn,btnTxt)) v.btn.textContent=btnTxt;
+          if(_changed(sk._ck.disabled, isDisabled)) v.btn.disabled=isDisabled;
         }
       }
       if(skillMasteryMetaEl){
@@ -197,7 +197,7 @@ const createRenderSystem = ({
         const done=a.done;
         v.badge.classList.toggle('done',done);
         const badgeTxt=done?(a.claimed?'已完成✓':'已完成'):'未完成';
-        if(_changed(a.id+'|badge',badgeTxt)) v.badge.textContent=badgeTxt;
+        if(_changed(a._ck.badge,badgeTxt)) v.badge.textContent=badgeTxt;
       }
       dirty.achievements = false;
       _statsCache.doneAchiev = achievements.filter(a => a.done).length;

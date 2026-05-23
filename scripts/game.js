@@ -96,6 +96,12 @@
         hintEl:row.querySelector(`[data-hint="${b.id}"]`),
         lockEl:row.querySelector(`[data-lock="${b.id}"]`),
       });
+      // 预计算 _changed() 键（消除每帧 `b.id+'|field'` 字符串拼接分配）
+      if (!b._ck) b._ck = {};
+      b._ck.owned = `${b.id}|owned`;
+      b._ck.buy   = `${b.id}|buy`;
+      b._ck.lock  = `${b.id}|lock`;
+      b._ck.hint  = `${b.id}|hint`;
     };
 
     const createUpgradeRow = (u) => {
@@ -113,6 +119,10 @@
         btn:row.querySelector(`[data-upgrade="${u.id}"]`),
         lockEl:row.querySelector(`[data-ulock="${u.id}"]`),
       });
+      if (!u._ck) u._ck = {};
+      u._ck.btn = `${u.id}|btn`;
+      u._ck.lock = `${u.id}|lock`;
+      u._ck.disabled = `${u.id}|disabled`;
     };
 
     const createSkillRow = (sk) => {
@@ -130,6 +140,10 @@
         btn:row.querySelector(`[data-skbuy="${sk.id}"]`),
         meta:row.querySelector(`[data-smeta="${sk.id}"]`),
       });
+      if (!sk._ck) sk._ck = {};
+      sk._ck.meta = `${sk.id}|meta`;
+      sk._ck.btn = `${sk.id}|btn`;
+      sk._ck.disabled = `${sk.id}|disabled`;
     };
 
 
@@ -157,6 +171,8 @@
         <span class="badge" data-abadge="${a.id}">未完成</span>`;
       achievListEl.appendChild(row);
       achievViewMap.set(a.id,{badge:row.querySelector(`[data-abadge="${a.id}"]`)});
+      if (!a._ck) a._ck = {};
+      a._ck.badge = `${a.id}|badge`;
     };
 
     // ════════════════════════════════════════════════
