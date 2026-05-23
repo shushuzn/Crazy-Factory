@@ -42,7 +42,16 @@ const createEconomySystem = ({
 
   const bld = (id) => _bldMap.get(id) || null;
   const skillLv = (id) => _skillMap.get(id)?.level || 0;
-  const discount = () => Math.max(0.6, 1 - skillLv('bulk_discount') * 0.04);
+  // discount() 对象池：skillLv 变化极稀疏，缓存消除每帧重复乘法运算
+  let _discountCache = null;
+  let _discountSkillLevel = -1;
+  const discount = () => {
+    const lv = skillLv('bulk_discount');
+    if (lv === _discountSkillLevel) return _discountCache;
+    _discountCache = Math.max(0.6, 1 - lv * 0.04);
+    _discountSkillLevel = lv;
+    return _discountCache;
+  };
   // price(b,off) 在购买逻辑中用 offset>0，render 帧内只用 off=0 用 _getCachedPrice 缓存
   const price = (b, off = 0) => {
     if (off === 0) return _getCachedPrice(b);

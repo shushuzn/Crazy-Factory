@@ -4,6 +4,33 @@
     // 存档脏哈希：避免数据未变时重复写入 localStorage（减少 GC 和存储写入）
     let _lastSaveHash = null;
 
+    // ── IndexedDB 异步存储（避免 localStorage 同步阻塞主线程）──
+    let _idb = null;
+    const _openIDB = () => {
+      if (_idb) return Promise.resolve(_idb);
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open('crazy_factory_v2', 1);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains('save')) db.createObjectStore('save');
+        };
+        req.onsuccess = (e) => { _idb = e.target.result; resolve(_idb); };
+        req.onerror = () => reject(req.error);
+      });
+    };
+
+    // 异步写入 IndexedDB（失败时降级到同步 localStorage，不阻塞主线程）
+    const _saveToIDB = async (data) => {
+      try {
+        const db = await _openIDB();
+        const tx = db.transaction('save', 'readwrite');
+        tx.objectStore('save').put(data, 'slot');
+        await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = () => rej(tx.error); });
+      } catch {
+        localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+      }
+    };
+
     const _makeSaveData = () => ({
       gears:st.gears, purchaseMode:st.purchaseMode, gameSpeed:st.gameSpeed,
       autoBuy:st.autoBuy, questIndex:st.questIndex, lastAutoPlanTarget:st.lastAutoPlanTarget, logs:st.logs.slice(0,LOG_CAP),
@@ -39,11 +66,12 @@
     const saveGame = () => {
       const data = _makeSaveData();
       const hash = _fastHash(data);
-      if (hash === _lastSaveHash) return; // 数据未变，跳过写入
+      if (hash === _lastSaveHash) return;
       _lastSaveHash = hash;
       st.saveWriteCount = (st.saveWriteCount || 0) + 1;
       st.lastSaveAt = Date.now();
-      localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+      // 异步写入 IndexedDB（主线程不被阻塞），localStorage 作为降级方案
+      _saveToIDB(data).catch(() => localStorage.setItem(SAVE_KEY, JSON.stringify(data)));
     };
 
     const loadGame = () => {
