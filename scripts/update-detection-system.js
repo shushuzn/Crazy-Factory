@@ -25,6 +25,17 @@ const createUpdateDetectionSystem = ({
   let isChecking = false;
   let lastDetectedVersion = null;
   let dismissedVersion = localStorage.getItem('updateDismissedVersion') || '';
+  // timerId 作为 RAF 调度器的取消句柄（替代 setInterval，融入统一 RAF 循环）
+  const _scheduleUpdateCheck = () => {
+    if (timerId) return;
+    timerId = 1; // RAF 调度器无 ID，平凡值仅作运行中标记
+    window.__timerManager.schedule(checkVersion, checkIntervalMs);
+  };
+  const _cancelScheduledCheck = () => {
+    if (!timerId) return;
+    timerId = null;
+    window.__timerManager.cancel(checkVersion);
+  };
 
   /**
    * 获取服务器版本
@@ -229,8 +240,8 @@ const createUpdateDetectionSystem = ({
     // 立即执行一次检测
     checkVersion();
 
-    // 设置定期检测
-    timerId = setInterval(checkVersion, checkIntervalMs);
+    // 设置定期检测（迁移到 RAF 统一调度器，融入主循环）
+    _scheduleUpdateCheck();
   };
 
   /**
@@ -238,8 +249,7 @@ const createUpdateDetectionSystem = ({
    */
   const stop = () => {
     if (timerId) {
-      clearInterval(timerId);
-      timerId = null;
+      _cancelScheduledCheck();
     }
   };
 
