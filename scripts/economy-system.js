@@ -26,7 +26,7 @@ const createEconomySystem = ({
 
   const bldPreferredMult = (b) => (st.macroPreferredBuildingId && st.macroPreferredBuildingId === b.id ? 1 + MACRO_PREFERRED_BONUS : 1);
   const bldGPS = (b) => b.dps * b.owned * (bldBoost[b.id] || 1) * bldPreferredMult(b);
-  const baseGPS = () => buildings.reduce((s, b) => s + bldGPS(b), 0);
+  // baseGPS 已由 _getBaseGPS() 缓存，移除重复定义
   const resMult = () => 1 + st.researchPoints * 0.1;
   const skillGPS = () => 1 + skillLv('line_optimizer') * 0.25;
   const mktMult = () => {
@@ -39,6 +39,18 @@ const createEconomySystem = ({
   let _gpsMultCache = null;
   let _gpsMultDirty = true;
   const _invalidateGPSMult = () => { _gpsMultDirty = true; };
+
+  // baseGPS 缓存：buildings.reduce() 在主循环每帧调用，改为 dirty 时才重算
+  let _baseGPSCache = null;
+  let _baseGPSDirty = true;
+  const _getBaseGPS = () => {
+    if (!_baseGPSDirty) return _baseGPSCache;
+    _baseGPSCache = buildings.reduce((s, b) => s + bldGPS(b), 0);
+    _baseGPSDirty = false;
+    return _baseGPSCache;
+  };
+  const _invalidateBaseGPS = () => { _baseGPSDirty = true; };
+
   const _getGPSMult = () => {
     if (!_gpsMultDirty) return _gpsMultCache;
     _gpsMultCache = st.gpsMultiplier * resMult() * skillGPS() * mktMult() * skillMasteryMult();
@@ -46,7 +58,7 @@ const createEconomySystem = ({
     return _gpsMultCache;
   };
 
-  const getTotalGPS = () => baseGPS() * _getGPSMult();
+  const getTotalGPS = () => _getBaseGPS() * _getGPSMult();
   const getManualGain = () => st.manualPower * st.manualMult * (1 + skillLv('manual_mastery') * 0.3);
 
   const affordableCount = (b, budget, mode) => {
@@ -114,6 +126,7 @@ const createEconomySystem = ({
 
     dirty.buildings = dirty.stats = dirty.logs = true;
     _invalidateGPSMult();
+    _invalidateBaseGPS();
     saveGame();
   };
 
@@ -128,6 +141,7 @@ const createEconomySystem = ({
     applyUpgradeEffect(u);
     dirty.upgrades = dirty.buildings = dirty.stats = dirty.logs = true;
     _invalidateGPSMult();
+    _invalidateBaseGPS();
     saveGame();
   };
 
@@ -171,6 +185,7 @@ const createEconomySystem = ({
           totalBought += maxN; budget -= cost;
         }
         _invalidateGPSMult();
+        _invalidateBaseGPS();
       }
     }
 
@@ -183,6 +198,7 @@ const createEconomySystem = ({
         if (st.gears < u.price) break;
         st.gears -= u.price; u.purchased = true; applyUpgradeEffect(u);
         _invalidateGPSMult();
+        _invalidateBaseGPS();
         totalBought++;
       }
     }
@@ -196,7 +212,7 @@ const createEconomySystem = ({
 
   // 调试用 GPS 分解：debug-system 依赖此接口
   const getGpsBreakdown = () => {
-    const base = baseGPS();
+    const base = _getBaseGPS();
     const mult = _getGPSMult();
     return { baseGPS: base, finalMult: mult, totalGPS: base * mult };
   };
