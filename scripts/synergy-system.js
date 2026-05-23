@@ -18,6 +18,10 @@ const createSynergySystem = ({
   // 获取当前语言
   const getLang = () => (typeof I18N !== 'undefined' ? I18N.getCurrentLang() : 'zh');
 
+  // 预计算建筑查找表（消除 calculateBuildingSynergy 内每帧 reduce 中 O(n) find 调用）
+  const _bldMap = new Map(buildings.map(b => [b.id, b]));
+  const _getBld = (id) => _bldMap.get(id) || null;
+
   // 计算单个建筑的产业链加成
   const calculateBuildingSynergy = (building) => {
     if (!building.synergy) return { totalBonus: 1.0, upstreamBonus: 0, downstreamBonus: 0, details: [] };
@@ -30,7 +34,7 @@ const createSynergySystem = ({
     // 上游加成：根据上游建筑数量计算
     if (building.synergy.upstream && building.synergy.upstream.length > 0) {
       const upstreamCount = building.synergy.upstream.reduce((sum, upstreamId) => {
-        const upstreamBuilding = buildings.find(b => b.id === upstreamId);
+        const upstreamBuilding = _getBld(upstreamId);
         return sum + (upstreamBuilding?.owned || 0);
       }, 0);
 
@@ -49,7 +53,7 @@ const createSynergySystem = ({
     // 下游加成：根据下游建筑数量计算
     if (building.synergy.downstream && building.synergy.downstream.length > 0) {
       const downstreamCount = building.synergy.downstream.reduce((sum, downstreamId) => {
-        const downstreamBuilding = buildings.find(b => b.id === downstreamId);
+        const downstreamBuilding = _getBld(downstreamId);
         return sum + (downstreamBuilding?.owned || 0);
       }, 0);
 

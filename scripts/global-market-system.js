@@ -57,6 +57,12 @@ const createGlobalMarketSystem = ({
     });
   };
 
+  // 预计算地区 ID 列表（消除每秒 updateRegionPrices 和 triggerRandomEvent 重复 Object.keys 调用）
+  const _regionIds = ['asia', 'europe', 'america'];
+
+  // 预计算总权重（消除 rollRandomEvent 内每次 reduce 分配）
+  // 地区特定事件列表（非动态，无需预计算）
+
   // 创建地区初始数据
   const createRegionData = (regionId) => {
     const basePrice = 100;
@@ -176,7 +182,8 @@ const createGlobalMarketSystem = ({
   const updateRegionPrices = () => {
     const now = Date.now();
 
-    Object.keys(st.globalMarket.regions).forEach(regionId => {
+    for (let i = 0; i < _regionIds.length; i++) {
+      const regionId = _regionIds[i];
       const region = st.globalMarket.regions[regionId];
       const config = REGIONS[regionId];
 
@@ -210,7 +217,7 @@ const createGlobalMarketSystem = ({
         region.trend = trends[Math.floor(Math.random() * trends.length)];
         region.trendStrength = Math.random();
       }
-    });
+    }
   };
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -220,7 +227,8 @@ const createGlobalMarketSystem = ({
   const triggerRandomEvent = () => {
     const now = Date.now();
 
-    Object.keys(REGIONS).forEach(regionId => {
+    for (let i = 0; i < _regionIds.length; i++) {
+      const regionId = _regionIds[i];
       const region = st.globalMarket.regions[regionId];
       const events = REGIONAL_EVENTS[regionId];
 
@@ -232,7 +240,7 @@ const createGlobalMarketSystem = ({
       if (Math.random() < randomEvent.probability / 3600) { // 按秒概率
         applyEvent(regionId, randomEvent);
       }
-    });
+    }
   };
 
   const applyEvent = (regionId, eventData) => {
