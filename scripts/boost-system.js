@@ -691,8 +691,8 @@ const createBoostSystem = ({
   const init = () => {
     initBoostData();
 
-    // 定期更新效果
-    setInterval(updateEffects, 1000); // 每秒更新
+    // 定期更新效果（统一由 RAF 驱动，移除独立 setInterval）
+    if (window.__timerManager) window.__timerManager.schedule(updateEffects, 1000);
   };
 
   // ═══════════════════════════════════════════════════════════════════════════

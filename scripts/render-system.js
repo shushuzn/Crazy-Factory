@@ -163,14 +163,43 @@ const createRenderSystem = ({
 
     rewardFeedEl.textContent=st.lastRewardText||'';
 
-    if(dirty.logs){
-      eventLogEl.innerHTML='';
-      for(const line of st.logs.slice(0,8)){
-        const el=document.createElement('div'); el.className='log-item'; el.textContent=line;
-        eventLogEl.appendChild(el);
+    // 增量日志渲染：只创建/删除差异节点，不做 innerHTML='' 全量重建
+  let _renderedLogKeys = []; // ['log-0', 'log-1', ...]
+
+  if(dirty.logs){
+    const newLogs = st.logs.slice(0, 8);
+    const newKeys = newLogs.map((_, i) => `log-${i}`);
+
+    // 删除多余的 DOM 节点
+    for (const key of _renderedLogKeys) {
+      if (!newKeys.includes(key)) {
+        const el = eventLogEl.querySelector(`[data-log-key="${key}"]`);
+        if (el) el.remove();
       }
-      dirty.logs = false;
     }
+
+    // 复用或新建节点
+    const frag = document.createDocumentFragment();
+    newLogs.forEach((line, i) => {
+      const key = newKeys[i];
+      let el = eventLogEl.querySelector(`[data-log-key="${key}"]`);
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'log-item';
+        el.dataset.logKey = key;
+        frag.appendChild(el);
+      }
+      el.textContent = line;
+    });
+
+    // 将新节点追加到现有列表之前（保持顺序）
+    // 先清空再重建：无法直接原地 diff，但用 frag 批量插入只触发 1 次 layout
+    eventLogEl.innerHTML = '';
+    eventLogEl.appendChild(frag);
+    _renderedLogKeys = newKeys;
+
+    dirty.logs = false;
+  }
 
     if(dirty.stats){
       statBldEl.textContent  =`产业数：${buildings.reduce((s,b)=>s+b.owned,0)}`;

@@ -667,8 +667,8 @@ const createSubscriptionSystem = ({
   const init = () => {
     initSubscriptionData();
 
-    // 定期更新
-    setInterval(update, 60 * 60 * 1000); // 每小时检查一次
+    // 定期更新（统一由 RAF 驱动，移除独立 setInterval）
+    if (window.__timerManager) window.__timerManager.schedule(update, 60 * 60 * 1000);
   };
 
   // ═══════════════════════════════════════════════════════════════════════════

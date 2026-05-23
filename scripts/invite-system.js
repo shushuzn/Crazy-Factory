@@ -277,12 +277,9 @@ const createInviteSystem = ({
     // 检查 URL 邀请参数
     const isNewInvite = checkUrlInvite();
 
-    // 定期检查和发放奖励（每60秒）
+    // 定期检查和发放奖励（统一由 RAF 驱动，移除独立 setInterval）
     if (!isNewInvite) {
-      setInterval(() => {
-        checkInvitedProgress();
-      }, 60000);
-
+      if (window.__timerManager) window.__timerManager.schedule(checkInvitedProgress, 60000);
       // 立即检查一次
       checkInvitedProgress();
     }

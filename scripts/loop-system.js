@@ -8,14 +8,18 @@ const createLoopSystem = ({
   SAVE_INTERVAL,
   getTotalGPS,
   tickMarket,
+  tickEvent,
   tryAutoBuy,
   saveGame,
   render,
+  onAfterFrame = null,
 }) => {
   let lastSave = performance.now();
 
   const tick = (now) => {
     const dt = Math.min((now - st.lastTimestamp) / 1000, MAX_ACCUMULATED_SECS);
+    st.rafTickCount = (st.rafTickCount || 0) + 1;
+    if (!st.rafWindowStart) st.rafWindowStart = Date.now();
     st.lastTimestamp = now;
     st.accumulator += dt;
 
@@ -26,6 +30,15 @@ const createLoopSystem = ({
       st.lifetimeGears += gain;
       st.accumulator -= FIXED_STEP;
       tickMarket(FIXED_STEP);
+      if (tickEvent) tickEvent(FIXED_STEP);
+
+      if (st.marketMomentumTimer > 0) {
+        st.marketMomentumTimer = Math.max(0, st.marketMomentumTimer - FIXED_STEP * st.gameSpeed);
+        if (st.marketMomentumTimer <= 0 && st.marketMomentum > 0) {
+          st.marketMomentum = 0;
+          dirty.market = true;
+        }
+      }
 
       if (st.autoBuy) {
         st.autoBuyAccumulator += FIXED_STEP * st.gameSpeed;
@@ -37,12 +50,17 @@ const createLoopSystem = ({
     }
 
     dirty.gears = dirty.market = true;
+
+    // 驱动统一定时管理器（所有面板刷新由 RAF 统一调度，不再有独立 setInterval）
+    if (window.__timerManager) window.__timerManager.tick(now);
+
     if (now - lastSave > SAVE_INTERVAL) {
       saveGame();
       lastSave = now;
     }
 
     render();
+    if (onAfterFrame) onAfterFrame(dt);
     requestAnimationFrame(tick);
   };
 

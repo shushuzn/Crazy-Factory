@@ -462,8 +462,8 @@ const createCrisisSystem = ({
   const init = () => {
     initCrisisData();
 
-    // 定期更新
-    setInterval(update, 100); // 每0.1秒检查
+    // 定期更新（统一由 RAF 驱动，移除独立 setInterval）
+    if (window.__timerManager) window.__timerManager.schedule(update, 100);
   };
 
   // ═══════════════════════════════════════════════════════════════════════════

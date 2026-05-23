@@ -623,8 +623,8 @@ const createDerivativesSystem = ({
   const init = () => {
     initDerivativesData();
 
-    // 定期更新
-    setInterval(update, 5000); // 每5秒检查一次
+    // 定期更新（统一由 RAF 驱动，移除独立 setInterval）
+    if (window.__timerManager) window.__timerManager.schedule(update, 5000);
   };
 
   // ═══════════════════════════════════════════════════════════════════════════

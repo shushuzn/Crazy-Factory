@@ -274,14 +274,12 @@ const createAnalyticsSystem = ({
     // 页面关闭时结束会话
     window.addEventListener('beforeunload', endSession);
 
-    // 定期保存（每30秒）
-    setInterval(() => {
+    // 定期保存（统一由 RAF 驱动，移除独立 setInterval）
+    const _persistSession = () => {
       const session = getSessionData();
-      if (session) {
-        // 更新会话持续时间但不结束它
-        localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-      }
-    }, 30000);
+      if (session) localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    };
+    if (window.__timerManager) window.__timerManager.schedule(_persistSession, 30000);
   };
 
   // 渲染统计面板（用于调试面板）

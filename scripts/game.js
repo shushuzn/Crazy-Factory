@@ -1,124 +1,3 @@
-═══════════════════════════════════════════════
-    // ① 经济常量（调这里调手感）
-    // ════════════════════════════════════════════════
-    const PRICE_GROWTH         = 1.15;   // 建筑价格增长指数
-    const SAVE_KEY             = "finance_empire_v2";
-    const TICK_RATE            = 60;
-    const FIXED_STEP           = 1 / TICK_RATE;
-    const MAX_ACCUMULATED_SECS = 0.25;   // 防止补帧过多
-    const OFFLINE_CAP_SECONDS  = 8 * 3600;
-    const SAVE_INTERVAL        = 5000;    // 自动存档间隔(ms)
-    const SMOOTH_SPEED         = 0.15;   // 数字滚动平滑速度
-    const RENDER_THROTTLE      = 100;     // 渲染节流间隔(ms)
-
-    // 市场参数
-    const MARKET_CYCLE_MIN  = 25;
-    const MARKET_CYCLE_MAX  = 55;
-    const MARKET_BULL_BONUS = 1.4;
-    const MARKET_BEAR_PENALTY = 0.7;
-
-    // ════════════════════════════════════════════════
-    // ② 产业链数据
-    //    新增 2 层：中央银行 + 金融集团（M3 新建筑层级）
-    //    解锁阈值经过 10 分钟曲线校准（M1 调优）
-    // ════════════════════════════════════════════════
-    const buildings = [
-      // id            name         basePrice   dps    owned  unlock(累计)  emoji
-      { id:"workshop",   name:"手工作坊",  basePrice:15,        dps:1,       owned:0, unlock:0,          emoji:"🔧" },
-      { id:"factory",    name:"轻工厂",    basePrice:110,       dps:8,       owned:0, unlock:250,        emoji:"🏭" },
-      { id:"logistics",  name:"物流公司",  basePrice:1200,      dps:47,      owned:0, unlock:2000,       emoji:"🚛" },
-      { id:"realestate", name:"房地产",    basePrice:13000,     dps:260,     owned:0, unlock:15000,      emoji:"🏢" },
-      { id:"bank",       name:"商业银行",  basePrice:140000,    dps:1400,    owned:0, unlock:100000,     emoji:"🏦" },
-      { id:"fund",       name:"量化基金",  basePrice:1500000,   dps:7800,    owned:0, unlock:800000,     emoji:"📊" },
-      { id:"central",    name:"中央银行",  basePrice:20000000,  dps:44000,   owned:0, unlock:12000000,   emoji:"🏛️" },  // M3 新增
-      { id:"conglom",    name:"金融集团",  basePrice:300000000, dps:260000,  owned:0, unlock:180000000,  emoji:"🌐" },  // M3 新增
-    ];
-
-    // ════════════════════════════════════════════════
-    // ③ 研发升级（含建筑专属升级 —— M3 建筑专属加成）
-    // ════════════════════════════════════════════════
-    const upgrades = [
-      // 通用链
-      { id:"training",    name:"员工培训",   price:300,        desc:"手动撮合 +1",            type:"manual",     value:1,    purchased:false, unlockRP:0, requires:null },
-      { id:"automation",  name:"流程自动化", price:1200,       desc:"总产出 ×1.5",            type:"gps",        value:1.5,  purchased:false, unlockRP:0, requires:"training" },
-      { id:"fintech",     name:"金融科技",   price:8000,       desc:"总产出 ×2",              type:"gps",        value:2,    purchased:false, unlockRP:1, requires:"automation" },
-      { id:"algo",        name:"算法交易",   price:60000,      desc:"手动撮合 ×3",            type:"manualMult", value:3,    purchased:false, unlockRP:2, requires:"fintech" },
-      { id:"derivatives", name:"衍生品套利", price:500000,     desc:"总产出 ×3",              type:"gps",        value:3,    purchased:false, unlockRP:3, requires:"algo" },
-      { id:"quant2",      name:"量化 2.0",   price:8000000,    desc:"总产出 ×4",              type:"gps",        value:4,    purchased:false, unlockRP:5, requires:"derivatives" },
-      // 建筑专属升级（每个产业解锁后可研发）
-      { id:"sp_workshop",  name:"作坊精工",  price:500,        desc:"手工作坊产出 ×2",        type:"bldBoost",   value:{id:"workshop",   mult:2}, purchased:false, unlockRP:0, requires:null },
-      { id:"sp_factory",   name:"流水线",    price:3500,       desc:"轻工厂产出 ×2",          type:"bldBoost",   value:{id:"factory",    mult:2}, purchased:false, unlockRP:0, requires:null },
-      { id:"sp_logistics", name:"智慧物流",  price:35000,      desc:"物流公司产出 ×2",        type:"bldBoost",   value:{id:"logistics",  mult:2}, purchased:false, unlockRP:0, requires:null },
-      { id:"sp_realestate",name:"土地溢价",  price:350000,     desc:"房地产产出 ×2",          type:"bldBoost",   value:{id:"realestate", mult:2}, purchased:false, unlockRP:0, requires:null },
-      { id:"sp_bank",      name:"存款准备金",price:4000000,    desc:"商业银行产出 ×2",        type:"bldBoost",   value:{id:"bank",       mult:2}, purchased:false, unlockRP:1, requires:null },
-      { id:"sp_fund",      name:"高频策略",  price:50000000,   desc:"量化基金产出 ×2",        type:"bldBoost",   value:{id:"fund",       mult:2}, purchased:false, unlockRP:2, requires:null },
-    ];
-
-    // 建筑专属倍率表（运行时维护，存档时持久化）
-    const bldBoost = { workshop:1, factory:1, logistics:1, realestate:1, bank:1, fund:1, central:1, conglom:1 };
-
-    // ════════════════════════════════════════════════
-    // ④ 技能树
-    // ════════════════════════════════════════════════
-    const skills = [
-      { id:"manual_mastery", name:"交易直觉",  desc:"手动收益每级 +30%",  maxLevel:5, level:0, costRP:1 },
-      { id:"line_optimizer", name:"产线优化",  desc:"总产出每级 +25%",    maxLevel:5, level:0, costRP:1 },
-      { id:"bulk_discount",  name:"采购折扣",  desc:"建筑价格每级 -4%",   maxLevel:5, level:0, costRP:1 },
-      { id:"market_sense",   name:"市场嗅觉",  desc:"市场乘数每级 +10%",  maxLevel:3, level:0, costRP:2 },
-    ];
-
-    // ════════════════════════════════════════════════
-    // ⑤ 成就
-    // ════════════════════════════════════════════════
-    const achievements = [
-      { id:"first_click",  name:"初入江湖",  desc:"完成首次撮合",                    reward:{type:"gear",value:20},    check:()=>st.totalClicks>=1,                                                     done:false, claimed:false },
-      { id:"workshop_1",   name:"小作坊主",  desc:"拥有 1 个手工作坊",               reward:{type:"gear",value:60},    check:()=>bld("workshop").owned>=1,                                              done:false, claimed:false },
-      { id:"hundred",      name:"百元起步",  desc:"历史资本达到 ¥100",               reward:{type:"gear",value:150},   check:()=>st.lifetimeGears>=100,                                                 done:false, claimed:false },
-      { id:"gps_50",       name:"产能初成",  desc:"总产出 ≥ ¥50/s",                 reward:{type:"rp",value:1},       check:()=>getTotalGPS()>=50,                                                     done:false, claimed:false },
-      { id:"bank_owner",   name:"银行家",    desc:"拥有 1 家商业银行",               reward:{type:"rp",value:2},       check:()=>bld("bank").owned>=1,                                                  done:false, claimed:false },
-      { id:"bull_market",  name:"牛市猎手",  desc:"多头市场中完成 50 次撮合",         reward:{type:"gear",value:2000},  check:()=>st.bullClicks>=50,                                                     done:false, claimed:false },
-      { id:"central_bank", name:"央行行长",  desc:"拥有 1 家中央银行",               reward:{type:"rp",value:3},       check:()=>bld("central").owned>=1,                                               done:false, claimed:false },
-      { id:"conglom_owner",name:"金融帝国",  desc:"拥有 1 个金融集团",               reward:{type:"rp",value:5},       check:()=>bld("conglom").owned>=1,                                               done:false, claimed:false },
-    ];
-
-    // ════════════════════════════════════════════════
-    // ⑥ 任务链（M1：前 10 分钟节奏校准）
-    // ════════════════════════════════════════════════
-    const questChain = [
-      { id:"q1", title:"任务一：手动撮合 20 次",       rewardText:"+¥200",      reward:{type:"gear",value:200},   progress:()=>Math.min(st.totalClicks,20), target:20 },
-      { id:"q2", title:"任务二：拥有 10 家手工作坊",   rewardText:"+¥600",      reward:{type:"gear",value:600},   progress:()=>Math.min(bld("workshop").owned,10), target:10 },
-      { id:"q3", title:"任务三：总产出 ≥ ¥100/s",     rewardText:"+1 RP",      reward:{type:"rp",value:1},       progress:()=>Math.min(getTotalGPS(),100), target:100 },
-      { id:"q4", title:"任务四：拥有 5 家轻工厂",      rewardText:"+¥5000",     reward:{type:"gear",value:5000},  progress:()=>Math.min(bld("factory").owned,5), target:5 },
-      { id:"q5", title:"任务五：拥有 1 家商业银行",    rewardText:"+¥50000",    reward:{type:"gear",value:50000}, progress:()=>Math.min(bld("bank").owned,1), target:1 },
-      { id:"q6", title:"任务六：研发「衍生品套利」",   rewardText:"+2 RP",      reward:{type:"rp",value:2},       progress:()=>upgrades.find(u=>u.id==="derivatives")?.purchased?1:0, target:1 },
-      { id:"q7", title:"任务七：拥有 1 家中央银行",    rewardText:"+¥5000000",  reward:{type:"gear",value:5000000},progress:()=>Math.min(bld("central").owned,1), target:1 },
-    ];
-
-    // ════════════════════════════════════════════════
-    // ⑦ 游戏状态
-    // ════════════════════════════════════════════════
-    const st = {
-      gears:0, purchaseMode:"1", lastTimestamp:performance.now(), accumulator:0,
-      pendingOfflineGears:0, manualPower:1, manualMult:1, gpsMultiplier:1,
-      totalClicks:0, lifetimeGears:0, researchPoints:0,
-      lastRewardText:"", gameSpeed:1, questIndex:0, logs:[],
-      autoBuy:false, autoBuyAccumulator:0,
-      bullClicks:0,
-      marketIsBull:true, marketTimer:35, marketCycleDuration:35,
-      soundEnabled:true,
-    };
-
-    // 显示值（用于平滑滚动）
-    const disp = { gears:0, gps:0, rp:0 };
-    // 脏标记（避免每帧全量渲染）
-    const dirty = { 
-      gears:false, market:false, buildings:false, upgrades:false, 
-      skills:false, achievements:false, quest:false, stats:false, logs:false 
-    };
-    let lastRender = 0;
-
-    // ════════════════════════════════════════════════
-
     // ⑧ DOM 引用（渲染层缓存，M1 解耦）
     // ════════════════════════════════════════════════
     const $ = (id) => document.getElementById(id);
@@ -142,14 +21,15 @@
     const buildingListEl= $("buildingList");
     const upgradeListEl = $("upgradeList");
     const skillListEl   = $("skillList");
-
     const skillMasteryMetaEl = $("skillMasteryMeta");
-
+    const appVersionEl  = $("appVersion");
+    const changelogListEl= $("changelogList");
     const achievListEl  = $("achievementList");
     const modeButtons   = [...document.querySelectorAll("[data-mode]")];
     const speedButtons  = [...document.querySelectorAll("[data-speed]")];
     const autoBuyBtn    = $("autoBuyBtn");
     const soundBtn      = $("soundBtn");
+    const langBtn       = $("langBtn");
     const offlineEl     = $("offlineNotice");
     const offlineTextEl = $("offlineText");
     const claimBtn      = $("claimOfflineBtn");
@@ -166,10 +46,7 @@
     const statQstEl     = $("statQuest");
     const statModeEl    = $("statMode");
     const statLifeEl    = $("statLifetime");
-
     const gameShellEl   = document.querySelector(".game");
-
-
 
     // View 缓存（渲染解耦核心，避免每帧 querySelector）
     const buildingViewMap   = new Map();
@@ -178,44 +55,8 @@
     const achievViewMap     = new Map();
 
     // ════════════════════════════════════════════════
-
     // ⑨ 工具函数
     // ════════════════════════════════════════════════
-
-    // ⑨ 工具函数（生产层，独立于 DOM）
-    // ════════════════════════════════════════════════
-    const bld      = (id) => buildings.find(b=>b.id===id);
-    const skillLv  = (id) => skills.find(s=>s.id===id)?.level||0;
-    const discount = ()   => Math.max(0.6, 1 - skillLv("bulk_discount")*0.04);
-    const price    = (b,off=0) => Math.floor(b.basePrice * Math.pow(PRICE_GROWTH, b.owned+off) * discount());
-
-    // 建筑产出：基础 dps × 专属倍率
-    const bldGPS   = (b) => b.dps * b.owned * (bldBoost[b.id]||1);
-    const baseGPS  = ()  => buildings.reduce((s,b)=>s+bldGPS(b),0);
-    const resMult  = ()  => 1 + st.researchPoints * 0.1;
-    const skillGPS = ()  => 1 + skillLv("line_optimizer")*0.25;
-    const mktMult  = ()  => {
-      const base = st.marketIsBull ? MARKET_BULL_BONUS : MARKET_BEAR_PENALTY;
-      return st.marketIsBull ? base*(1+skillLv("market_sense")*0.1) : base;
-    };
-    const getTotalGPS  = () => baseGPS() * st.gpsMultiplier * resMult() * skillGPS() * mktMult();
-    const getManualGain= () => st.manualPower * st.manualMult * (1+skillLv("manual_mastery")*0.3);
-
-    // ── 批量购买计算（生产层独立）──
-    const affordableCount = (b,budget,mode) => {
-      if (mode==="1") return budget>=price(b)?1:0;
-      if (mode==="10"||mode==="100") {
-        const tgt=Number(mode); let tot=0;
-        for (let i=0;i<tgt;i++){tot+=price(b,i);if(tot>budget)return i;}
-        return tgt;
-      }
-      let n=0,tot=0;
-      while(n<10000){tot+=price(b,n);if(tot>budget)return n;n++;}
-      return n;
-    };
-    const purchaseCost = (b,n) => { let c=0; for(let i=0;i<n;i++) c+=price(b,i); return c; };
-
-
     // ── 数值格式化 ──
     const fmt = (n) => {
       if (!Number.isFinite(n)) return "¥0";
@@ -227,151 +68,9 @@
       return `${sg}¥${abs.toLocaleString("zh-CN",{maximumFractionDigits:1})}`;
     };
 
-
     // 反馈系统初始化（为什么：反馈层高频迭代，独立工厂减少对主循环的干扰）
     const feedback = createFeedbackSystem({ st, JUICE, fmt, manualBtn, manualZone, marketFlashEl, gameShellEl });
     const { eventBus, sfxBuy, sfxUpgrade, sfxMarket, spawnFloat } = feedback;
-
-    // ════════════════════════════════════════════════
-    // ⑩ Web Audio 音效（M3）
-    //    无外部依赖，纯 AudioContext 合成
-    // ════════════════════════════════════════════════
-    let audioCtx = null;
-    const getAudioCtx = () => {
-      if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
-      return audioCtx;
-    };
-
-    const playTone = (freq, type, duration, gainVal, detune=0) => {
-      if (!st.soundEnabled) return;
-      try {
-        const ctx = getAudioCtx();
-        const osc = ctx.createOscillator();
-        const gain= ctx.createGain();
-        osc.connect(gain); gain.connect(ctx.destination);
-        osc.type      = type;
-        osc.frequency.value = freq;
-        osc.detune.value    = detune;
-        gain.gain.setValueAtTime(gainVal, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-        osc.start(); osc.stop(ctx.currentTime + duration);
-      } catch {}
-    };
-
-    // 三种音效场景（调频率/时长调手感）
-    const sfxClick   = () => playTone(520, "triangle", 0.08, 0.12);        // 手动撮合：短促高音
-    const sfxBuy     = () => { playTone(330,"square",0.12,0.08); playTone(440,"square",0.1,0.06,50); }; // 购买：双音上扬
-    const sfxUpgrade = () => { playTone(660,"sine",0.15,0.1); setTimeout(()=>playTone(880,"sine",0.2,0.08),80); }; // 研发：上扬双音
-    const sfxMarket  = (bull) => playTone(bull?330:220, "sawtooth", 0.25, 0.06, bull?0:-20); // 市场切换
-
-    // ════════════════════════════════════════════════
-    // ⑪ 市场切换（含屏闪动效 M3）
-    // ════════════════════════════════════════════════
-    const doMarketSwitch = () => {
-      st.marketIsBull = !st.marketIsBull;
-      st.marketCycleDuration = MARKET_CYCLE_MIN + Math.random()*(MARKET_CYCLE_MAX-MARKET_CYCLE_MIN);
-      st.marketTimer = st.marketCycleDuration;
-      const label = st.marketIsBull ? "📈 多头行情爆发！" : "📉 空头来袭，注意风控";
-      pushLog(label); st.lastRewardText = label;
-      sfxMarket(st.marketIsBull);
-      dirty.market = true; dirty.logs = true;
-      // 屏闪
-      marketFlashEl.style.background = st.marketIsBull ? "#10b981" : "#ef4444";
-      marketFlashEl.classList.add("on");
-      setTimeout(()=>marketFlashEl.classList.remove("on"), 250);
-    };
-
-    const tickMarket = (dt) => {
-      st.marketTimer -= dt * st.gameSpeed;
-      if (st.marketTimer <= 0) doMarketSwitch();
-    };
-
-    // ════════════════════════════════════════════════
-    // ⑫ 存档系统
-    // ════════════════════════════════════════════════
-    const saveGame = () => {
-      localStorage.setItem(SAVE_KEY, JSON.stringify({
-        gears:st.gears, purchaseMode:st.purchaseMode, gameSpeed:st.gameSpeed,
-        autoBuy:st.autoBuy, questIndex:st.questIndex, logs:st.logs.slice(0,20),
-        manualPower:st.manualPower, manualMult:st.manualMult, gpsMultiplier:st.gpsMultiplier,
-        totalClicks:st.totalClicks, lifetimeGears:st.lifetimeGears, researchPoints:st.researchPoints,
-        bullClicks:st.bullClicks, marketIsBull:st.marketIsBull, soundEnabled:st.soundEnabled,
-        buildings: buildings.map(b=>({id:b.id,owned:b.owned})),
-        upgrades:  upgrades.map(u=>({id:u.id,purchased:u.purchased})),
-        skills:    skills.map(s=>({id:s.id,level:s.level})),
-        achievements: achievements.map(a=>({id:a.id,done:a.done,claimed:a.claimed})),
-        bldBoost: {...bldBoost},
-        savedAt: Date.now(),
-      }));
-    };
-
-    const loadGame = () => {
-      try {
-        const raw = localStorage.getItem(SAVE_KEY); if(!raw) return;
-        const d = JSON.parse(raw); if(!d||typeof d!=="object") return;
-
-        st.gears          = Number(d.gears)||0;
-        st.manualPower    = Math.max(1,Number(d.manualPower)||1);
-        st.manualMult     = Math.max(1,Number(d.manualMult)||1);
-        st.gpsMultiplier  = Math.max(1,Number(d.gpsMultiplier)||1);
-        st.totalClicks    = Math.max(0,Number(d.totalClicks)||0);
-        st.lifetimeGears  = Math.max(0,Number(d.lifetimeGears)||0);
-        st.researchPoints = Math.max(0,Math.floor(Number(d.researchPoints)||0));
-        st.bullClicks     = Math.max(0,Number(d.bullClicks)||0);
-        st.marketIsBull   = d.marketIsBull!==false;
-        st.soundEnabled   = d.soundEnabled!==false;
-        if(["1","10","100","max"].includes(d.purchaseMode)) st.purchaseMode=d.purchaseMode;
-        if([1,2,4].includes(Number(d.gameSpeed))) st.gameSpeed=Number(d.gameSpeed);
-        st.autoBuy    = Boolean(d.autoBuy);
-        st.questIndex = Math.max(0,Math.min(Number(d.questIndex)||0,questChain.length));
-        if(Array.isArray(d.logs)) st.logs=d.logs.slice(0,20);
-
-        (d.buildings||[]).forEach(s=>{const t=bld(s.id);if(t)t.owned=Math.max(0,Math.floor(Number(s.owned)||0));});
-        (d.upgrades||[]).forEach(s=>{const t=upgrades.find(u=>u.id===s.id);if(t){t.purchased=Boolean(s.purchased);if(t.purchased)applyUpgradeEffect(t,true);}});
-        (d.skills||[]).forEach(s=>{const t=skills.find(x=>x.id===s.id);if(t)t.level=Math.max(0,Math.min(t.maxLevel,Math.floor(Number(s.level)||0)));});
-        (d.achievements||[]).forEach(s=>{const t=achievements.find(a=>a.id===s.id);if(t){t.done=Boolean(s.done);t.claimed=Boolean(s.claimed);}});
-        if(d.bldBoost&&typeof d.bldBoost==="object") Object.assign(bldBoost,d.bldBoost);
-
-        const off = Math.max(0,Math.min((Date.now()-(Number(d.savedAt)||Date.now()))/1000,OFFLINE_CAP_SECONDS));
-        const ofg = getTotalGPS()*off;
-        if(ofg>0) st.pendingOfflineGears=ofg;
-      } catch(e){ console.warn("存档读取失败",e); }
-    };
-
-    const exportSave = async () => {
-      const raw=localStorage.getItem(SAVE_KEY)||"";
-      if(!raw){alert("暂无存档");return;}
-      try{await navigator.clipboard.writeText(raw);pushLog("存档已复制到剪贴板");}
-      catch{prompt("复制以下存档：",raw);}
-    };
-    const importSave = () => {
-      const raw=prompt("粘贴存档文本（覆盖当前进度）");if(!raw)return;
-      try{
-        const d=JSON.parse(raw);if(!d||typeof d!=="object")throw 0;
-        localStorage.setItem(SAVE_KEY,raw);loadGame();render();pushLog("存档导入成功");
-      }catch{alert("存档格式无效");}
-    };
-
-    // ── 升级效果应用（独立函数，load 时可静默重放）──
-    const applyUpgradeEffect = (u, silent=false) => {
-      if(u.type==="manual")     st.manualPower += u.value;
-      if(u.type==="gps")        st.gpsMultiplier *= u.value;
-      if(u.type==="manualMult") st.manualMult *= u.value;
-      if(u.type==="bldBoost")   bldBoost[u.value.id] = (bldBoost[u.value.id]||1) * u.value.mult;
-      if(!silent){ sfxUpgrade(); pushLog(`研发完成：${u.name}`); }
-    };
-
-    // ════════════════════════════════════════════════
-    // ⑬ 浮动数字特效
-    // ════════════════════════════════════════════════
-    const spawnFloat = (x,y,text,color="#fbbf24")=>{
-      const el=document.createElement("div");
-      el.className="float-num"; el.textContent=text;
-      el.style.left=`${x}px`; el.style.top=`${y}px`; el.style.color=color;
-      document.body.appendChild(el);
-      el.addEventListener("animationend",()=>el.remove());
-    };
-
 
     // ════════════════════════════════════════════════
     // ⑭ DOM 构建（只调用一次）
@@ -433,6 +132,20 @@
       });
     };
 
+
+    const renderChangelog = () => {
+      if(appVersionEl) appVersionEl.textContent = APP_VERSION;
+      if(!changelogListEl) return;
+      changelogListEl.innerHTML = "";
+      for(const item of CHANGELOG){
+        const wrap=document.createElement("article");
+        wrap.className="changelog-item";
+        const notes=item.notes.map(n=>`<li>${n}</li>`).join("");
+        wrap.innerHTML=`<div class="changelog-head"><strong>${item.version}</strong><span>${item.date}</span></div><ul class="changelog-notes">${notes}</ul>`;
+        changelogListEl.appendChild(wrap);
+      }
+    };
+
     const createAchievRow = (a) => {
       const row=document.createElement("div");
       row.className="achievement";
@@ -449,17 +162,12 @@
     // ════════════════════════════════════════════════
     // ⑮ 奖励/日志
     // ════════════════════════════════════════════════
-    const pushLog = (msg) => {
-      st.logs.unshift(`[${new Date().toLocaleTimeString("zh-CN",{hour12:false})}] ${msg}`);
-      st.logs=st.logs.slice(0,20);
-      dirty.logs = true;
-    };
+    const { pushLog } = createLogSystem({ st, dirty, LOG_CAP });
     const grantReward = (rw,label) => {
       if(!rw) return;
       if(rw.type==="gear"){ st.gears+=rw.value; st.lifetimeGears+=rw.value; st.lastRewardText=`${label}：+${fmt(rw.value)}`; pushLog(st.lastRewardText); }
       if(rw.type==="rp"  ){ st.researchPoints+=rw.value; st.lastRewardText=`${label}：+${rw.value} RP`; pushLog(st.lastRewardText); }
     };
-
 
     // 经济系统初始化（为什么：将平衡与购买逻辑从 UI/循环中抽离，便于独立调数值）
     const economy = createEconomySystem({
@@ -471,6 +179,10 @@
       PRICE_GROWTH,
       MARKET_BULL_BONUS,
       MARKET_BEAR_PENALTY,
+      POLICY_RATE_MIN,
+      POLICY_RATE_MAX,
+      MARKET_MOMENTUM_GPS_PER_STACK,
+      MARKET_MOMENTUM_MANUAL_PER_STACK,
       SKILL_MASTERY_BONUS,
       MACRO_PREFERRED_BONUS,
       dirty,
@@ -489,6 +201,7 @@
       mktMult,
       getTotalGPS,
       getManualGain,
+      getGpsBreakdown,
       affordableCount,
       purchaseCost,
       upgradeLockedReason,
@@ -505,6 +218,7 @@
       pushLog,
       saveGame,
       sfxUpgrade,
+      eventBus,
       SKILL_MASTERY_STEP,
       SKILL_MASTERY_BONUS,
     });
@@ -521,6 +235,15 @@
       MARKET_CYCLE_MAX,
       MARKET_BULL_BONUS,
       MARKET_BEAR_PENALTY,
+      POLICY_RATE_MIN,
+      POLICY_RATE_MAX,
+      OUTLOOK_REWARD_BASE,
+      OUTLOOK_REWARD_RATE_SCALE,
+      OUTLOOK_PENALTY_BASE,
+      OUTLOOK_PENALTY_RATE_SCALE,
+      OUTLOOK_PENALTY_GEAR_RATIO,
+      MACRO_EVENTS,
+      POLICY_GUIDANCE_BASE_BIAS,
       marketMultEl,
       marketStatusEl,
       marketDotEl,
@@ -533,232 +256,90 @@
     });
     const { tickMarket, renderMarket } = marketSystem;
 
-
+    // Event System (P3-T2)
+    const eventSystem = createEventSystem({
+      st,
+      dirty,
+      pushLog,
+      eventBus,
+      buildings,
+      skills,
+      sfxSuccess: sfxBuy,
+      sfxFail: () => { /* optional fail sound */ }
+    });
+    const { tick: tickEvent } = eventSystem;
 
     const claimAchievement = (a) => {
       if(!a.reward||a.claimed) return;
       a.claimed=true; grantReward(a.reward,`成就「${a.name}」`); saveGame();
     };
 
-    // ════════════════════════════════════════════════
+    const renderSystem = createRenderSystem({
+      st,
+      disp,
+      dirty,
+      buildings,
+      upgrades,
+      skills,
+      achievements,
+      questChain,
+      buildingViewMap,
+      upgradeViewMap,
+      skillViewMap,
+      achievViewMap,
+      modeButtons,
+      speedButtons,
+      autoBuyBtn,
+      soundBtn,
+      gearsEl,
+      gpsEl,
+      rpDisplayEl,
+      rpMetaEl,
+      manualDesc,
+      offlineEl,
+      offlineTextEl,
+      rewardFeedEl,
+      eventLogEl,
+      statBldEl,
+      statUpgEl,
+      statAchEl,
+      statQstEl,
+      statModeEl,
+      statLifeEl,
+      skillMasteryMetaEl,
+      goalTitleEl,
+      goalFillEl,
+      goalHintEl,
+      goalPctEl,
+      questRewardEl,
+      fmt,
+      mktMult,
+      getTotalGPS,
+      getManualGain,
+      getGpsBreakdown,
+      affordableCount,
+      purchaseCost,
+      isBldUnlocked,
+      price,
+      upgradeLockedReason,
+      claimAchievement,
+      grantReward,
+      saveGame,
+      renderMarket,
+      getTotalSkillLevels,
+      SKILL_MASTERY_BONUS,
+      SMOOTH_SPEED,
+      RENDER_THROTTLE,
+    });
+    const { render } = renderSystem;
 
-
-    // ⑯ 解锁条件检查
-    // ════════════════════════════════════════════════
-    const upgradeLockedReason = (u) => {
-      if(st.researchPoints<u.unlockRP) return `需要 ${u.unlockRP} RP`;
-      if(u.requires){ const r=upgrades.find(x=>x.id===u.requires); if(r&&!r.purchased) return `前置：${r.name}`; }
-      // 建筑专属升级：只有在对应建筑已解锁时才显示
-      if(u.type==="bldBoost"){
-        const b=bld(u.value.id);
-        if(b&&st.lifetimeGears<b.unlock) return `解锁「${b.name}」后可用`;
-      }
-      return "";
-    };
-    const isBldUnlocked = (b) => st.lifetimeGears >= b.unlock;
-
-    // ════════════════════════════════════════════════
-    // ⑰ 购买操作
-    // ════════════════════════════════════════════════
-    const buyBuilding = (id) => {
-      const b=bld(id); if(!b||!isBldUnlocked(b)) return;
-      const n=affordableCount(b,st.gears,st.purchaseMode); if(n<=0) return;
-      const pc=st.purchaseMode==="max"?n:Math.min(n,Number(st.purchaseMode)||1);
-      const cost=purchaseCost(b,pc); if(st.gears<cost) return;
-      st.gears-=cost; b.owned+=pc;
-      pushLog(`收购 ${b.emoji}${b.name} ×${pc}（-${fmt(cost)}）`);
-      sfxBuy();
-      // 购买弹跳动效（M3）
-      const v=buildingViewMap.get(id);
-      if(v){ v.row.classList.remove("bought"); void v.row.offsetWidth; v.row.classList.add("bought"); }
-      dirty.buildings = dirty.stats = dirty.logs = true;
-      saveGame();
-    };
-
-    const buyUpgrade = (id) => {
-      const u=upgrades.find(x=>x.id===id); if(!u||u.purchased) return;
-      const locked=upgradeLockedReason(u); if(locked||st.gears<u.price) return;
-      st.gears-=u.price; u.purchased=true;
-      applyUpgradeEffect(u);
-      dirty.upgrades = dirty.buildings = dirty.stats = dirty.logs = true;
-      saveGame();
-    };
-
-    const buySkill = (id) => {
-      const sk=skills.find(s=>s.id===id);
-      if(!sk||sk.level>=sk.maxLevel||st.researchPoints<sk.costRP) return;
-      st.researchPoints-=sk.costRP; sk.level++;
-      sfxUpgrade(); pushLog(`技能升级：${sk.name} Lv.${sk.level}`);
-      dirty.skills = dirty.logs = true;
-      saveGame();
-    };
-
-    const tryAutoBuy = () => {
-      for(const u of upgrades){ if(u.purchased||upgradeLockedReason(u))continue; if(st.gears>=u.price){buyUpgrade(u.id);return;} }
-      for(const b of [...buildings].reverse()){ if(!isBldUnlocked(b))continue; if(affordableCount(b,st.gears,"1")>0){const p=st.purchaseMode;st.purchaseMode="1";buyBuilding(b.id);st.purchaseMode=p;return;} }
-    };
-
-    // ════════════════════════════════════════════════
-
-    // ⑱ 渲染层（与生产层解耦，M1 重构核心）
-    // ════════════════════════════════════════════════
-    const renderQuest = () => {
-      if(st.questIndex>=questChain.length){
-        goalTitleEl.textContent="产业目标：全部完成！"; goalFillEl.style.width="100%";
-        goalHintEl.textContent="恭喜，金融帝国已建成"; goalPctEl.textContent="100%";
-        questRewardEl.textContent="全部奖励已领取"; return;
-      }
-      const q=questChain[st.questIndex];
-      const cur=q.progress(), pct=Math.min(100,(cur/q.target)*100);
-      goalTitleEl.textContent=q.title;
-      goalFillEl.style.width=`${pct}%`;
-      goalHintEl.textContent= cur>=q.target?"目标达成，奖励已发放":`进度 ${cur} / ${q.target}`;
-      goalPctEl.textContent=`${pct.toFixed(0)}%`;
-      questRewardEl.textContent=`奖励：${q.rewardText}`;
-      if(cur>=q.target){ grantReward(q.reward,`任务「${q.title}」`); st.questIndex++; dirty.quest = dirty.gears = dirty.stats = dirty.logs = true; saveGame(); }
-    };
-
-
-
-    const renderMarket = () => {
-      const bull=st.marketIsBull, mult=mktMult();
-      marketMultEl.textContent=`×${mult.toFixed(2)}`; marketMultEl.style.color=bull?"var(--bull)":"var(--bear)";
-      marketStatusEl.textContent=bull?"多头市场":"空头市场"; marketStatusEl.style.color=bull?"var(--bull)":"var(--bear)";
-      marketDotEl.classList.toggle("bear",!bull);
-      marketLabelEl.textContent=bull?"多头市场":"空头市场"; marketLabelEl.style.color=bull?"var(--bull)":"var(--bear)";
-      const pct=bull?50+(1-st.marketTimer/st.marketCycleDuration)*50:(st.marketTimer/st.marketCycleDuration)*50;
-      marketWaveEl.style.width=`${Math.max(5,Math.min(95,pct))}%`;
-      marketCountEl.textContent=`切换：${Math.ceil(st.marketTimer)}s`;
-      marketEffectEl.textContent=bull?`多头加成 ×${MARKET_BULL_BONUS.toFixed(1)}`:`空头折损 ×${MARKET_BEAR_PENALTY.toFixed(1)}`;
-      marketEffectEl.style.color=bull?"var(--bull)":"var(--bear)";
-    };
-
-
-    // ════════════════════════════════════════════════
-    // 渲染层（带脏标记 + 数字平滑滚动）
-    // ════════════════════════════════════════════════
-    const smoothUpdate = (target) => {
-      const diff = target - disp.gears;
-      if(Math.abs(diff) < 1) { disp.gears = target; return target; }
-      disp.gears += diff * SMOOTH_SPEED;
-      return disp.gears;
-    };
-
-    const render = (force = false) => {
-      const now = performance.now();
-      if(!force && now - lastRender < RENDER_THROTTLE) return;
-      lastRender = now;
-
-      // 头部数字 - 平滑滚动
-      const targetGPS = getTotalGPS();
-      disp.gps += (targetGPS - disp.gps) * SMOOTH_SPEED;
-      disp.gears = smoothUpdate(st.gears);
-      gearsEl.textContent = fmt(disp.gears);
-      gpsEl.textContent = `收益率 ${fmt(disp.gps)}/s`;
-      rpDisplayEl.textContent = `${st.researchPoints} RP`;
-      rpMetaEl.textContent = `研究加成 ×${resMult().toFixed(1)}`;
-      manualDesc.textContent = `每次撮合 +${fmt(getManualGain())}`;
-      if(dirty.market) renderMarket();
-
-      // 建筑列表
-      if(dirty.buildings){
-        for(const b of buildings){
-          const v=buildingViewMap.get(b.id); if(!v) continue;
-          const cnt=affordableCount(b,st.gears,st.purchaseMode);
-          const pc =st.purchaseMode==="max"?cnt:Math.min(cnt,Number(st.purchaseMode)||1);
-          const spc=Math.max(1,pc||0);
-          const unlocked=isBldUnlocked(b);
-          v.ownedEl.textContent=b.owned;
-          v.buyBtn.textContent=`购买 ×${spc}（${fmt(purchaseCost(b,spc))}）`;
-          v.buyBtn.disabled=!(cnt>0&&unlocked);
-          v.lockEl.textContent=!unlocked?`解锁条件：历史资本 ${fmt(b.unlock)}`:"";
-          v.hintEl.textContent=(unlocked&&cnt<=0)?`还差 ${fmt(price(b)-st.gears)}`:"";
-        }
-        dirty.buildings = false;
-      }
-
-      // 升级列表
-      if(dirty.upgrades){
-        for(const u of upgrades){
-          const v=upgradeViewMap.get(u.id); if(!v) continue;
-          if(u.purchased){v.btn.textContent="已研发";v.btn.disabled=true;v.lockEl.textContent="";continue;}
-          const lr=upgradeLockedReason(u);
-          v.lockEl.textContent=lr;
-          v.btn.textContent=`研发（${fmt(u.price)}）`;
-          v.btn.disabled=st.gears<u.price||Boolean(lr);
-        }
-        dirty.upgrades = false;
-      }
-
-      // 任务
-      if(dirty.quest) renderQuest();
-
-      // 技能
-      if(dirty.skills){
-        for(const sk of skills){
-          const v=skillViewMap.get(sk.id); if(!v) continue;
-          v.meta.textContent=`等级 ${sk.level}/${sk.maxLevel}`;
-          if(sk.level>=sk.maxLevel){v.btn.disabled=true;v.btn.textContent="已满级";}
-          else{v.btn.disabled=st.researchPoints<sk.costRP;v.btn.textContent=`升级（${sk.costRP} RP）`;}
-        }
-
-        if(skillMasteryMetaEl){
-          const totalLv = getTotalSkillLevels();
-          skillMasteryMetaEl.textContent = `专精 T${st.skillMasteryTier} · 总技能等级 ${totalLv} · 总收益加成 ×${(1 + st.skillMasteryTier * SKILL_MASTERY_BONUS).toFixed(2)}`;
-        }
-
-        dirty.skills = false;
-      }
-
-      // 成就
-      if(dirty.achievements){
-        for(const a of achievements){
-          if(!a.done&&a.check()){a.done=true;claimAchievement(a);}
-          const v=achievViewMap.get(a.id); if(!v) continue;
-          v.badge.classList.toggle("done",a.done);
-          v.badge.textContent=a.done?(a.claimed?"已完成✓":"已完成"):"未完成";
-        }
-        dirty.achievements = false;
-      }
-
-      // 离线
-      if(st.pendingOfflineGears>0){offlineEl.style.display="flex";offlineTextEl.textContent=`离线期间产生收益 ${fmt(st.pendingOfflineGears)}`;}
-      else{offlineEl.style.display="none";}
-
-      // 奖励公告
-      rewardFeedEl.textContent=st.lastRewardText||"";
-
-      // 日志 - 增量更新
-      if(dirty.logs){
-        eventLogEl.innerHTML="";
-        for(const line of st.logs.slice(0,8)){
-          const el=document.createElement("div"); el.className="log-item"; el.textContent=line;
-          eventLogEl.appendChild(el);
-        }
-        dirty.logs = false;
-      }
-
-      // 统计摘要
-      if(dirty.stats){
-        statBldEl.textContent  =`产业数：${buildings.reduce((s,b)=>s+b.owned,0)}`;
-        statUpgEl.textContent  =`已研发：${upgrades.filter(u=>u.purchased).length}/${upgrades.length}`;
-        statAchEl.textContent  =`成就：${achievements.filter(a=>a.done).length}/${achievements.length}`;
-        statQstEl.textContent  =`任务：${Math.min(st.questIndex,questChain.length)}/${questChain.length}`;
-        statModeEl.textContent =`自动投资：${st.autoBuy?"开":"关"}`;
-        statLifeEl.textContent =`历史资本：${fmt(st.lifetimeGears)}`;
-        dirty.stats = false;
-      }
-
-      // 控制栏激活态
-      modeButtons.forEach(b =>b.classList.toggle("active",b.dataset.mode===st.purchaseMode));
-      speedButtons.forEach(b=>b.classList.toggle("active",Number(b.dataset.speed)===st.gameSpeed));
-      autoBuyBtn.classList.toggle("active",st.autoBuy);
-      autoBuyBtn.textContent=`自动投资: ${st.autoBuy?"开":"关"}`;
-      soundBtn.textContent  =`音效: ${st.soundEnabled?"开":"关"}`;
-
-      // 清除脏标记
-      dirty.gears = dirty.market = false;
-    };
+    const debugSystem = createDebugSystem({
+      st,
+      buildings,
+      getGpsBreakdown,
+      SAVE_KEY,
+      fmt,
+    });
 
     // ════════════════════════════════════════════════
     // ⑲ 事件绑定
@@ -766,30 +347,28 @@
     manualBtn.addEventListener("click",(e)=>{
       const gain=getManualGain();
       st.gears+=gain; st.lifetimeGears+=gain; st.totalClicks++;
-      if(st.marketIsBull) st.bullClicks++;
+      if(st.marketIsBull) {
+        st.bullClicks++;
+        st.marketMomentum = Math.min(MARKET_MOMENTUM_CAP, (st.marketMomentum || 0) + 1);
+        st.marketMomentumTimer = MARKET_MOMENTUM_DURATION;
+      }
       if(st.totalClicks===1) pushLog("完成首次撮合");
-
       eventBus.emit("manual:clicked", { x: e.clientX, y: e.clientY, gain });
-
-      sfxClick();
-      spawnFloat(e.clientX+(Math.random()*20-10), e.clientY-10, `+${fmt(gain)}`);
-      manualBtn.classList.remove("clicked"); void manualBtn.offsetWidth; manualBtn.classList.add("clicked");
-      const rect=manualZone.getBoundingClientRect();
-      manualZone.style.setProperty("--rx",`${((e.clientX-rect.left)/rect.width)*100}%`);
-      manualZone.style.setProperty("--ry",`${((e.clientY-rect.top)/rect.height)*100}%`);
-      manualZone.classList.add("ripple"); setTimeout(()=>manualZone.classList.remove("ripple"),400);
-
       dirty.gears = dirty.stats = true;
       saveGame();
     });
 
     buildingListEl.addEventListener("click",e=>{
       if(!(e.target instanceof HTMLButtonElement))return;
-      const id=e.target.dataset.buy; if(!id)return; buyBuilding(id);
+      const id=e.target.dataset.buy; if(!id)return;
+      buyBuilding(id);
+      eventBus.emit('building:purchased', { id });
     });
     upgradeListEl.addEventListener("click",e=>{
       if(!(e.target instanceof HTMLButtonElement))return;
-      const id=e.target.dataset.upgrade; if(!id)return; buyUpgrade(id);
+      const id=e.target.dataset.upgrade; if(!id)return;
+      buyUpgrade(id);
+      eventBus.emit('upgrade:purchased', { id });
     });
     skillListEl.addEventListener("click",e=>{
       if(!(e.target instanceof HTMLButtonElement))return;
@@ -805,6 +384,12 @@
       const id=e.target.id;
       if(id==="autoBuyBtn"){ st.autoBuy=!st.autoBuy; pushLog(`自动投资已${st.autoBuy?"开启":"关闭"}`); dirty.logs = dirty.stats = true; saveGame(); }
       if(id==="soundBtn")  { st.soundEnabled=!st.soundEnabled; saveGame(); }
+      if(id==="langBtn")   { 
+        const newLang = I18N.toggle(); 
+        e.target.textContent = `语言: ${newLang === 'zh' ? '中文' : 'English'}`;
+        pushLog(`语言已切换为: ${newLang === 'zh' ? '中文' : 'English'}`);
+        location.reload();
+      }
     });
 
     $("exportSaveBtn").addEventListener("click",()=>{exportSave();});
@@ -819,17 +404,13 @@
     });
 
     $("prestigeBtn").addEventListener("click",()=>{
-      const gain=Math.floor(Math.sqrt(st.lifetimeGears/2000));
+      const gain=GameFormulas.calcPrestigeGain({ lifetimeGears: st.lifetimeGears, divisor: 2000 });
       if(gain<=0){alert("历史资本不足，无法增发股权。");return;}
       if(!confirm(`增发股权可获得 ${gain} RP，本轮进度将重置。继续？`))return;
       st.researchPoints+=gain; pushLog(`增发股权，获得 +${gain} RP`);
       Object.assign(st,{gears:0,purchaseMode:"1",pendingOfflineGears:0,accumulator:0,
         manualPower:1,manualMult:1,gpsMultiplier:1,totalClicks:0,lifetimeGears:0,
-
-        lastRewardText:"",gameSpeed:1,questIndex:0,autoBuy:false,autoBuyAccumulator:0,bullClicks:0,skillMasteryTier:0});
-
-        lastRewardText:"",gameSpeed:1,questIndex:0,autoBuy:false,autoBuyAccumulator:0,bullClicks:0});
-
+        lastRewardText:"",gameSpeed:1,questIndex:0,autoBuy:false,autoBuyAccumulator:0,lastAutoPlanTarget:"",bullClicks:0,marketMomentum:0,marketMomentumTimer:0,policyRate:POLICY_RATE_DEFAULT,policyHedge:0,macroEventId:"",macroEventTimer:0,macroPreferredBuildingId:"",lastMacroEventId:"",macroChainCount:0,rateOutlookDirection:"上调",rateOutlookBiasUp:POLICY_GUIDANCE_BASE_BIAS,rateOutlookConfidence:0,rateOutlookHits:0,rateOutlookMisses:0,skillMasteryTier:0,logTrimNotified:false});
       buildings.forEach(b=>b.owned=0);
       upgrades.forEach(u=>u.purchased=false);
       skills.forEach(s=>s.level=0);
@@ -844,13 +425,9 @@
       localStorage.removeItem(SAVE_KEY);
       Object.assign(st,{gears:0,purchaseMode:"1",pendingOfflineGears:0,accumulator:0,
         manualPower:1,manualMult:1,gpsMultiplier:1,totalClicks:0,lifetimeGears:0,researchPoints:0,
-        lastRewardText:"",gameSpeed:1,questIndex:0,autoBuy:false,autoBuyAccumulator:0,
-        bullClicks:0,marketIsBull:true,marketTimer:35,marketCycleDuration:35,
-
-        soundEnabled:true,skillMasteryTier:0,logs:["[--:--:--] 清盘重来"]});
-
-        soundEnabled:true,logs:["[--:--:--] 清盘重来"]});
-
+        lastRewardText:"",gameSpeed:1,questIndex:0,autoBuy:false,autoBuyAccumulator:0,lastAutoPlanTarget:"",
+        bullClicks:0,marketMomentum:0,marketMomentumTimer:0,policyRate:POLICY_RATE_DEFAULT,policyHedge:0,macroEventId:"",macroEventTimer:0,macroPreferredBuildingId:"",lastMacroEventId:"",macroChainCount:0,rateOutlookDirection:"上调",rateOutlookBiasUp:POLICY_GUIDANCE_BASE_BIAS,rateOutlookConfidence:0,rateOutlookHits:0,rateOutlookMisses:0,marketIsBull:true,marketTimer:35,marketCycleDuration:35,
+        soundEnabled:true,skillMasteryTier:0,logs:["[--:--:--] 清盘重来"],logTrimNotified:false});
       buildings.forEach(b=>b.owned=0);
       upgrades.forEach(u=>u.purchased=false);
       skills.forEach(s=>s.level=0);
@@ -867,9 +444,9 @@
     upgrades.forEach(createUpgradeRow);
     skills.forEach(createSkillRow);
     achievements.forEach(createAchievRow);
+    renderChangelog();
 
     loadGame();
-
     refreshSkillMastery(true);
     dirty.market = dirty.buildings = dirty.upgrades = dirty.skills = dirty.achievements = dirty.quest = dirty.stats = dirty.logs = true;
 
@@ -881,40 +458,862 @@
       SAVE_INTERVAL,
       getTotalGPS,
       tickMarket,
+      tickEvent,
       tryAutoBuy,
       saveGame,
       render,
+      onAfterFrame: debugSystem.update,
     });
 
     loopSystem.startLoop();
 
-    dirty.market = dirty.buildings = dirty.upgrades = dirty.skills = dirty.achievements = dirty.quest = dirty.stats = dirty.logs = true;
-
-    let lastSave = performance.now();
-    const tick = (now) => {
-      const dt = Math.min((now-st.lastTimestamp)/1000, MAX_ACCUMULATED_SECS);
-      st.lastTimestamp = now;
-      st.accumulator  += dt;
-
-      const gps = getTotalGPS();
-      while(st.accumulator >= FIXED_STEP){
-        const gain = gps * FIXED_STEP * st.gameSpeed;
-        st.gears += gain; st.lifetimeGears += gain;
-        st.accumulator -= FIXED_STEP;
-        tickMarket(FIXED_STEP);
-        if(st.autoBuy){
-          st.autoBuyAccumulator += FIXED_STEP*st.gameSpeed;
-          if(st.autoBuyAccumulator>=0.5){st.autoBuyAccumulator=0;tryAutoBuy();}
+    // ════════════════════════════════════════════════
+    // ㉑ 滚动更新检测系统
+    // ════════════════════════════════════════════════
+    const updateDetection = createUpdateDetectionSystem({
+      currentVersion: APP_VERSION,
+      checkIntervalMs: 5 * 60 * 1000, // 5 分钟检测一次
+      versionUrl: './version.json',
+      enabled: !window.location.search.includes('noupdate=1'), // URL参数可禁用
+      onUpdateAvailable: ({ currentVersion, newVersion, dismiss, reload }) => {
+        // 使用游戏内通知系统显示更新提示
+        pushLog(`🚀 新版本 ${newVersion} 可用！当前版本: ${currentVersion}`);
+        // 延迟显示 Toast 避免干扰初始加载
+        setTimeout(() => {
+          if (typeof I18N !== 'undefined' && I18N.getCurrentLang() === 'en') {
+            // 英文提示
+            const toast = document.createElement('div');
+            toast.className = 'update-toast';
+            toast.innerHTML = `
+              <div class="update-toast-content">
+                <span class="update-icon">🚀</span>
+                <span class="update-text">New version ${newVersion} available!</span>
+                <button class="update-btn update-btn-primary" id="updateBtnReload">Reload</button>
+                <button class="update-btn update-btn-secondary" id="updateBtnDismiss">Later</button>
+              </div>
+            `;
+            document.body.appendChild(toast);
+            toast.querySelector('#updateBtnReload').addEventListener('click', reload);
+            toast.querySelector('#updateBtnDismiss').addEventListener('click', () => {
+              dismiss();
+              toast.remove();
+            });
+          }
+        }, 2000);
+      },
+      onError: (err) => {
+        // 静默处理错误，不干扰用户体验
+        if (window.console && console.debug) {
+          console.debug('Update check failed:', err.message);
         }
-      }
+      },
+    });
 
-      dirty.gears = dirty.market = true;
-      if(now-lastSave>SAVE_INTERVAL){saveGame();lastSave=now;}
-      render();
-      requestAnimationFrame(tick);
+    // 启动滚动更新检测（延迟启动，避免干扰初始加载）
+    setTimeout(() => updateDetection.start(), 10000); // 10 秒后启动
+
+    // ════════════════════════════════════════════════
+    // ㉒ 新手引导系统 (P4-T3)
+    // ════════════════════════════════════════════════
+    const tutorialSystem = createTutorialSystem({
+      st,
+      I18N,
+      eventBus,
+      onComplete: () => {
+        pushLog('✅ 新手引导完成！开始你的金融帝国之旅吧！');
+      },
+      onSkip: () => {
+        pushLog('⏭️ 已跳过新手引导');
+      },
+    });
+
+    // 延迟启动新手引导（等游戏完全加载后）
+    setTimeout(() => {
+      tutorialSystem.start();
+    }, 1500);
+
+    // 调试命令：window.resetTutorial() 可重置引导
+    window.resetTutorial = () => {
+      tutorialSystem.reset();
+      location.reload();
     };
 
-    render(true);
-    requestAnimationFrame(tick);
+    // ════════════════════════════════════════════════
+    // ㉓ 每日任务系统 (P5-T2)
+    // ════════════════════════════════════════════════
+    const dailyQuestSystem = createDailyQuestSystem({
+      st,
+      I18N,
+      eventBus,
+      buildings,
+      pushLog,
+      saveGame,
+      onQuestComplete: ({ quest, reward }) => {
+        pushLog(`🎁 领取每日任务奖励: ${reward} ${quest.rewardType === 'rp' ? 'RP' : '资本'}`);
+      },
+      onAllComplete: ({ bonusRP }) => {
+        pushLog(`🌟 每日任务全部完成! 额外获得 ${bonusRP} RP`);
+      },
+    });
 
+    // 初始化每日任务
+    dailyQuestSystem.init();
+    dailyQuestSystem.setupEventListeners();
+
+    // 在游戏循环中追踪收益
+    const originalOnAfterFrame = debugSystem.update;
+    debugSystem.update = (dtSec) => {
+      originalOnAfterFrame(dtSec);
+      dailyQuestSystem.trackEarnedGears();
+    };
+
+    // 添加每日任务面板到UI（延迟确保DOM就绪）
+    setTimeout(() => {
+      const statsPanel = document.querySelector('.stats');
+      if (statsPanel) {
+        const questContainer = document.createElement('div');
+        questContainer.id = 'dailyQuestContainer';
+        questContainer.style.marginTop = '16px';
+        questContainer.innerHTML = dailyQuestSystem.renderQuestPanel();
+        statsPanel.appendChild(questContainer);
+        dailyQuestSystem.bindClaimButtons(questContainer);
+      }
+    }, 2000);
+
+    // 调试命令：window.resetDailyQuests() 可重置每日任务
+    window.resetDailyQuests = () => {
+      localStorage.removeItem('dailyQuestData');
+      localStorage.removeItem('dailyQuestLastReset');
+      location.reload();
+    };
+
+    // ════════════════════════════════════════════════
+    // ㉔ 数据分析埋点系统 (P5-T5)
+    // ════════════════════════════════════════════════
+    const analyticsSystem = createAnalyticsSystem({
+      st,
+      eventBus,
+      enabled: true,
+    });
+
+    // 初始化数据分析
+    analyticsSystem.init();
+
+    // 监听 Prestige 事件
+    eventBus.on('prestige:executed', () => {
+      analyticsSystem.track('prestiges');
+    });
+
+    // 调试命令：window.getAnalytics() 查看统计
+    window.getAnalytics = () => {
+      console.log('Analytics Stats:', analyticsSystem.getStats());
+      return analyticsSystem.getStats();
+    };
+
+    // 调试命令：window.exportAnalytics() 导出原始数据
+    window.exportAnalytics = () => {
+      console.log('Analytics Raw Data:', analyticsSystem.exportData());
+      return analyticsSystem.exportData();
+    };
+
+    // 调试命令：window.clearAnalytics() 清除数据
+    window.clearAnalytics = () => {
+      analyticsSystem.clearData();
+      console.log('Analytics data cleared');
+      location.reload();
+    };
+
+    // ════════════════════════════════════════════════
+    // ㉕ 排行榜系统 (P5-T1)
+    // ════════════════════════════════════════════════
+    const leaderboardSystem = createLeaderboardSystem({
+      st,
+      buildings,
+      skills,
+      eventBus,
+      pushLog,
+      I18N,
+    });
+
+    // 初始化排行榜
+    leaderboardSystem.init();
+
+    // 添加排行榜面板到UI（延迟确保DOM就绪）
+    setTimeout(() => {
+      const statsPanel = document.querySelector('.stats');
+      if (statsPanel) {
+        // 在每日任务之前插入排行榜
+        const questContainer = document.getElementById('dailyQuestContainer');
+        const leaderboardContainer = document.createElement('div');
+        leaderboardContainer.id = 'leaderboardContainer';
+        leaderboardContainer.innerHTML = leaderboardSystem.renderLeaderboardPanel() +
+                                         leaderboardSystem.renderHistoryPanel();
+
+        if (questContainer) {
+          statsPanel.insertBefore(leaderboardContainer, questContainer);
+        } else {
+          statsPanel.appendChild(leaderboardContainer);
+        }
+      }
+    }, 2500);
+
+    // 定期刷新排行榜UI（每30秒，统一由 RAF 驱动）
+    window.__timerManager.schedule(() => {
+      const container = document.getElementById('leaderboardContainer');
+      if (container) {
+        container.innerHTML = leaderboardSystem.renderLeaderboardPanel() +
+                              leaderboardSystem.renderHistoryPanel();
+      }
+    }, 30000);
+
+    // 调试命令：window.resetLeaderboard() 重置排行榜
+    window.resetLeaderboard = () => {
+      leaderboardSystem.resetData();
+      console.log('Leaderboard data cleared');
+      location.reload();
+    };
+
+    // ════════════════════════════════════════════════
+    // ㉖ 邀请好友系统 (P5-T4)
+    // ════════════════════════════════════════════════
+    const inviteSystem = createInviteSystem({
+      st,
+      I18N,
+      eventBus,
+      pushLog,
+      saveGame,
+      onInviteSuccess: ({ friend, rewardGears, rewardRP }) => {
+        pushLog(`🎉 好友邀请奖励发放成功！+${rewardGears} 资本, +${rewardRP} RP`);
+      },
+    });
+
+    // 初始化邀请系统（需要在最前面，因为会检查URL参数）
+    inviteSystem.init();
+
+    // 添加邀请面板到UI
+    setTimeout(() => {
+      const statsPanel = document.querySelector('.stats');
+      if (statsPanel) {
+        const inviteContainer = document.createElement('div');
+        inviteContainer.id = 'inviteContainer';
+        inviteContainer.innerHTML = inviteSystem.renderInvitePanel();
+        statsPanel.insertBefore(inviteContainer, statsPanel.firstChild);
+        inviteSystem.bindInviteButtons(inviteContainer);
+      }
+    }, 3000);
+
+    // 调试命令：window.getInviteStats() 查看邀请统计
+    window.getInviteStats = () => {
+      const stats = inviteSystem.getInviteStats();
+      console.log('Invite Stats:', stats);
+      return stats;
+    };
+
+    // 调试命令：window.resetInvite() 重置邀请数据
+    window.resetInvite = () => {
+      inviteSystem.resetData();
+      console.log('Invite data cleared');
+      location.reload();
+    };
+
+    // ════════════════════════════════════════════════
+    // ㉗ 产业链联动系统 (P6-T2)
+    // ════════════════════════════════════════════════
+    const synergySystem = createSynergySystem({
+      buildings,
+      st,
+      eventBus,
+      pushLog,
+      I18N,
+    });
+
+    // 初始化产业链系统
+    synergySystem.init();
+
+    // 将产业链加成应用到经济系统
+    economy.setSynergyMultiplier(() => {
+      const global = synergySystem.calculateGlobalSynergy();
+      return global.globalMultiplier;
+    });
+
+    // 添加产业链面板到UI（在排行榜之后）
+    setTimeout(() => {
+      const statsPanel = document.querySelector('.stats');
+      if (statsPanel) {
+        const synergyContainer = document.createElement('div');
+        synergyContainer.id = 'synergyContainer';
+        synergyContainer.innerHTML = synergySystem.renderGlobalSynergyPanel();
+
+        // 插入在排行榜之后
+        const leaderboardContainer = document.getElementById('leaderboardContainer');
+        if (leaderboardContainer && leaderboardContainer.nextSibling) {
+          statsPanel.insertBefore(synergyContainer, leaderboardContainer.nextSibling);
+        } else {
+          statsPanel.insertBefore(synergyContainer, statsPanel.firstChild);
+        }
+      }
+    }, 2800);
+
+    // 定期刷新产业链面板（每30秒，统一由 RAF 驱动）
+    window.__timerManager.schedule(() => {
+      const container = document.getElementById('synergyContainer');
+      if (container) {
+        container.innerHTML = synergySystem.renderGlobalSynergyPanel();
+      }
+    }, 30000);
+
+    // 监听产业链加成变化
+    eventBus.on('synergy:activated', ({ building, bonus }) => {
+      pushLog(`🔗 产业链加成激活！${building} 获得 ${((bonus - 1) * 100).toFixed(0)}% 加成`);
+    });
+
+    // 调试命令：window.getSynergyInfo() 查看产业链详情
+    window.getSynergyInfo = (buildingId) => {
+      const info = synergySystem.getBuildingSynergyInfo(buildingId);
+      console.log('Synergy Info:', info);
+      return info;
+    };
+
+    // ════════════════════════════════════════════════
+    // ㉘ 金融衍生品系统 (P6-T1)
+    // ════════════════════════════════════════════════
+    const derivativesSystem = createDerivativesSystem({
+      st,
+      market,
+      eventBus,
+      pushLog,
+      I18N,
+    });
+
+    // 初始化衍生品系统
+    derivativesSystem.init();
+
+    // 添加衍生品面板到UI（在产业链面板之后）
+    setTimeout(() => {
+      const statsPanel = document.querySelector('.stats');
+      if (statsPanel) {
+        const derivativesContainer = document.createElement('div');
+        derivativesContainer.id = 'derivativesContainer';
+        derivativesContainer.innerHTML =
+          derivativesSystem.renderFuturesPanel() +
+          derivativesSystem.renderOptionsPanel() +
+          derivativesSystem.renderStatsPanel();
+
+        // 插入在产业链面板之后
+        const synergyContainer = document.getElementById('synergyContainer');
+        if (synergyContainer && synergyContainer.nextSibling) {
+          statsPanel.insertBefore(derivativesContainer, synergyContainer.nextSibling);
+        } else {
+          statsPanel.appendChild(derivativesContainer);
+        }
+      }
+    }, 3200);
+
+    // 定期刷新衍生品面板（每10秒，统一由 RAF 驱动）
+    window.__timerManager.schedule(() => {
+      const container = document.getElementById('derivativesContainer');
+      if (container) {
+        container.innerHTML =
+          derivativesSystem.renderFuturesPanel() +
+          derivativesSystem.renderOptionsPanel() +
+          derivativesSystem.renderStatsPanel();
+      }
+    }, 10000);
+
+    // 监听衍生品事件
+    eventBus.on('futures:opened', ({ contract, margin }) => {
+      pushLog(`📈 期货${contract.type === 'long' ? '做多' : '做空'}开仓成功，保证金: ${formatNumber(margin)}`);
+    });
+
+    eventBus.on('futures:closed', ({ contract, pnl }) => {
+      const profit = pnl >= 0;
+      pushLog(`${profit ? '📈' : '📉'} 期货平仓: ${profit ? '盈利' : '亏损'} ${formatNumber(Math.abs(pnl))}`);
+    });
+
+    eventBus.on('futures:liquidated', ({ contract, pnl }) => {
+      pushLog(`💥 期货爆仓！亏损: ${formatNumber(Math.abs(pnl))}`);
+    });
+
+    eventBus.on('options:purchased', ({ contract, premium }) => {
+      pushLog(`🛡️ 购买${contract.type === 'call' ? '看涨' : '看跌'}期权，权利金: ${formatNumber(premium)}`);
+    });
+
+    // 调试命令：window.openFutures(type, leverage, value) 开期货仓
+    window.openFutures = (type, leverage, contractValue) => {
+      const result = derivativesSystem.openFutures({ type, leverage, contractValue });
+      console.log('Open Futures:', result);
+      return result;
+    };
+
+    // 调试命令：window.closeFuturesPosition(id) 平期货仓
+    window.closeFuturesPosition = (contractId) => {
+      const result = derivativesSystem.closeFutures(contractId);
+      console.log('Close Futures:', result);
+      return result;
+    };
+
+    // 调试命令：window.buyOptions(type, strikePrice, value, expiryDays) 购买期权
+    window.buyOptions = (type, strikePrice, contractValue, expiryDays) => {
+      const result = derivativesSystem.buyOptions({ type, strikePrice, contractValue, expiryDays });
+      console.log('Buy Options:', result);
+      return result;
+    };
+
+    // 调试命令：window.getDerivativesStats() 查看衍生品统计
+    window.getDerivativesStats = () => {
+      const stats = derivativesSystem.getStats();
+      const config = derivativesSystem.getConfig();
+      console.log('Derivatives Stats:', stats);
+      console.log('Derivatives Config:', config);
+      return { stats, config };
+    };
+
+    // ════════════════════════════════════════════════
+    // ㉙ 全球化市场系统 (P6-T3)
+    // ════════════════════════════════════════════════
+    const globalMarketSystem = createGlobalMarketSystem({
+      st,
+      market,
+      eventBus,
+      pushLog,
+      I18N,
+    });
+
+    // 初始化全球化市场系统
+    globalMarketSystem.init();
+
+    // 将地区加成应用到经济系统
+    economy.setRegionMultiplier(() => {
+      const bonus = globalMarketSystem.getRegionBonus();
+      return bonus.productionMultiplier;
+    });
+
+    // 添加全球市场面板到UI（在衍生品面板之后）
+    setTimeout(() => {
+      const statsPanel = document.querySelector('.stats');
+      if (statsPanel) {
+        const globalMarketContainer = document.createElement('div');
+        globalMarketContainer.id = 'globalMarketContainer';
+        globalMarketContainer.innerHTML =
+          globalMarketSystem.renderRegionPanel() +
+          globalMarketSystem.renderArbitragePanel() +
+          globalMarketSystem.renderInvestmentPanel();
+
+        // 插入在衍生品面板之后
+        const derivativesContainer = document.getElementById('derivativesContainer');
+        if (derivativesContainer && derivativesContainer.nextSibling) {
+          statsPanel.insertBefore(globalMarketContainer, derivativesContainer.nextSibling);
+        } else {
+          statsPanel.appendChild(globalMarketContainer);
+        }
+      }
+    }, 3400);
+
+    // 定期刷新全球市场面板（每5秒，统一由 RAF 驱动）
+    window.__timerManager.schedule(() => {
+      const container = document.getElementById('globalMarketContainer');
+      if (container) {
+        container.innerHTML =
+          globalMarketSystem.renderRegionPanel() +
+          globalMarketSystem.renderArbitragePanel() +
+          globalMarketSystem.renderInvestmentPanel();
+      }
+    }, 5000);
+
+    // 监听地区切换事件
+    eventBus.on('region:switched', ({ from, to }) => {
+      pushLog(`🌍 切换市场：${from} → ${to}`);
+    });
+
+    // 监听地区事件
+    eventBus.on('region:eventStarted', ({ region, event }) => {
+      pushLog(`📢 地区事件：${event.name.zh} 在 ${region} 开始！`);
+    });
+
+    // 监听套利交易
+    eventBus.on('arbitrage:executed', ({ opportunity, profit }) => {
+      pushLog(`💱 套利成功！收益: ${formatNumber(profit)}`);
+    });
+
+    // 调试命令：window.switchRegion(regionId) 切换地区
+    window.switchRegion = (regionId) => {
+      const result = globalMarketSystem.switchRegion(regionId);
+      console.log('Switch Region:', result);
+      return result;
+    };
+
+    // 调试命令：window.getRegionInfo() 查看地区信息
+    window.getRegionInfo = () => {
+      const regions = globalMarketSystem.getAllRegions();
+      const current = globalMarketSystem.getCurrentRegion();
+      const bonus = globalMarketSystem.getRegionBonus();
+      console.log('Regions:', regions);
+      console.log('Current:', current);
+      console.log('Bonus:', bonus);
+      return { regions, current, bonus };
+    };
+
+    // 调试命令：window.executeArbitrage(idx, amount) 执行套利
+    window.executeArbitrage = (idx, amount) => {
+      const opportunities = globalMarketSystem.detectArbitrageOpportunities();
+      if (opportunities[idx]) {
+        const result = globalMarketSystem.executeArbitrage(opportunities[idx], amount);
+        console.log('Arbitrage Result:', result);
+        return result;
+      }
+      return { success: false, error: 'Invalid opportunity index' };
+    };
+
+    // 调试命令：window.investInRegion(regionId, amount) 地区投资
+    window.investInRegion = (regionId, amount) => {
+      const result = globalMarketSystem.investInRegion(regionId, amount);
+      console.log('Investment Result:', result);
+      return result;
+    };
+
+    // ════════════════════════════════════════════════
+    // ㉚ 危机事件系统 (P6-T4)
+    // ════════════════════════════════════════════════
+    const crisisSystem = createCrisisSystem({
+      st,
+      eventBus,
+      buildings,
+      pushLog,
+      I18N,
+      economy,
+    });
+
+    // 初始化危机系统
+    crisisSystem.init();
+
+    // 添加危机面板到UI（在顶部显示）
+    setTimeout(() => {
+      const header = document.querySelector('.header');
+      if (header) {
+        const crisisContainer = document.createElement('div');
+        crisisContainer.id = 'crisisContainer';
+        crisisContainer.innerHTML = crisisSystem.renderCrisisPanel() + crisisSystem.renderCrisisHistory();
+        header.appendChild(crisisContainer);
+      }
+    }, 3600);
+
+    // 定期刷新危机面板（每1秒，统一由 RAF 驱动）
+    window.__timerManager.schedule(() => {
+      const container = document.getElementById('crisisContainer');
+      if (container) {
+        container.innerHTML = crisisSystem.renderCrisisPanel() + crisisSystem.renderCrisisHistory();
+      }
+    }, 1000);
+
+    // 将危机效果应用到经济系统
+    economy.setCrisisMultiplier(() => {
+      const effects = crisisSystem.getCrisisEffects();
+      if (!effects) return 1.0;
+      return effects.gpsMultiplier || 1.0;
+    });
+
+    // 监听危机事件
+    eventBus.on('crisis:started', ({ crisis, config }) => {
+      pushLog(`${config.icon} ${config.name.zh} 危机爆发！${config.description.zh}`);
+    });
+
+    eventBus.on('crisis:ended', ({ crisisId, method }) => {
+      const crisisName = { financial_crisis: '金融危机', pandemic: '全球疫情', cyber_attack: '网络攻击', trade_war: '贸易战', inflation_spike: '恶性通胀' }[crisisId];
+      const methodText = method === 'bailout' ? '已通过救助结束' : '已自然结束';
+      pushLog(`✅ ${crisisName} ${methodText}`);
+    });
+
+    // 调试命令：window.triggerCrisis(crisisId) 手动触发危机
+    window.triggerCrisis = (crisisId) => {
+      const result = crisisSystem.triggerCrisis(crisisId);
+      console.log('Trigger Crisis:', result);
+      return result;
+    };
+
+    // 调试命令：window.recoverCrisis(method) 结束危机
+    window.recoverCrisis = (method = 'wait') => {
+      const result = crisisSystem.recoverCrisis(method);
+      console.log('Recover Crisis:', result);
+      return result;
+    };
+
+    // 调试命令：window.getCrisisInfo() 查看危机信息
+    window.getCrisisInfo = () => {
+      const info = crisisSystem.getCrisisInfo();
+      const stats = crisisSystem.getStats();
+      console.log('Crisis Info:', info);
+      console.log('Crisis Stats:', stats);
+      return { info, stats };
+    };
+
+    // ════════════════════════════════════════════════
+    // ㉛ 联盟/公会系统 (P6-T5)
+    // ════════════════════════════════════════════════
+    const guildSystem = createGuildSystem({
+      st,
+      eventBus,
+      pushLog,
+      I18N,
+    });
+
+    // 初始化公会系统
+    guildSystem.init();
+
+    // 将公会加成应用到经济系统
+    economy.setGuildMultiplier(() => {
+      return guildSystem.getTotalGPSBonus();
+    });
+
+    // 添加公会面板到UI
+    setTimeout(() => {
+      const statsPanel = document.querySelector('.stats');
+      if (statsPanel) {
+        const guildContainer = document.createElement('div');
+        guildContainer.id = 'guildContainer';
+        guildContainer.innerHTML = guildSystem.renderGuildPanel() + guildSystem.renderGuildRanking();
+        statsPanel.appendChild(guildContainer);
+      }
+    }, 4000);
+
+    // 定期刷新公会面板（每10秒，统一由 RAF 驱动）
+    window.__timerManager.schedule(() => {
+      const container = document.getElementById('guildContainer');
+      if (container) {
+        container.innerHTML = guildSystem.renderGuildPanel() + guildSystem.renderGuildRanking();
+      }
+    }, 10000);
+
+    // 监听公会事件
+    eventBus.on('guild:joined', ({ guildId, guild }) => {
+      pushLog(`🏛️ 加入公会：${guild.name.zh}！享受公会加成吧！`);
+    });
+
+    eventBus.on('guild:left', ({ guildId }) => {
+      pushLog(`👋 已退出公会`);
+    });
+
+    eventBus.on('guild:contributed', ({ guildId, amount }) => {
+      pushLog(`💎 向公会贡献 ${formatNumber(amount)}！`);
+    });
+
+    eventBus.on('guild:leveledUp', ({ guildId, newLevel }) => {
+      const guild = st.virtualGuilds[guildId];
+      pushLog(`🎉 ${guild.name.zh} 升级到 ${newLevel} 级！公会加成提升！`);
+    });
+
+    // 调试命令：window.joinGuild(guildId) 加入公会
+    window.joinGuild = (guildId) => {
+      const result = guildSystem.joinGuild(guildId);
+      console.log('Join Guild:', result);
+      return result;
+    };
+
+    // 调试命令：window.leaveGuild() 退出公会
+    window.leaveGuild = () => {
+      const result = guildSystem.leaveGuild();
+      console.log('Leave Guild:', result);
+      return result;
+    };
+
+    // 调试命令：window.contributeToGuild(amount) 贡献公会
+    window.contributeToGuild = (amount) => {
+      const result = guildSystem.contribute(amount);
+      console.log('Contribute:', result);
+      return result;
+    };
+
+    // 调试命令：window.getGuildInfo() 查看公会信息
+    window.getGuildInfo = () => {
+      const info = guildSystem.getGuildInfo();
+      const stats = guildSystem.getStats();
+      const ranking = guildSystem.getGuildRanking();
+      console.log('Guild Info:', info);
+      console.log('Guild Stats:', stats);
+      console.log('Guild Ranking:', ranking);
+      return { info, stats, ranking };
+    };
+
+    // ════════════════════════════════════════════════
+    // ㉜ 加速道具系统 (P7-T2)
+    // ════════════════════════════════════════════════
+    const boostSystem = createBoostSystem({
+      st,
+      eventBus,
+      pushLog,
+      I18N,
+      economy,
+    });
+
+    // 初始化加速道具系统
+    boostSystem.init();
+
+    // 将道具加成应用到经济系统
+    economy.setBoostMultiplier(() => {
+      return boostSystem.getGPSMultiplier();
+    });
+
+    // 添加道具商店UI
+    setTimeout(() => {
+      const gameContainer = document.querySelector('.game');
+      if (gameContainer) {
+        const boostContainer = document.createElement('div');
+        boostContainer.id = 'boostContainer';
+        boostContainer.innerHTML =
+          boostSystem.renderShopPanel() +
+          boostSystem.renderInventoryPanel() +
+          boostSystem.renderActiveEffectsPanel();
+        gameContainer.appendChild(boostContainer);
+      }
+    }, 4400);
+
+    // 定期刷新道具面板（每5秒，统一由 RAF 驱动）
+    window.__timerManager.schedule(() => {
+      const container = document.getElementById('boostContainer');
+      if (container) {
+        container.innerHTML =
+          boostSystem.renderShopPanel() +
+          boostSystem.renderInventoryPanel() +
+          boostSystem.renderActiveEffectsPanel();
+      }
+    }, 5000);
+
+    // 监听道具事件
+    eventBus.on('boost:purchased', ({ itemId, item, price }) => {
+      pushLog(`💎 购买成功：${item.name.zh} ($${price})`);
+    });
+
+    eventBus.on('boost:used', ({ itemId, item, result }) => {
+      pushLog(`✨ 使用道具：${item.name.zh} - ${result.message}`);
+    });
+
+    // 调试命令：window.purchaseBoostItem(itemId) 购买道具
+    window.purchaseBoostItem = async (itemId) => {
+      const result = await boostSystem.purchaseItem(itemId);
+      console.log('Purchase Result:', result);
+      return result;
+    };
+
+    // 调试命令：window.useBoostItem(itemId) 使用道具
+    window.useBoostItem = (itemId) => {
+      const result = boostSystem.useItem(itemId);
+      console.log('Use Result:', result);
+      return result;
+    };
+
+    // 调试命令：window.getBoostInventory() 查看道具背包
+    window.getBoostInventory = () => {
+      const inventory = boostSystem.getInventory();
+      const stats = boostSystem.getStats();
+      const activeEffects = boostSystem.getActiveEffects();
+      console.log('Inventory:', inventory);
+      console.log('Stats:', stats);
+      console.log('Active Effects:', activeEffects);
+      return { inventory, stats, activeEffects };
+    };
+
+    // ════════════════════════════════════════════════
+    // ㉝ 特权订阅系统 (P7-T3)
+    // ════════════════════════════════════════════════
+    const subscriptionSystem = createSubscriptionSystem({
+      st,
+      eventBus,
+      pushLog,
+      I18N,
+    });
+
+    // 初始化订阅系统
+    subscriptionSystem.init();
+
+    // 将订阅加成应用到经济系统
+    economy.setSubscriptionMultiplier(() => {
+      return subscriptionSystem.getTotalGPSBonus();
+    });
+
+    // 添加订阅UI
+    setTimeout(() => {
+      const gameContainer = document.querySelector('.game');
+      if (gameContainer) {
+        const subscriptionContainer = document.createElement('div');
+        subscriptionContainer.id = 'subscriptionContainer';
+        subscriptionContainer.innerHTML =
+          subscriptionSystem.renderSubscriptionPanel() +
+          subscriptionSystem.renderBenefitsComparison();
+        gameContainer.appendChild(subscriptionContainer);
+      }
+    }, 4800);
+
+    // 定期刷新订阅面板（每60秒，统一由 RAF 驱动）
+    window.__timerManager.schedule(() => {
+      const container = document.getElementById('subscriptionContainer');
+      if (container) {
+        container.innerHTML =
+          subscriptionSystem.renderSubscriptionPanel() +
+          subscriptionSystem.renderBenefitsComparison();
+      }
+    }, 60000);
+
+    // 监听订阅事件
+    eventBus.on('subscription:subscribed', ({ tier, billingCycle, price }) => {
+      pushLog(`🎉 成功订阅！等级: ${tier}，周期: ${billingCycle}，价格: $${price}`);
+    });
+
+    eventBus.on('subscription:cancelled', ({ tier, expiresAt }) => {
+      const daysRemaining = Math.ceil((expiresAt - Date.now()) / (24 * 60 * 60 * 1000));
+      pushLog(`⚠️ 订阅已取消，还有 ${daysRemaining} 天权益`);
+    });
+
+    eventBus.on('subscription:monthlyRewardClaimed', ({ tier, reward }) => {
+      pushLog(`🎁 月度奖励已领取！获得 ${reward.items.length} 个道具和 ${reward.rp} 研究点`);
+    });
+
+    // 调试命令：window.subscribe(tierId, billingCycle) 订阅
+    window.subscribe = async (tierId, billingCycle = 'monthly') => {
+      const result = await subscriptionSystem.subscribe(tierId, billingCycle);
+      console.log('Subscribe Result:', result);
+      return result;
+    };
+
+    // 调试命令：window.cancelSubscription() 取消订阅
+    window.cancelSubscription = () => {
+      const result = subscriptionSystem.cancelSubscription();
+      console.log('Cancel Result:', result);
+      return result;
+    };
+
+    // 调试命令：window.claimSubscriptionReward() 领取月度奖励
+    window.claimSubscriptionReward = () => {
+      const result = subscriptionSystem.claimMonthlyReward();
+      console.log('Claim Result:', result);
+      return result;
+    };
+
+    // 调试命令：window.getSubscriptionStatus() 查看订阅状态
+    window.getSubscriptionStatus = () => {
+      const status = subscriptionSystem.getSubscriptionStatus();
+      const bonuses = subscriptionSystem.getSubscriptionBonuses();
+      const privileges = subscriptionSystem.getSubscriptionPrivileges();
+      console.log('Subscription Status:', status);
+      console.log('Bonuses:', bonuses);
+      console.log('Privileges:', privileges);
+      return { status, bonuses, privileges };
+    };
   
+
+    // ════════════════════════════════════════════════
+    // 统一定时管理器调试命令
+    // ════════════════════════════════════════════════
+    // window.getTimerTasks() — 查看所有已注册的定时任务
+    window.getTimerTasks = () => {
+      if (window.__timerManager) {
+        const tasks = window.__timerManager.getTasks();
+        console.table(tasks.map(t => ({
+          name: t.name,
+          interval: t.intervalMs + 'ms',
+          nextIn: t.nextIn.toFixed(0) + 'ms',
+          enabled: t.enabled,
+        })));
+        return tasks;
+      }
+      console.warn('TimerManager not found');
+      return [];
+    };
