@@ -240,7 +240,7 @@ const createLeaderboardSystem = ({
   // 初始化
   const init = () => {
     // 定期检查记录（统一由 RAF 驱动，移除独立 setInterval）
-    if (window.__timerManager) window.__timerManager.schedule(checkRecords, 30000);
+    if (window.__timerManager) window.__timerManager.scheduleIdle(checkRecords, 30000);
 
     // 立即检查一次
     checkRecords();

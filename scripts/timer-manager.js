@@ -13,6 +13,7 @@
  */
 const createTimerManager = () => {
   const tasks = []; // [{ fn, intervalMs, lastRun, enabled }]
+  let _idleHandle = null;
 
   const schedule = (fn, intervalMs, immediate = false) => {
     cancelImpl(fn);
@@ -48,6 +49,33 @@ const createTimerManager = () => {
     }
   };
 
+  // requestIdleCallback 调度器 — 在浏览器空闲时运行低优先级任务
+  const _runIdleTasks = (deadline) => {
+    while (deadline.timeRemaining() > 0 && tasks.length > 0) {
+      const t = tasks.find((t) => t.enabled && performance.now() - t.lastRun >= t.intervalMs);
+      if (!t) break;
+      try {
+        t.fn();
+      } catch (e) {
+        console.error('[TimerManager:idle]', t.fn.name || 'anonymous', e);
+      }
+      t.lastRun = performance.now();
+    }
+    // 继续调度下一批
+    if (typeof requestIdleCallback !== 'undefined') {
+      _idleHandle = requestIdleCallback(_runIdleTasks, { timeout: 2000 });
+    }
+  };
+
+  const scheduleIdle = (fn, intervalMs) => {
+    // 先按普通调度器注册，保持定时逻辑
+    schedule(fn, intervalMs);
+    // 同时启动 idle 调度（如果还未启动）
+    if (_idleHandle === null && typeof requestIdleCallback !== 'undefined') {
+      _idleHandle = requestIdleCallback(_runIdleTasks, { timeout: 2000 });
+    }
+  };
+
   const setEnabled = (fn, enabled) => {
     const t = tasks.find((t) => t.fn === fn);
     if (t) t.enabled = enabled;
@@ -60,7 +88,7 @@ const createTimerManager = () => {
     nextIn: Math.max(0, t.intervalMs - (performance.now() - t.lastRun)),
   }));
 
-  return { schedule, cancel, cancelAll, tick, setEnabled, getTasks };
+  return { schedule, scheduleIdle, cancel, cancelAll, tick, setEnabled, getTasks };
 };
 
 // 全局单例（供各子系统使用）

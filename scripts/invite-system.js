@@ -279,7 +279,7 @@ const createInviteSystem = ({
 
     // 定期检查和发放奖励（统一由 RAF 驱动，移除独立 setInterval）
     if (!isNewInvite) {
-      if (window.__timerManager) window.__timerManager.schedule(checkInvitedProgress, 60000);
+      if (window.__timerManager) window.__timerManager.scheduleIdle(checkInvitedProgress, 60000);
       // 立即检查一次
       checkInvitedProgress();
     }

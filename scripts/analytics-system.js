@@ -285,7 +285,7 @@ const createAnalyticsSystem = ({
       const session = getSessionData();
       if (session) localStorage.setItem(SESSION_KEY, JSON.stringify(session));
     };
-    if (window.__timerManager) window.__timerManager.schedule(_persistSession, 30000);
+    if (window.__timerManager) window.__timerManager.scheduleIdle(_persistSession, 30000);
   };
 
   // 渲染统计面板（用于调试面板）

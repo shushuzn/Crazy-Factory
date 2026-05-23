@@ -33,7 +33,7 @@
       box-shadow: 0 24px 60px rgba(0,0,0,.5), 0 0 0 1px rgba(59,130,246,.08);
     }
 
-    .game.screen-shake { animation: screenShake .22s linear; }
+    .game.screen-shake { animation: screenShake .22s linear; will-change: transform; }
     @keyframes screenShake {
       0% { transform: translateX(0); }
       20% { transform: translateX(calc(var(--shake-x, 6px) * -1)); }
@@ -111,7 +111,7 @@
       background:radial-gradient(circle at var(--rx,50%) var(--ry,50%),rgba(59,130,246,.15) 0%,transparent 70%);
       opacity:0; transition:opacity .4s ease; pointer-events:none;
     }
-    .manual.ripple::after { opacity:1; }
+    .manual.ripple::after { opacity:1; will-change: opacity; }
 
     /* ── 按钮系统 ── */
     .btn {
@@ -152,6 +152,7 @@
       position:fixed; pointer-events:none; font-weight:700; font-size:1rem;
       color:var(--gold); text-shadow:0 2px 8px rgba(0,0,0,.6);
       animation:floatUp 1.1s ease forwards; z-index:9999; user-select:none;
+      will-change: transform, opacity;
     }
     @keyframes floatUp {
       0%  { opacity:1; transform:translateY(0) scale(1); }
@@ -173,7 +174,7 @@
       display:flex; align-items:center; gap:8px;
     }
     .section-title::after { content:''; flex:1; height:1px; background:var(--border); }
-    .buildings { display:grid; gap:8px; }
+    .buildings { display:grid; gap:8px; content-visibility: auto; contain-intrinsic-size: 0 600px; }
 
     /* 建筑卡片（购买时弹跳动画）contain:layout 隔离子元素布局变化*/
     .building {
