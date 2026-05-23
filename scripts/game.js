@@ -53,6 +53,8 @@
     const upgradeViewMap    = new Map();
     const skillViewMap      = new Map();
     const achievViewMap     = new Map();
+    const perkViewMap       = new Map();
+    const speedQuestViewMap = new Map();
 
     // ════════════════════════════════════════════════
     // ⑨ 工具函数
@@ -344,6 +346,8 @@
       statModeEl,
       statLifeEl,
       skillMasteryMetaEl,
+      perkViewMap,
+      speedQuestViewMap,
       goalTitleEl,
       goalFillEl,
       goalHintEl,
@@ -474,11 +478,17 @@
     const _onPrestige = () => {
       const gain=GameFormulas.calcPrestigeGain({ lifetimeGears: st.lifetimeGears, divisor: 2000 });
       if(gain<=0){alert("历史资本不足，无法增发股权。");return;}
-      if(!confirm(`增发股权可获得 ${gain} RP，本轮进度将重置。继续？`))return;
-      st.researchPoints+=gain; pushLog(`增发股权，获得 +${gain} RP`);
+      // perk_rp_bonus: 额外 +1 RP
+      const totalGain = gain + (st.perkRpBonus ? 1 : 0);
+      if(!confirm(`增发股权可获得 ${totalGain} RP，本轮进度将重置。继续？`))return;
+      st.researchPoints+=totalGain; pushLog(`增发股权，获得 +${totalGain} RP`);
+      // prestige 时重置大多数状态，但保留 perks（永久）和 speedRecords（永久）
       Object.assign(st,{gears:0,purchaseMode:"1",pendingOfflineGears:0,accumulator:0,
         manualPower:1,manualMult:1,gpsMultiplier:1,totalClicks:0,lifetimeGears:0,
-        lastRewardText:"",gameSpeed:1,questIndex:0,autoBuy:false,autoBuyAccumulator:0,lastAutoPlanTarget:"",bullClicks:0,marketMomentum:0,marketMomentumTimer:0,policyRate:POLICY_RATE_DEFAULT,policyHedge:0,macroEventId:"",macroEventTimer:0,macroPreferredBuildingId:"",lastMacroEventId:"",macroChainCount:0,rateOutlookDirection:"上调",rateOutlookBiasUp:POLICY_GUIDANCE_BASE_BIAS,rateOutlookConfidence:0,rateOutlookHits:0,rateOutlookMisses:0,skillMasteryTier:0,logTrimNotified:false});
+        lastRewardText:"",gameSpeed:1,questIndex:0,autoBuy:false,autoBuyAccumulator:0,lastAutoPlanTarget:"",bullClicks:0,marketMomentum:0,marketMomentumTimer:0,policyRate:POLICY_RATE_DEFAULT,policyHedge:0,macroEventId:"",macroEventTimer:0,macroPreferredBuildingId:"",lastMacroEventId:"",macroChainCount:0,rateOutlookDirection:"上调",rateOutlookBiasUp:POLICY_GUIDANCE_BASE_BIAS,rateOutlookConfidence:0,rateOutlookHits:0,rateOutlookMisses:0,skillMasteryTier:0,logTrimNotified:false,
+        // 速通本轮数据重置（speedRecords 永久保留）
+        gameStartTime:Date.now(), speedQuestIndex:0,
+      });
       buildings.forEach(b=>b.owned=0);
       upgrades.forEach(u=>u.purchased=false);
       skills.forEach(s=>s.level=0);
@@ -494,7 +504,11 @@
         manualPower:1,manualMult:1,gpsMultiplier:1,totalClicks:0,lifetimeGears:0,researchPoints:0,
         lastRewardText:"",gameSpeed:1,questIndex:0,autoBuy:false,autoBuyAccumulator:0,lastAutoPlanTarget:"",
         bullClicks:0,marketMomentum:0,marketMomentumTimer:0,policyRate:POLICY_RATE_DEFAULT,policyHedge:0,macroEventId:"",macroEventTimer:0,macroPreferredBuildingId:"",lastMacroEventId:"",macroChainCount:0,rateOutlookDirection:"上调",rateOutlookBiasUp:POLICY_GUIDANCE_BASE_BIAS,rateOutlookConfidence:0,rateOutlookHits:0,rateOutlookMisses:0,marketIsBull:true,marketTimer:35,marketCycleDuration:35,
-        soundEnabled:true,skillMasteryTier:0,logs:["[--:--:--] 清盘重来"],logTrimNotified:false});
+        soundEnabled:true,skillMasteryTier:0,logs:["[--:--:--] 清盘重来"],logTrimNotified:false,
+        combo:0,maxCombo:0,
+        gameStartTime:Date.now(), speedQuestIndex:0,
+        // perks 在清盘时保留（永久）
+      });
       buildings.forEach(b=>b.owned=0);
       upgrades.forEach(u=>u.purchased=false);
       skills.forEach(s=>s.level=0);
@@ -506,9 +520,13 @@
     // claimBtn（离线收益）在 #offlineNotice 内，不在 .controls，统一管理
     const _onClaim = () => {
       if(st.pendingOfflineGears<=0)return;
-      if(st.pendingOfflineGears > (st.maxOfflineGears||0)) st.maxOfflineGears = st.pendingOfflineGears;
-      spawnFloat(window.innerWidth/2,window.innerHeight/2,`+${fmt(st.pendingOfflineGears)} 💤`,"#fbbf24");
-      st.gears+=st.pendingOfflineGears; st.lifetimeGears+=st.pendingOfflineGears;
+      // perk_offline_mult: 离线收益 ×1.5
+      const offlineGain = st.perkOfflineMult
+        ? Math.floor(st.pendingOfflineGears * 1.5)
+        : st.pendingOfflineGears;
+      if(offlineGain > (st.maxOfflineGears||0)) st.maxOfflineGears = offlineGain;
+      spawnFloat(window.innerWidth/2,window.innerHeight/2,`+${fmt(offlineGain)} 💤`,"#fbbf24");
+      st.gears+=offlineGain; st.lifetimeGears+=offlineGain;
       st.pendingOfflineGears=0; dirty.gears = dirty.stats = true;
       saveGame();
     };
@@ -572,9 +590,56 @@
     achievements.forEach((a) => createAchievRow(a, _achFrag));
     achievListEl.appendChild(_achFrag);
 
+    // 天赋列表初始化
+    const _perkFrag = document.createDocumentFragment();
+    if (typeof prestigePerks !== 'undefined') {
+      prestigePerks.forEach((pk) => {
+        const row = document.createElement('div');
+        row.className = 'building-row';
+        row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px;border-bottom:1px solid rgba(255,255,255,0.1)';
+        const owned = st[`perk${pk.id.charAt(4).toUpperCase() + pk.id.slice(5)}`] || false;
+        row.innerHTML = `
+          <span style="font-size:18px">${owned ? '⭐' : '☆'}</span>
+          <div style="flex:1">
+            <div style="font-weight:600;color:#fbbf24">${pk.name}</div>
+            <div style="font-size:12px;opacity:0.8">${pk.desc}</div>
+          </div>
+          <button class="btn" data-perk="${pk.id}" ${owned || st.researchPoints < pk.costRP ? 'disabled' : ''} style="background:${owned ? '#374151' : '#7c3aed'};min-width:80px">
+            ${owned ? '已激活' : `${pk.costRP} RP`}
+          </button>`;
+        _perkFrag.appendChild(row);
+        perkViewMap.set(pk.id, { row, btn: row.querySelector(`[data-perk="${pk.id}"]`) });
+      });
+      document.getElementById('perkList').appendChild(_perkFrag);
+    }
+
+    // 速通挑战列表初始化
+    const _sqFrag = document.createDocumentFragment();
+    if (typeof speedQuests !== 'undefined') {
+      speedQuests.forEach((sq) => {
+        const best = st.speedRecords?.[sq.id];
+        const done = best != null;
+        const row = document.createElement('div');
+        row.className = 'building-row';
+        row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px;border-bottom:1px solid rgba(255,255,255,0.1)';
+        row.innerHTML = `
+          <span style="font-size:18px">${done ? '🏆' : '⏱️'}</span>
+          <div style="flex:1">
+            <div style="font-weight:500">${sq.title}</div>
+            <div style="font-size:11px;opacity:0.7">限时 ${sq.timeLimit}s · 奖励：${sq.reward.type === 'rp' ? `${sq.reward.value} RP` : `¥${sq.reward.value}`}</div>
+            ${done ? `<div style="font-size:11px;color:#22c55e">最佳：${(best/1000).toFixed(1)}s ${best/1000 <= sq.timeLimit ? '✅' : '❌'}</div>` : ''}
+          </div>`;
+        _sqFrag.appendChild(row);
+        speedQuestViewMap.set(sq.id, { row });
+      });
+      document.getElementById('speedQuestList').appendChild(_sqFrag);
+    }
+
     renderChangelog();
 
     loadGame();
+    // 首次加载或读档后，设置本局开始时间（用于速通计时）
+    if (!st.gameStartTime) st.gameStartTime = Date.now();
     refreshSkillMastery(true);
     dirty.market = dirty.buildings = dirty.upgrades = dirty.skills = dirty.achievements = dirty.quest = dirty.stats = dirty.logs = true;
 
@@ -884,7 +949,9 @@
     // 将产业链加成应用到经济系统
     economy.setSynergyMultiplier(() => {
       const global = synergySystem.calculateGlobalSynergy();
-      return global.globalMultiplier;
+      // perk_synergy_plus: 产业链联动加成额外 +50%
+      const synergyMult = st.perkSynergyPlus ? global.globalMultiplier * 1.5 : global.globalMultiplier;
+      return synergyMult;
     });
 
     // 添加产业链面板到UI（在排行榜之后）
@@ -1195,6 +1262,26 @@
       pushLog(`✅ ${crisisName} ${methodText}`);
       spawnFloat(window.innerWidth/2, window.innerHeight/2, `✅ ${crisisName}结束`, '#22c55e');
     });
+
+    // perk_auto_combo: 每 10s 自动触发一次虚拟撮合
+    window.__timerManager.schedule(() => {
+      if (!st.perkAutoCombo) return;
+      const now = Date.now();
+      const elapsed = st.gameStartTime ? (now - st.gameStartTime) / 1000 : 0;
+      if (elapsed < 1) return;
+      // 模拟 1 次撮合，应用当前连击加成
+      const baseGain = getManualGain();
+      const comboLevel = st.combo || 0;
+      const comboMult = comboLevel >= 2 ? (1 + Math.min(comboLevel - 1, 99) * 0.05) : 1;
+      const gain = Math.floor(baseGain * comboMult);
+      if (gain > 0) {
+        st.gears += gain;
+        st.lifetimeGears += gain;
+        st.totalClicks++;
+        dirty.gears = dirty.stats = true;
+        spawnFloat(window.innerWidth / 2, window.innerHeight / 2 - 60, `+${fmt(gain)} ⚡`, '#60a5fa');
+      }
+    }, 10000);
 
     // 监听奖励/危机随机事件
     eventBus.on('event:bonus', ({ eventId }) => {

@@ -86,6 +86,39 @@
     ];
 
     // ════════════════════════════════════════════════
+    // ⑤-2 Prestige 天赋树（永久生效，reset 后不重置）
+    // ════════════════════════════════════════════════
+    // 机制参考：BubbleByte 的"声望真正改变游戏方式"，而非枯燥 +1%
+    // 每类天赋一个独立开关，购买后永久激活，效果在对应计算处直接应用
+    const prestigePerks = [
+      {
+        id:"perk_auto_combo", name:"自动连击", desc:"每 10s 自动触发一次虚拟撮合，享受当前连击加成",
+        costRP:3, purchased:false,
+        check:()=>st.perkAutoCombo||false,
+      },
+      {
+        id:"perk_offline_mult", name:"离线倍化", desc:"离线收益 ×1.5",
+        costRP:2, purchased:false,
+        check:()=>st.perkOfflineMult||false,
+      },
+      {
+        id:"perk_synergy_plus", name:"协同增强", desc:"产业链联动加成额外 +50%",
+        costRP:4, purchased:false,
+        check:()=>st.perkSynergyPlus||false,
+      },
+      {
+        id:"perk_crisp_immune", name:"危机免疫", desc:"危机事件持续时间减半",
+        costRP:2, purchased:false,
+        check:()=>st.perkCrispImmune||false,
+      },
+      {
+        id:"perk_rp_bonus", name:"股权溢价", desc:"每次 prestige 额外获得 +1 RP",
+        costRP:3, purchased:false,
+        check:()=>st.perkRpBonus||false,
+      },
+    ];
+
+    // ════════════════════════════════════════════════
     // ⑤ 成就
     // ════════════════════════════════════════════════
     const achievements = [
@@ -134,6 +167,18 @@
     ];
 
     // ════════════════════════════════════════════════
+    // ⑥-2 限时竞速里程碑（参考 BubbleByte Timed Milestones）
+    // 每局重置后从第一个开始计时；完成后永久解锁，触发时记录 bestTime
+    // st.speedRecords: { [questId]: bestTimeMs }
+    const speedQuests = [
+      { id:"sq1", title:"🏁 速通：10 秒内达到 ¥100",         timeLimit:10,  reward:{type:"rp",value:1}, },
+      { id:"sq2", title:"🏁 速通：60 秒内拥有 10 家工厂",     timeLimit:60,  reward:{type:"gear",value:5000}, },
+      { id:"sq3", title:"🏁 速通：180 秒内研发「量化 2.0」",  timeLimit:180, reward:{type:"rp",value:2}, },
+      { id:"sq4", title:"🏁 速通：300 秒内拥有 1 家中央银行", timeLimit:300, reward:{type:"rp",value:3}, },
+      { id:"sq5", title:"🏁 速通：600 秒内完成首次 prestige",  timeLimit:600, reward:{type:"rp",value:5}, },
+    ];
+
+    // ════════════════════════════════════════════════
     // ⑦ 游戏状态
     // ════════════════════════════════════════════════
     // st 原始对象（所有子系统的引用源）
@@ -151,6 +196,13 @@
       combo:0, lastClickTime:0, comboTimer:null, maxCombo:0,
       // 离线收益追踪
       maxOfflineGears:0,
+      // Prestige 天赋（永久有效，reset/prestige 不重置）
+      perkAutoCombo:false, perkOfflineMult:false, perkSynergyPlus:false,
+      perkCrispImmune:false, perkRpBonus:false,
+      // 速通计时
+      speedRecords:{},    // { [questId]: bestTimeMs } — 永久记录
+      gameStartTime:0,    // 每局开始时间戳（毫秒）
+      speedQuestIndex:0,  // 当前活跃速通任务索引
     };
 
     // ── st 写入追踪 Proxy：所有对 st.XX = YY 的写入自动记录 dirty 字段 ──

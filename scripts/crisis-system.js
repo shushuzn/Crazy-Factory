@@ -220,7 +220,8 @@ const createCrisisSystem = ({
     const crisis = {
       id: crisisId,
       startedAt: now,
-      endsAt: now + crisisConfig.duration * 1000,
+      // perk_crisp_immune: 危机持续时间减半
+      endsAt: now + (st.perkCrispImmune ? Math.floor(crisisConfig.duration * 500) : crisisConfig.duration * 1000),
       effects: { ...crisisConfig.effects },
       recovered: false,
     };

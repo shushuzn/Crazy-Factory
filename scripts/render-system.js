@@ -34,6 +34,8 @@ const createRenderSystem = ({
   statModeEl,
   statLifeEl,
   skillMasteryMetaEl,
+  perkViewMap,
+  speedQuestViewMap,
   goalTitleEl,
   goalFillEl,
   goalHintEl,
@@ -56,6 +58,8 @@ const createRenderSystem = ({
   SKILL_MASTERY_BONUS,
   SMOOTH_SPEED,
   RENDER_THROTTLE,
+  prestigePerks,
+  speedQuests,
 }) => {
   let lastRender = 0;
 
@@ -283,6 +287,37 @@ const createRenderSystem = ({
       statModeEl.textContent =`自动投资：${st.autoBuy?'开':'关'}`;
       statLifeEl.textContent =`历史资本：${fmt(st.lifetimeGears)}`;
       dirty.stats = false;
+    }
+
+    // ── 速通计时检查（每帧）──
+    // 依次检查当前活跃速通任务是否完成；完成后触发奖励并记录 bestTime
+    if (speedQuests && st.gameStartTime) {
+      const elapsedMs = Date.now() - st.gameStartTime;
+      const activeIdx = st.speedQuestIndex || 0;
+      if (activeIdx < speedQuests.length) {
+        const sq = speedQuests[activeIdx];
+        const sqCheckFns = {
+          sq1: () => st.lifetimeGears >= 100,
+          sq2: () => bld('factory').owned >= 10,
+          sq3: () => upgrades.find(u => u.id === 'quant2')?.purchased,
+          sq4: () => bld('central').owned >= 1,
+          sq5: () => st.researchPoints > 0 && st.lifetimeGears > 0 && (st.gears === 0 || true), // 首次 prestige：在有 researchPoints 时即算完成
+        };
+        const sqCheck = sqCheckFns[sq.id];
+        if (sqCheck && sqCheck()) {
+          const elapsedSec = elapsedMs / 1000;
+          const passed = elapsedSec <= sq.timeLimit;
+          // 记录 bestTime（永久）
+          if (!st.speedRecords[sq.id] || elapsedMs < st.speedRecords[sq.id]) {
+            st.speedRecords[sq.id] = elapsedMs;
+          }
+          // 触发奖励
+          grantReward(sq.reward, `🏁 速通「${sq.title}」${passed ? '通过！' : '完成！'} 用时 ${elapsedSec.toFixed(1)}s`);
+          st.speedQuestIndex = activeIdx + 1;
+          dirty.stats = dirty.gears = dirty.logs = true;
+          saveGame();
+        }
+      }
     }
 
     // 用缓存值避免每帧无谓 classList 操作（active 状态只在值变化时更新）

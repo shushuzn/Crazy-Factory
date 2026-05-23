@@ -43,6 +43,8 @@
       'rateOutlookDirection','rateOutlookBiasUp','rateOutlookConfidence','rateOutlookHits','rateOutlookMisses',
       'marketIsBull','soundEnabled','skillMasteryTier','pendingOfflineGears',
       'combo','maxCombo','maxOfflineGears',
+      'perkAutoCombo','perkOfflineMult','perkSynergyPlus','perkCrispImmune','perkRpBonus',
+      'speedRecords',
     ];
 
     // 两个值是否相等（用于 diff 比较）
@@ -62,6 +64,12 @@
       totalClicks:st.totalClicks, lifetimeGears:st.lifetimeGears, researchPoints:st.researchPoints,
       bullClicks:st.bullClicks, marketMomentum:st.marketMomentum, marketMomentumTimer:st.marketMomentumTimer, policyRate:st.policyRate, policyHedge:st.policyHedge, macroEventId:st.macroEventId, macroEventTimer:st.macroEventTimer, macroPreferredBuildingId:st.macroPreferredBuildingId, lastMacroEventId:st.lastMacroEventId, macroChainCount:st.macroChainCount, rateOutlookDirection:st.rateOutlookDirection, rateOutlookBiasUp:st.rateOutlookBiasUp, rateOutlookConfidence:st.rateOutlookConfidence, rateOutlookHits:st.rateOutlookHits, rateOutlookMisses:st.rateOutlookMisses, marketIsBull:st.marketIsBull, soundEnabled:st.soundEnabled,
       skillMasteryTier:st.skillMasteryTier,
+      perkAutoCombo:st.perkAutoCombo||false,
+      perkOfflineMult:st.perkOfflineMult||false,
+      perkSynergyPlus:st.perkSynergyPlus||false,
+      perkCrispImmune:st.perkCrispImmune||false,
+      perkRpBonus:st.perkRpBonus||false,
+      speedRecords:st.speedRecords||{},
       buildings: buildings.map(b=>({id:b.id,owned:b.owned})),
       upgrades:  upgrades.map(u=>({id:u.id,purchased:u.purchased})),
       skills:    skills.map(s=>({id:s.id,level:s.level})),
@@ -194,6 +202,14 @@
         st.combo = Math.max(0, Math.floor(Number(d.combo)||0));
         st.maxCombo = Math.max(0, Math.floor(Number(d.maxCombo)||0));
         st.maxOfflineGears = Math.max(0, Number(d.maxOfflineGears)||0);
+        // Prestige 天赋（永久）
+        st.perkAutoCombo   = Boolean(d.perkAutoCombo);
+        st.perkOfflineMult = Boolean(d.perkOfflineMult);
+        st.perkSynergyPlus = Boolean(d.perkSynergyPlus);
+        st.perkCrispImmune = Boolean(d.perkCrispImmune);
+        st.perkRpBonus     = Boolean(d.perkRpBonus);
+        // 速通记录（永久）
+        if(d.speedRecords&&typeof d.speedRecords==="object") st.speedRecords=d.speedRecords;
 
         (d.buildings||[]).forEach(s=>{const t=bld(s.id);if(t)t.owned=Math.max(0,Math.floor(Number(s.owned)||0));});
         (d.upgrades||[]).forEach(s=>{const t=upgrades.find(u=>u.id===s.id);if(t){t.purchased=Boolean(s.purchased);if(t.purchased)applyUpgradeEffect(t,true);}});
