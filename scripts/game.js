@@ -332,6 +332,7 @@
       rpDisplayEl,
       rpMetaEl,
       manualDesc,
+      comboEl:$("comboDisplay"),
       offlineEl,
       offlineTextEl,
       rewardFeedEl,
@@ -384,7 +385,22 @@
     const _listeners = [];
 
     const _onManualClick = (e) => {
-      const gain=getManualGain();
+      const now = Date.now();
+      const COMBO_WINDOW = 2000; // 2秒内连续撮合视为连击
+      const prevCombo = st.combo || 0;
+      // 连击：2秒内再次撮合
+      if (st.lastClickTime && (now - st.lastClickTime) < COMBO_WINDOW) {
+        st.combo = prevCombo + 1;
+      } else {
+        st.combo = 1;
+      }
+      st.lastClickTime = now;
+      // 记录最高连击
+      if (st.combo > (st.maxCombo || 0)) st.maxCombo = st.combo;
+      // 连击加成倍率
+      const comboMult = 1 + Math.min(st.combo - 1, 99) * 0.05; // 每级 +5%，上限 ×5
+      const baseGain = getManualGain();
+      const gain = Math.floor(baseGain * comboMult);
       st.gears+=gain; st.lifetimeGears+=gain; st.totalClicks++;
       if(st.marketIsBull) {
         st.bullClicks++;
@@ -392,6 +408,8 @@
         st.marketMomentumTimer = MARKET_MOMENTUM_DURATION;
       }
       if(st.totalClicks===1) pushLog("完成首次撮合");
+      // 连击提示
+      if (st.combo >= 3) pushLog(`🔥 连击 ×${st.combo}！撮合收益 ×${comboMult.toFixed(2)}`);
       eventBus.emit("manual:clicked", { x: e.clientX, y: e.clientY, gain });
       dirty.gears = dirty.stats = true;
       saveGame();
@@ -488,6 +506,7 @@
     // claimBtn（离线收益）在 #offlineNotice 内，不在 .controls，统一管理
     const _onClaim = () => {
       if(st.pendingOfflineGears<=0)return;
+      if(st.pendingOfflineGears > (st.maxOfflineGears||0)) st.maxOfflineGears = st.pendingOfflineGears;
       spawnFloat(window.innerWidth/2,window.innerHeight/2,`+${fmt(st.pendingOfflineGears)} 💤`,"#fbbf24");
       st.gears+=st.pendingOfflineGears; st.lifetimeGears+=st.pendingOfflineGears;
       st.pendingOfflineGears=0; dirty.gears = dirty.stats = true;
@@ -1167,12 +1186,30 @@
     // 监听危机事件
     eventBus.on('crisis:started', ({ crisis, config }) => {
       pushLog(`${config.icon} ${config.name.zh} 危机爆发！${config.description.zh}`);
+      spawnFloat(window.innerWidth/2, window.innerHeight/2, `${config.icon} ${config.name.zh}`, '#ef4444');
     });
 
     eventBus.on('crisis:ended', ({ crisisId, method }) => {
       const crisisName = { financial_crisis: '金融危机', pandemic: '全球疫情', cyber_attack: '网络攻击', trade_war: '贸易战', inflation_spike: '恶性通胀' }[crisisId];
       const methodText = method === 'bailout' ? '已通过救助结束' : '已自然结束';
       pushLog(`✅ ${crisisName} ${methodText}`);
+      spawnFloat(window.innerWidth/2, window.innerHeight/2, `✅ ${crisisName}结束`, '#22c55e');
+    });
+
+    // 监听奖励/危机随机事件
+    eventBus.on('event:bonus', ({ eventId }) => {
+      const bonusLabels = {
+        gear_100: '💰 +100', gear_500: '💰 +500', gear_1000: '💰 +1000',
+        manual_boost: '⚡ 手动+50%', policy_hedge: '🏦 利率对冲+10%',
+      };
+      if (bonusLabels[eventId]) spawnFloat(window.innerWidth/2, window.innerHeight/2, bonusLabels[eventId], '#fbbf24');
+    });
+
+    eventBus.on('event:crisis', ({ eventId }) => {
+      const crisisLabels = {
+        crisis_maintenance: '🔧 系统维护', crisis_theft: '⚠️ 安全漏洞',
+      };
+      if (crisisLabels[eventId]) spawnFloat(window.innerWidth/2, window.innerHeight/2, crisisLabels[eventId], '#ef4444');
     });
 
     // 调试命令：window.triggerCrisis(crisisId) 手动触发危机

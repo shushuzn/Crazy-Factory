@@ -26,14 +26,30 @@
     // ════════════════════════════════════════════════
     const buildings = [
       // id            name         basePrice   dps    owned  unlock(累计)  emoji
-      { id:"workshop",   name:"手工作坊",  basePrice:15,        dps:1,       owned:0, unlock:0,          emoji:"🔧" },
-      { id:"factory",    name:"轻工厂",    basePrice:110,       dps:8,       owned:0, unlock:250,        emoji:"🏭" },
-      { id:"logistics",  name:"物流公司",  basePrice:1200,      dps:47,      owned:0, unlock:2000,       emoji:"🚛" },
-      { id:"realestate", name:"房地产",    basePrice:13000,     dps:260,     owned:0, unlock:15000,      emoji:"🏢" },
-      { id:"bank",       name:"商业银行",  basePrice:140000,    dps:1400,    owned:0, unlock:100000,     emoji:"🏦" },
-      { id:"fund",       name:"量化基金",  basePrice:1500000,   dps:7800,    owned:0, unlock:800000,     emoji:"📊" },
-      { id:"central",    name:"中央银行",  basePrice:20000000,  dps:44000,   owned:0, unlock:12000000,   emoji:"🏛️" },  // M3 新增
-      { id:"conglom",    name:"金融集团",  basePrice:300000000, dps:260000,  owned:0, unlock:180000000,  emoji:"🌐" },  // M3 新增
+      { id:"workshop",   name:"手工作坊",  basePrice:15,        dps:1,       owned:0, unlock:0,          emoji:"🔧",
+        synergy:{upstream:[], downstream:["factory"], bonusPerUpstream:0, bonusPerDownstream:0.05,
+          desc:"为轻工厂提供原材料，手工作坊越多轻工厂产出越高"} },
+      { id:"factory",    name:"轻工厂",    basePrice:110,       dps:8,       owned:0, unlock:250,        emoji:"🏭",
+        synergy:{upstream:["workshop"], downstream:["logistics"], bonusPerUpstream:0.08, bonusPerDownstream:0.05,
+          desc:"消耗原材料产出制成品，享上游折扣，促下游需求"} },
+      { id:"logistics",  name:"物流公司",  basePrice:1200,      dps:47,      owned:0, unlock:2000,       emoji:"🚛",
+        synergy:{upstream:["factory"], downstream:["realestate"], bonusPerUpstream:0.10, bonusPerDownstream:0.06,
+          desc:"为房地产运输建材，物流越密地产营销越畅"} },
+      { id:"realestate", name:"房地产",    basePrice:13000,     dps:260,     owned:0, unlock:15000,      emoji:"🏢",
+        synergy:{upstream:["logistics"], downstream:["bank"], bonusPerUpstream:0.12, bonusPerDownstream:0.08,
+          desc:"需要物流运输建材，银行存款支撑地价"} },
+      { id:"bank",       name:"商业银行",  basePrice:140000,    dps:1400,    owned:0, unlock:100000,     emoji:"🏦",
+        synergy:{upstream:["realestate"], downstream:["fund"], bonusPerUpstream:0.15, bonusPerDownstream:0.10,
+          desc:"吸收房地产存款，为量化基金提供客户资金"} },
+      { id:"fund",       name:"量化基金",  basePrice:1500000,   dps:7800,    owned:0, unlock:800000,     emoji:"📊",
+        synergy:{upstream:["bank"], downstream:["central"], bonusPerUpstream:0.18, bonusPerDownstream:0.12,
+          desc:"管理银行资产，中央银行是其最后贷款人"} },
+      { id:"central",    name:"中央银行",  basePrice:20000000,  dps:44000,   owned:0, unlock:12000000,   emoji:"🏛️",
+        synergy:{upstream:["fund"], downstream:["conglom"], bonusPerUpstream:0.20, bonusPerDownstream:0.15,
+          desc:"监管量化基金，为金融集团提供流动性支持"} },
+      { id:"conglom",    name:"金融集团",  basePrice:300000000, dps:260000,  owned:0, unlock:180000000,  emoji:"🌐",
+        synergy:{upstream:["central"], downstream:[], bonusPerUpstream:0.25, bonusPerDownstream:0,
+          desc:"产业链顶端，享受全链路最高加成"} },
     ];
 
     // ════════════════════════════════════════════════
@@ -81,6 +97,27 @@
       { id:"bull_market",  name:"牛市猎手",  desc:"多头市场中完成 50 次撮合",         reward:{type:"gear",value:2000},  check:()=>st.bullClicks>=50,                                                     done:false, claimed:false },
       { id:"central_bank", name:"央行行长",  desc:"拥有 1 家中央银行",               reward:{type:"rp",value:3},       check:()=>bld("central").owned>=1,                                               done:false, claimed:false },
       { id:"conglom_owner",name:"金融帝国",  desc:"拥有 1 个金融集团",               reward:{type:"rp",value:5},       check:()=>bld("conglom").owned>=1,                                               done:false, claimed:false },
+      // ── 新成就：产业链 ──
+      { id:"synergy_1",   name:"产业链初成",desc:"激活首个产业链加成",               reward:{type:"gear",value:500},    check:()=>synergySystem&&synergySystem.calculateGlobalSynergy().globalMultiplier>1.01, done:false, claimed:false },
+      { id:"synergy_chain",name:"全链贯通",desc:"产业链全线激活（每层都有建筑）",    reward:{type:"rp",value:3},        check:()=>{ const gs=synergySystem.calculateGlobalSynergy(); return gs.globalMultiplier>=1.5; }, done:false, claimed:false },
+      // ── 新成就：撮合连击 ──
+      { id:"combo_5",     name:"五连击",   desc:"连续撮合 5 次（间隔 < 2s）",       reward:{type:"gear",value:100},    check:()=>st.maxCombo>=5,                                                       done:false, claimed:false },
+      { id:"combo_20",   name:"二十连击",  desc:"连续撮合 20 次（间隔 < 2s）",      reward:{type:"gear",value:2000},   check:()=>st.maxCombo>=20,                                                      done:false, claimed:false },
+      { id:"combo_50",   name:"五十连击",  desc:"连续撮合 50 次（间隔 < 2s）",      reward:{type:"rp",value:2},        check:()=>st.maxCombo>=50,                                                      done:false, claimed:false },
+      // ── 新成就：里程碑积累 ──
+      { id:"gear_1m",     name:"百万富翁",  desc:"历史资本达到 ¥1,000,000",          reward:{type:"rp",value:3},        check:()=>st.lifetimeGears>=1e6,                                               done:false, claimed:false },
+      { id:"gear_1b",     name:"十亿巨头",  desc:"历史资本达到 ¥1,000,000,000",      reward:{type:"rp",value:5},        check:()=>st.lifetimeGears>=1e9,                                               done:false, claimed:false },
+      { id:"gps_10k",    name:"日产十万",  desc:"总产出 ≥ ¥10,000/s",               reward:{type:"gear",value:50000},  check:()=>getTotalGPS()>=10000,                                                done:false, claimed:false },
+      { id:"gps_1m",     name:"日产百万",  desc:"总产出 ≥ ¥1,000,000/s",            reward:{type:"rp",value:4},        check:()=>getTotalGPS()>=1e6,                                                   done:false, claimed:false },
+      // ── 新成就：离线收益 ──
+      { id:"offline_1h",  name:"离线玩家",  desc:"离线期间收益超 ¥10,000",          reward:{type:"gear",value:10000},  check:()=>st.maxOfflineGears>=10000,                                            done:false, claimed:false },
+      { id:"offline_1m",  name:"睡后收入",  desc:"单次离线收益超 ¥1,000,000",       reward:{type:"rp",value:5},        check:()=>st.maxOfflineGears>=1e6,                                              done:false, claimed:false },
+      // ── 新成就：市场预测 ──
+      { id:"rate_predict",name:"利率先锋",  desc:"利率预测命中 5 次",               reward:{type:"gear",value:5000},   check:()=>st.rateOutlookHits>=5,                                               done:false, claimed:false },
+      { id:"rate_master", name:"央行观察员",desc:"利率预测命中 20 次",               reward:{type:"rp",value:4},        check:()=>st.rateOutlookHits>=20,                                              done:false, claimed:false },
+      // ── 新成就：技能树 ──
+      { id:"skill_10",   name:"专精学徒",  desc:"累计激活 10 级技能",              reward:{type:"gear",value:2000},   check:()=>skills.reduce((s,v)=>s+v.level,0)>=10,                             done:false, claimed:false },
+      { id:"skill_25",   name:"专精大师",  desc:"累计激活 25 级技能",              reward:{type:"rp",value:3},        check:()=>skills.reduce((s,v)=>s+v.level,0)>=25,                             done:false, claimed:false },
     ];
 
     // ════════════════════════════════════════════════
@@ -110,6 +147,10 @@
       marketIsBull:true, marketTimer:35, marketCycleDuration:35,
       soundEnabled:true,
       skillMasteryTier:0,
+      // 连击系统
+      combo:0, lastClickTime:0, comboTimer:null, maxCombo:0,
+      // 离线收益追踪
+      maxOfflineGears:0,
     };
 
     // ── st 写入追踪 Proxy：所有对 st.XX = YY 的写入自动记录 dirty 字段 ──

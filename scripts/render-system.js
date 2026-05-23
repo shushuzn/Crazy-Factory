@@ -22,6 +22,7 @@ const createRenderSystem = ({
   rpDisplayEl,
   rpMetaEl,
   manualDesc,
+  comboEl,
   offlineEl,
   offlineTextEl,
   rewardFeedEl,
@@ -133,6 +134,17 @@ const createRenderSystem = ({
       ? `每次撮合 +${fmt(getManualGain())}（多头连击 ${momentumStacks} 层，手动+${momentumPct}%｜${rateHint}）`
       : `每次撮合 +${fmt(getManualGain())}（${rateHint}）`;
     if(_changed('manual', manualTxt)) manualDesc.textContent = manualTxt;
+    // 连击显示
+    const combo = st.combo || 0;
+    const comboMult = combo >= 2 ? (1 + Math.min(combo - 1, 99) * 0.05).toFixed(2) : null;
+    if (comboEl) {
+      if (combo >= 2) {
+        comboEl.style.display = '';
+        comboEl.textContent = `🔥 连击 ×${combo}${comboMult ? `（收益 ×${comboMult}）` : ''}`;
+      } else {
+        comboEl.style.display = 'none';
+      }
+    }
     if(dirty.market) renderMarket();
 
     if(dirty.buildings){

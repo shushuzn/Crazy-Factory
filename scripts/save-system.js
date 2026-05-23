@@ -42,6 +42,7 @@
       'macroEventId','macroEventTimer','macroPreferredBuildingId','lastMacroEventId','macroChainCount',
       'rateOutlookDirection','rateOutlookBiasUp','rateOutlookConfidence','rateOutlookHits','rateOutlookMisses',
       'marketIsBull','soundEnabled','skillMasteryTier','pendingOfflineGears',
+      'combo','maxCombo','maxOfflineGears',
     ];
 
     // 两个值是否相等（用于 diff 比较）
@@ -189,6 +190,10 @@
         st.lastAutoPlanTarget = typeof d.lastAutoPlanTarget === "string" ? d.lastAutoPlanTarget : "";
         st.questIndex = Math.max(0,Math.min(Number(d.questIndex)||0,questChain.length));
         if(Array.isArray(d.logs)) st.logs=d.logs.slice(0,LOG_CAP);
+        // 连击 + 离线追踪
+        st.combo = Math.max(0, Math.floor(Number(d.combo)||0));
+        st.maxCombo = Math.max(0, Math.floor(Number(d.maxCombo)||0));
+        st.maxOfflineGears = Math.max(0, Number(d.maxOfflineGears)||0);
 
         (d.buildings||[]).forEach(s=>{const t=bld(s.id);if(t)t.owned=Math.max(0,Math.floor(Number(s.owned)||0));});
         (d.upgrades||[]).forEach(s=>{const t=upgrades.find(u=>u.id===s.id);if(t){t.purchased=Boolean(s.purchased);if(t.purchased)applyUpgradeEffect(t,true);}});
