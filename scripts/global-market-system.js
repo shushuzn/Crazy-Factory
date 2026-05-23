@@ -120,19 +120,8 @@ const createGlobalMarketSystem = ({
       { id: 'currency_crisis', name: { zh: '货币危机', en: 'Currency Crisis' }, probability: 0.05, duration: 180, effect: { productionBonus: 0.7, volatility: 2.0 } },
       { id: 'trade_agreement', name: { zh: '贸易协定', en: 'Trade Agreement' }, probability: 0.08, duration: 600, effect: { investmentBonus: 1.2, volatility: 1.1 } },
     ],
-    europe: {
-  "id": "ecb_policy",
-  "name": {
-    "zh": "欧央行政策",
-    "en": "ECB Policy"
-  },
-  "probability": 0.12,
-  "duration": 400,
-  "effect": {
-    "investmentBonus": 1.15,
-    "volatility": 0.9
-  }
-};
+    europe: [
+      { id: 'ecb_policy', name: { zh: '欧央行政策', en: 'ECB Policy' }, probability: 0.12, duration: 400, effect: { investmentBonus: 1.15, volatility: 0.9 } },
       { id: 'brexit_aftermath', name: { zh: '脱欧影响', en: 'Brexit Aftermath' }, probability: 0.04, duration: 240, effect: { productionBonus: 0.85, volatility: 1.4 } },
       { id: 'green_deal', name: { zh: '绿色协议', en: 'Green Deal' }, probability: 0.06, duration: 500, effect: { productionBonus: 1.1, investmentBonus: 1.1, volatility: 1.0 } },
     ],
