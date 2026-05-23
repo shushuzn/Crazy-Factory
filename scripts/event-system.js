@@ -35,7 +35,7 @@ const createEventSystem = ({
       id: 'quest_upgrade_10',
       name: '升级大师',
       description: '拥有10个升级',
-      condition: () => (st.upgrades || []).filter(u => u.purchased).length >= 10,
+      condition: () => { if (_questCountsDirty) _refreshQuestCounts(); return _purchasedUpgradesCount >= 10; },
       reward: () => { st.gears += 500; st.lifetimeGears += 500; },
       rewardText: '+500 gears',
       completed: false
@@ -44,7 +44,7 @@ const createEventSystem = ({
       id: 'quest_building_100',
       name: '产业巨头',
       description: '累计购买100个建筑',
-      condition: () => (st.buildings || []).reduce((sum, b) => sum + (b.owned || 0), 0) >= 100,
+      condition: () => { if (_questCountsDirty) _refreshQuestCounts(); return _ownedBuildingsCount >= 100; },
       reward: () => { st.gears += 1000; st.lifetimeGears += 1000; },
       rewardText: '+1000 gears',
       completed: false
@@ -137,6 +137,18 @@ const createEventSystem = ({
   const _BONUS_WEIGHT_TOTAL = BONUS_EVENTS.reduce((s, e) => s + e.weight, 0);
   const _CRISIS_WEIGHT_TOTAL = CRISIS_EVENTS.reduce((s, e) => s + e.weight, 0);
 
+  // 缓存 quest 条件所需的状态值（避免每次 condition() 调用 filter/reduce）
+  let _purchasedUpgradesCount = null;
+  let _ownedBuildingsCount = null;
+  let _questCountsDirty = true;
+  const _refreshQuestCounts = () => {
+    _purchasedUpgradesCount = (st.upgrades || []).filter(u => u.purchased).length;
+    _ownedBuildingsCount = (st.buildings || []).reduce((s, b) => s + (b.owned || 0), 0);
+    _questCountsDirty = false;
+  };
+  // 外部调用：建筑/升级购买后通知失效
+  const invalidateQuestCounts = () => { _questCountsDirty = true; };
+
   // Initialize event state
   const initEventState = () => {
     if (!st.activeEvents) st.activeEvents = [];
@@ -144,10 +156,14 @@ const createEventSystem = ({
     if (!st.eventBonusMult) st.eventBonusMult = 1.0;
     if (!st.eventDiscountMult) st.eventDiscountMult = 1.0;
     if (!st.questCheckTimer) st.questCheckTimer = 0;
+    // 通过 eventBus 监听购买事件，失效 quest 计数缓存（避免每次 checkQuests 重复计算）
+    eventBus.on('building:purchased', invalidateQuestCounts);
+    eventBus.on('upgrade:purchased', invalidateQuestCounts);
   };
 
   // Check and complete quests
   const checkQuests = () => {
+    if (_questCountsDirty) _refreshQuestCounts(); // 每秒刷新一次，而非每个 condition 重复计算
     let newCompleted = false;
     QUESTS.forEach(quest => {
       if (!quest.completed && quest.condition()) {

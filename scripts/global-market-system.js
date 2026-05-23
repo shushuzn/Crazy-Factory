@@ -278,11 +278,10 @@ const createGlobalMarketSystem = ({
     const opportunities = [];
     const regions = st.globalMarket.regions;
 
-    const regionIds = Object.keys(regions);
-    for (let i = 0; i < regionIds.length; i++) {
-      for (let j = i + 1; j < regionIds.length; j++) {
-        const r1 = regionIds[i];
-        const r2 = regionIds[j];
+    for (let i = 0; i < _regionIds.length; i++) {
+      for (let j = i + 1; j < _regionIds.length; j++) {
+        const r1 = _regionIds[i];
+        const r2 = _regionIds[j];
         const price1 = regions[r1].price;
         const price2 = regions[r2].price;
 
