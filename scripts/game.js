@@ -70,7 +70,7 @@
 
     // 反馈系统初始化（为什么：反馈层高频迭代，独立工厂减少对主循环的干扰）
     const feedback = createFeedbackSystem({ st, JUICE, fmt, manualBtn, manualZone, marketFlashEl, gameShellEl });
-    const { eventBus, sfxBuy, sfxUpgrade, sfxMarket, spawnFloat } = feedback;
+    const { eventBus, sfxBuy, sfxUpgrade, sfxMarket, spawnFloat, tickCanvas } = feedback;
 
     // ════════════════════════════════════════════════
     // ⑭ DOM 构建（只调用一次）
@@ -482,7 +482,7 @@
       tryAutoBuy,
       saveGame,
       render,
-      onAfterFrame: debugSystem.update,
+      onAfterFrame: (now) => { debugSystem.update(now); tickCanvas(now); },
     });
 
     loopSystem.startLoop();

@@ -5,9 +5,96 @@ const createFeedbackSystem = ({ st, JUICE, fmt, manualBtn, manualZone, marketFla
   const listeners = new Map();
   const _emptyArr = []; // 消除每帧 emit() 调用时的数组分配
 
-  // 粒子对象池：限制同时在屏幕上的粒子数量，防止 DOM 泄漏
+  // ── Canvas 渲染层：粒子和漂浮文字从 DOM 迁移到 Canvas，节省 DOM 操作和 GC ──
+  const _canvas = document.createElement('canvas');
+  const _ctx = _canvas.getContext('2d');
+  _canvas.style.cssText = `
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 9998; overflow: hidden;
+  `;
+  _canvas.width = window.innerWidth;
+  _canvas.height = window.innerHeight;
+  document.body.appendChild(_canvas);
+
+  window.addEventListener('resize', () => {
+    _canvas.width = window.innerWidth;
+    _canvas.height = window.innerHeight;
+  });
+
+  // 粒子对象池
   const MAX_PARTICLES = 60;
-  const _activeParticles = [];
+  const _pools = {
+    particles: [],   // { x, y, vx, vy, color, radius, life, maxLife, active }
+    floats:      [], // { x, y, text, color, vy, life, maxLife, active }
+  };
+
+  // 粒子池获取/归还
+  const _acquireParticle = (x, y, count, color) => {
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count;
+      const velocity = 50 + Math.random() * 50;
+      const vx = Math.cos(angle) * velocity;
+      const vy = Math.sin(angle) * velocity;
+      const maxLife = 600 + Math.random() * 200;
+      const p = _pools.particles.find(p => !p.active) || { active: false };
+      if (!p.active) {
+        p.x = x; p.y = y; p.vx = vx; p.vy = vy;
+        p.color = color; p.radius = 3;
+        p.life = maxLife; p.maxLife = maxLife; p.active = true;
+        if (!_pools.particles.includes(p)) _pools.particles.push(p);
+      }
+    }
+  };
+
+  const _acquireFloat = (x, y, text, color) => {
+    const maxLife = 1000;
+    const p = _pools.floats.find(p => !p.active) || { active: false };
+    if (!p.active) {
+      p.x = x; p.y = y; p.text = text; p.color = color;
+      p.vy = -60; p.life = maxLife; p.maxLife = maxLife; p.active = true;
+      if (!_pools.floats.includes(p)) _pools.floats.push(p);
+    }
+  };
+
+  // RAF 驱动的 Canvas tick（由 game.js 的 loop-system onAfterFrame 调用）
+  let _lastT = 0;
+  const tickCanvas = (now) => {
+    const dt = _lastT ? Math.min(now - _lastT, 50) : 16;
+    _lastT = now;
+    _ctx.clearRect(0, 0, _canvas.width, _canvas.height);
+
+    // 粒子
+    for (const p of _pools.particles) {
+      if (!p.active) continue;
+      p.x += p.vx * (dt / 1000);
+      p.y += p.vy * (dt / 1000);
+      p.vy += 120 * (dt / 1000); // gravity
+      p.life -= dt;
+      if (p.life <= 0) { p.active = false; continue; }
+      const alpha = Math.max(0, p.life / p.maxLife);
+      _ctx.globalAlpha = alpha;
+      _ctx.fillStyle = p.color;
+      _ctx.beginPath();
+      _ctx.arc(p.x, p.y, p.radius * alpha, 0, Math.PI * 2);
+      _ctx.fill();
+    }
+
+    // 漂浮文字
+    _ctx.font = 'bold 16px system-ui, sans-serif';
+    for (const f of _pools.floats) {
+      if (!f.active) continue;
+      f.y += f.vy * (dt / 1000);
+      f.life -= dt;
+      if (f.life <= 0) { f.active = false; continue; }
+      const alpha = Math.max(0, f.life / f.maxLife);
+      _ctx.globalAlpha = alpha;
+      _ctx.fillStyle = f.color;
+      _ctx.textAlign = 'center';
+      _ctx.fillText(f.text, f.x, f.y);
+    }
+
+    _ctx.globalAlpha = 1;
+  };
 
   const eventBus = {
     on(event, handler) {
@@ -80,15 +167,10 @@ const createFeedbackSystem = ({ st, JUICE, fmt, manualBtn, manualZone, marketFla
     setTimeout(() => playTone(523, 'sine', 0.4, 0.12), 450); // C5
   };
 
+  // DOM 版已迁移到 Canvas（见上 _acquireFloat / _acquireParticle）
+  // 此处保留 API 兼容，内部走 Canvas 池
   const spawnFloat = (x, y, text, color = '#fbbf24') => {
-    const el = document.createElement('div');
-    el.className = 'float-num';
-    el.textContent = text;
-    el.style.left = `${x}px`;
-    el.style.top = `${y}px`;
-    el.style.color = color;
-    document.body.appendChild(el);
-    el.addEventListener('animationend', () => el.remove());
+    _acquireFloat(x, y, text, color);
   };
 
   // 事件驱动反馈注册：业务层只 emit，不关心如何表现。
@@ -123,48 +205,9 @@ const createFeedbackSystem = ({ st, JUICE, fmt, manualBtn, manualZone, marketFla
     setTimeout(() => gameShellEl.classList.remove('screen-shake'), JUICE.marketShakeMs);
   });
 
-  // P4-T2: 新增视觉反馈效果
+  // P4-T2: 新增视觉反馈效果（Canvas 版本：粒子由 RAF 驱动，零 DOM 操作）
   const spawnParticles = (x, y, count = 8, color = '#fbbf24') => {
-    // 对象池：超出上限时移除最早的粒子，避免 DOM 泄漏
-    while (_activeParticles.length >= MAX_PARTICLES) {
-      const oldest = _activeParticles.shift();
-      if (oldest.parentNode) oldest.remove();
-    }
-
-    for (let i = 0; i < count; i++) {
-      const p = document.createElement('div');
-      p.className = 'particle';
-      p.style.cssText = `
-        position: fixed;
-        left: ${x}px;
-        top: ${y}px;
-        width: 6px;
-        height: 6px;
-        background: ${color};
-        border-radius: 50%;
-        pointer-events: none;
-        z-index: 9999;
-      `;
-      document.body.appendChild(p);
-      _activeParticles.push(p);
-
-      const angle = (Math.PI * 2 * i) / count;
-      const velocity = 50 + Math.random() * 50;
-      const tx = Math.cos(angle) * velocity;
-      const ty = Math.sin(angle) * velocity;
-
-      p.animate([
-        { transform: 'translate(0,0) scale(1)', opacity: 1 },
-        { transform: `translate(${tx}px, ${ty}px) scale(0)`, opacity: 0 }
-      ], {
-        duration: 600 + Math.random() * 200,
-        easing: 'cubic-bezier(0,.9,.57,1)',
-      }).onfinish = () => {
-        p.remove();
-        const idx = _activeParticles.indexOf(p);
-        if (idx !== -1) _activeParticles.splice(idx, 1);
-      };
-    }
+    _acquireParticle(x, y, count, color);
   };
 
   const showToast = (message, type = 'info') => {
@@ -251,5 +294,6 @@ const createFeedbackSystem = ({ st, JUICE, fmt, manualBtn, manualZone, marketFla
     spawnFloat,
     spawnParticles,
     showToast,
+    tickCanvas,
   };
 };
