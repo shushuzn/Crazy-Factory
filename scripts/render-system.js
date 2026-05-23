@@ -58,6 +58,14 @@ const createRenderSystem = ({
 }) => {
   let lastRender = 0;
 
+  // 值变化缓存：避免值未变时重复写入 DOM
+  const _prevVals = new Map(); // `${buildingId}:${field}` -> previous string value
+
+  const _changed = (key, next) => {
+    if (_prevVals.get(key) !== next) { _prevVals.set(key, next); return true; }
+    return false;
+  };
+
   const renderQuest = () => {
     if(st.questIndex>=questChain.length){
       goalTitleEl.textContent='产业目标：全部完成！'; goalFillEl.style.width='100%';
@@ -111,11 +119,14 @@ const createRenderSystem = ({
         const pc =st.purchaseMode==='max'?cnt:Math.min(cnt,Number(st.purchaseMode)||1);
         const spc=Math.max(1,pc||0);
         const unlocked=isBldUnlocked(b);
-        v.ownedEl.textContent=b.owned;
-        v.buyBtn.textContent=`购买 ×${spc}（${fmt(purchaseCost(b,spc))}）`;
+        if(_changed(b.id+'|owned', b.owned)) v.ownedEl.textContent=b.owned;
+        const buyLabel=`购买 ×${spc}（${fmt(purchaseCost(b,spc))}）`;
+        if(_changed(b.id+'|buy', buyLabel)) v.buyBtn.textContent=buyLabel;
         v.buyBtn.disabled=!(cnt>0&&unlocked);
-        v.lockEl.textContent=!unlocked?`解锁条件：历史资本 ${fmt(b.unlock)}`:'';
-        v.hintEl.textContent=(unlocked&&cnt<=0)?`还差 ${fmt(price(b)-st.gears)}`:'';
+        const lockTxt=!unlocked?`解锁条件：历史资本 ${fmt(b.unlock)}`:'';
+        if(_changed(b.id+'|lock', lockTxt)) v.lockEl.textContent=lockTxt;
+        const hintTxt=(unlocked&&cnt<=0)?`还差 ${fmt(price(b)-st.gears)}`:'';
+        if(_changed(b.id+'|hint', hintTxt)) v.hintEl.textContent=hintTxt;
       }
       dirty.buildings = false;
     }

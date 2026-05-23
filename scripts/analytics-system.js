@@ -22,20 +22,33 @@ const createAnalyticsSystem = ({
   const ANALYTICS_KEY = 'gameAnalytics';
   const SESSION_KEY = 'currentSession';
 
-  // 获取或初始化分析数据
+  // 内存缓存：只读写 localStorage 一次，track() 操作只打脏标记
+  let _cache = null;
+  let _dirty = false;
+  let _rafId = null;
+
+  const _schedulePersist = () => {
+    if (_rafId !== null) return;
+    _rafId = requestAnimationFrame(() => {
+      _rafId = null;
+      if (!_dirty || !_cache) return;
+      _dirty = false;
+      localStorage.setItem(ANALYTICS_KEY, JSON.stringify(_cache));
+    });
+  };
+
+  // 获取或初始化分析数据（内存优先）
   const getAnalyticsData = () => {
+    if (_cache) return _cache;
     const saved = localStorage.getItem(ANALYTICS_KEY);
     if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {}
+      try { _cache = JSON.parse(saved); return _cache; } catch {}
     }
-
-    return {
+    _cache = {
       version: 1,
       firstVisit: Date.now(),
       totalSessions: 0,
-      totalPlayTime: 0, // seconds
+      totalPlayTime: 0,
       events: {
         manualClicks: 0,
         buildingsPurchased: 0,
@@ -52,17 +65,16 @@ const createAnalyticsSystem = ({
         first1M: null,
         first1B: null,
       },
-      dailyStats: {}, // date -> { sessions, playTime, events }
-      retention: {
-        day1: null,
-        day7: null,
-      },
+      dailyStats: {},
+      retention: { day1: null, day7: null },
     };
+    return _cache;
   };
 
-  // 保存分析数据
-  const saveAnalyticsData = (data) => {
-    localStorage.setItem(ANALYTICS_KEY, JSON.stringify(data));
+  // 标记脏，延迟写入（不再每事件一次 localStorage）
+  const _markDirty = () => {
+    _dirty = true;
+    _schedulePersist();
   };
 
   // 获取当前会话数据
@@ -89,14 +101,10 @@ const createAnalyticsSystem = ({
     };
     localStorage.setItem(SESSION_KEY, JSON.stringify(session));
 
-    // 更新总会话数
     const data = getAnalyticsData();
     data.totalSessions++;
-
-    // 检查留存
     checkRetention(data);
-
-    saveAnalyticsData(data);
+    _markDirty();
 
     return session;
   };
@@ -112,19 +120,15 @@ const createAnalyticsSystem = ({
     const data = getAnalyticsData();
     data.totalPlayTime += duration;
 
-    // 记录每日统计
     const date = new Date().toISOString().split('T')[0];
     if (!data.dailyStats[date]) {
-      data.dailyStats[date] = {
-        sessions: 0,
-        playTime: 0,
-        events: {},
-      };
+      data.dailyStats[date] = { sessions: 0, playTime: 0, events: {} };
     }
     data.dailyStats[date].sessions++;
     data.dailyStats[date].playTime += duration;
 
-    saveAnalyticsData(data);
+    if (_rafId !== null) { cancelAnimationFrame(_rafId); _rafId = null; }
+    if (_dirty && _cache) localStorage.setItem(ANALYTICS_KEY, JSON.stringify(_cache));
     localStorage.removeItem(SESSION_KEY);
   };
 
@@ -149,29 +153,22 @@ const createAnalyticsSystem = ({
   const track = (eventName, value = 1) => {
     const data = getAnalyticsData();
 
-    // 更新总事件统计
     if (data.events[eventName] !== undefined) {
       data.events[eventName] += value;
     }
 
-    // 更新今日统计
     const date = new Date().toISOString().split('T')[0];
     if (!data.dailyStats[date]) {
-      data.dailyStats[date] = {
-        sessions: 0,
-        playTime: 0,
-        events: {},
-      };
+      data.dailyStats[date] = { sessions: 0, playTime: 0, events: {} };
     }
     if (!data.dailyStats[date].events[eventName]) {
       data.dailyStats[date].events[eventName] = 0;
     }
     data.dailyStats[date].events[eventName] += value;
 
-    // 检查里程碑
     checkMilestones(data);
 
-    saveAnalyticsData(data);
+    _markDirty();
   };
 
   // 检查里程碑
@@ -252,6 +249,7 @@ const createAnalyticsSystem = ({
   const clearData = () => {
     localStorage.removeItem(ANALYTICS_KEY);
     localStorage.removeItem(SESSION_KEY);
+    _cache = null;
   };
 
   // 初始化

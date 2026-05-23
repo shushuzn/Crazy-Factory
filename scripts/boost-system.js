@@ -23,6 +23,22 @@ const createBoostSystem = ({
   // 数据存储
   // ═══════════════════════════════════════════════════════════════════════════
 
+  // 预计算分类配置（静态数据，只在 init 时计算一次）
+  const CATEGORIES = {
+    time_warp:  { name: { zh: '时间跃迁', en: 'Time Warp' },     icon: '⏰' },
+    multiplier: { name: { zh: '收益加成', en: 'Multipliers' },   icon: '⚡' },
+    auto_buyer: { name: { zh: '智能购买', en: 'Auto Buyer' },    icon: '🤖' },
+    research:   { name: { zh: '研究加速', en: 'Research' },       icon: '🔬' },
+    bundle:     { name: { zh: '组合包',   en: 'Bundles' },        icon: '🎁' },
+  };
+
+  // 预计算 category → items 映射（init 时一次性构建）
+  const _catItems = {};
+  Object.keys(CATEGORIES).forEach(cat => { _catItems[cat] = []; });
+  Object.values(BOOST_ITEMS).forEach(item => {
+    if (_catItems[item.category]) _catItems[item.category].push(item);
+  });
+
   const initBoostData = () => {
     if (!st.boost) {
       st.boost = {
@@ -538,12 +554,10 @@ const createBoostSystem = ({
   }));
 
   const getItemsByCategory = (category) => {
-    return Object.values(BOOST_ITEMS)
-      .filter(item => item.category === category)
-      .map(item => ({
-        ...item,
-        owned: st.boost.inventory[item.id] || 0,
-      }));
+    return (_catItems[category] || []).map(item => ({
+      ...item,
+      owned: st.boost.inventory[item.id] || 0,
+    }));
   };
 
   const getStats = () => st.boost.stats;
@@ -554,18 +568,10 @@ const createBoostSystem = ({
 
   const renderShopPanel = () => {
     const lang = getLang();
-    const categories = {
-      time_warp: { name: { zh: '时间跃迁', en: 'Time Warp' }, icon: '⏰' },
-      multiplier: { name: { zh: '收益加成', en: 'Multipliers' }, icon: '⚡' },
-      auto_buyer: { name: { zh: '智能购买', en: 'Auto Buyer' }, icon: '🤖' },
-      research: { name: { zh: '研究加速', en: 'Research' }, icon: '🔬' },
-      bundle: { name: { zh: '组合包', en: 'Bundles' }, icon: '🎁' },
-    };
-
     let html = `<div class="boost-shop-panel">`;
     html += `<h3>${lang === 'en' ? '💎 Boost Shop' : '💎 道具商店'}</h3>`;
 
-    Object.entries(categories).forEach(([catId, catInfo]) => {
+    Object.entries(CATEGORIES).forEach(([catId, catInfo]) => {
       const items = getItemsByCategory(catId);
       if (items.length === 0) return;
 
