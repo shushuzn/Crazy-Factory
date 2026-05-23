@@ -44,6 +44,8 @@ const createEconomySystem = ({
   let _gpsMultCache = null;
   let _gpsMultDirty = true;
   const _invalidateGPSMult = () => { _gpsMultDirty = true; };
+  let _synergyMultFn = null; // () => number，由 synergy-system 注入
+  const setSynergyMultiplier = (fn) => { _synergyMultFn = fn; _invalidateGPSMult(); };
 
   // baseGPS 缓存：buildings.reduce() 在主循环每帧调用，改为 dirty 时才重算
   let _baseGPSCache = null;
@@ -58,7 +60,7 @@ const createEconomySystem = ({
 
   const _getGPSMult = () => {
     if (!_gpsMultDirty) return _gpsMultCache;
-    _gpsMultCache = st.gpsMultiplier * resMult() * skillGPS() * mktMult() * skillMasteryMult();
+    _gpsMultCache = st.gpsMultiplier * resMult() * skillGPS() * mktMult() * skillMasteryMult() * ((_synergyMultFn && _synergyMultFn()) || 1);
     _gpsMultDirty = false;
     return _gpsMultCache;
   };
@@ -237,5 +239,6 @@ const createEconomySystem = ({
     buyBuilding,
     buyUpgrade,
     tryAutoBuy,
+    setSynergyMultiplier,
   };
 };
