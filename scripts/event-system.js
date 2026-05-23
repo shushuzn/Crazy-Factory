@@ -185,29 +185,31 @@ const createEventSystem = ({
     }
   };
 
-  // Milestone events (one-time achievements)
-  const checkMilestones = () => {
-    const milestones = [
-      { id: 'm_1k', condition: () => st.lifetimeGears >= 1000, msg: '🏆 累计获得 1k gears!' },
-      { id: 'm_10k', condition: () => st.lifetimeGears >= 10000, msg: '🏆 累计获得 10k gears!' },
-      { id: 'm_100k', condition: () => st.lifetimeGears >= 100000, msg: '🏆 累计获得 100k gears!' },
-      { id: 'm_1m', condition: () => st.lifetimeGears >= 1000000, msg: '🏆 累计获得 1M gears!' },
-    ];
+  // Milestone events — 预计算静态列表（避免每帧重新分配数组）
+  const _MILESTONES = [
+    { id: 'm_1k', threshold: 1000,      msg: '🏆 累计获得 1k gears!' },
+    { id: 'm_10k', threshold: 10000,    msg: '🏆 累计获得 10k gears!' },
+    { id: 'm_100k', threshold: 100000,   msg: '🏆 累计获得 100k gears!' },
+    { id: 'm_1m', threshold: 1000000,   msg: '🏆 累计获得 1M gears!' },
+  ];
 
-    milestones.forEach(m => {
-      if (!st.completedMilestones) st.completedMilestones = [];
-      if (!st.completedMilestones.includes(m.id) && m.condition()) {
-        st.completedMilestones.push(m.id);
+  // Check milestones every frame — 仅做数值比对，无数组分配
+  const checkMilestones = () => {
+    if (!st.completedMilestones) st.completedMilestones = [];
+    const done = st.completedMilestones;
+    const gears = st.lifetimeGears;
+    for (let i = 0; i < _MILESTONES.length; i++) {
+      const m = _MILESTONES[i];
+      if (!done.includes(m.id) && gears >= m.threshold) {
+        done.push(m.id);
         pushLog(m.msg);
         sfxSuccess();
       }
-    });
+    }
   };
 
   // Main tick function
   const tick = (dt) => {
-    initEventState();
-
     // Check quests every second
     st.questCheckTimer += dt;
     if (st.questCheckTimer >= 1) {

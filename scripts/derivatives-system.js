@@ -410,13 +410,12 @@ const createDerivativesSystem = ({
     return { success: true, contract, pnl };
   };
 
-  // 检查期权到期
-  const checkOptionsExpiry = () => {
+  // 检查期权到期（currentPrice 由 update() 缓存后传入，避免重复查询）
+  const checkOptionsExpiry = (currentPrice) => {
     const now = Date.now();
     st.derivatives.options.forEach(contract => {
       if (contract.status === 'open' && contract.expiresAt <= now) {
         // 自动行权（如果有收益）或过期
-        const currentPrice = market?.getCurrentIndex?.() || 100;
         let hasValue = false;
 
         if (contract.type === 'call' && currentPrice > contract.strikePrice) {
@@ -456,7 +455,7 @@ const createDerivativesSystem = ({
     return { success: true };
   };
 
-  // 自动对冲检查
+  // 自动对冲检查（currentPrice 由 update() 缓存后传入）
   const checkAutoHedge = () => {
     if (!st.derivatives.hedging.autoHedge) return;
 
@@ -483,6 +482,7 @@ const createDerivativesSystem = ({
   // ═══════════════════════════════════════════════════════════════════════════
 
   const update = () => {
+    // 缓存当前价格（避免同一个 tick 内多次访问 market.getCurrentIndex）
     const currentPrice = market?.getCurrentIndex?.() || 100;
 
     // 检查期货强平
@@ -492,8 +492,8 @@ const createDerivativesSystem = ({
       }
     });
 
-    // 检查期权到期
-    checkOptionsExpiry();
+    // 检查期权到期（复用 currentPrice，不再重复调用 market）
+    checkOptionsExpiry(currentPrice);
 
     // 自动对冲
     checkAutoHedge();
