@@ -26,12 +26,19 @@ const createDebugSystem = ({ st, buildings, getGpsBreakdown, SAVE_KEY, fmt }) =>
 
   let frameCount = 0;
   let frameAccum = 0;
+  let _cachedSaveBytes = 0;
+  let _prevSaveCount = -1;
 
   const update = (dtSec = 0) => {
     const gp = getGpsBreakdown();
     const totalBuildings = buildings.reduce((sum, b) => sum + b.owned, 0);
-    const saveRaw = localStorage.getItem(SAVE_KEY) || '';
-    const saveBytes = new Blob([saveRaw]).size;
+
+    // 只在 saveWriteCount 变化时重新读取 localStorage（避免每帧磁盘读取）
+    // saveWriteCount 每分钟最多变化 ~1 次（SAVE_INTERVAL=60000ms），故 99%+ 帧跳过此路径
+    if (_prevSaveCount !== st.saveWriteCount) {
+      _prevSaveCount = st.saveWriteCount;
+      _cachedSaveBytes = new Blob([localStorage.getItem(SAVE_KEY) || '']).size;
+    }
 
     gpsEl.textContent = `GPS base ${fmt(gp.baseGPS)} | mul x${gp.finalMult.toFixed(2)} | total ${fmt(gp.totalGPS)} | bld ${totalBuildings}`;
     marketEl.textContent = `Market ${st.marketIsBull ? 'BULL' : 'BEAR'} | timer ${Math.max(0, st.marketTimer).toFixed(1)}s | cycle ${st.marketCycleDuration.toFixed(1)}s`;
@@ -40,7 +47,7 @@ const createDebugSystem = ({ st, buildings, getGpsBreakdown, SAVE_KEY, fmt }) =>
     const elapsedMin = Math.max(1/60, (now - st.saveWriteWindowStart) / 60000);
     const writesPerMin = (st.saveWriteCount || 0) / elapsedMin;
     const lastSaveAgo = st.lastSaveAt ? ((now - st.lastSaveAt) / 1000).toFixed(1) : '-';
-    saveEl.textContent = `Save key ${SAVE_KEY} | size ${(saveBytes / 1024).toFixed(2)} KB | writes/min ${writesPerMin.toFixed(1)} | last ${lastSaveAgo}s`;
+    saveEl.textContent = `Save key ${SAVE_KEY} | size ${(_cachedSaveBytes / 1024).toFixed(2)} KB | writes/min ${writesPerMin.toFixed(1)} | last ${lastSaveAgo}s`;
     const rafElapsed = Math.max(1/60, (now - (st.rafWindowStart || now)) / 1000);
     const rafPerSec = (st.rafTickCount || 0) / rafElapsed;
     const rafState = rafPerSec > 90 ? 'WARN' : 'OK';

@@ -194,12 +194,20 @@ const createEconomySystem = ({
     return totalBought;
   };
 
+  // 调试用 GPS 分解：debug-system 依赖此接口
+  const getGpsBreakdown = () => {
+    const base = baseGPS();
+    const mult = _getGPSMult();
+    return { baseGPS: base, finalMult: mult, totalGPS: base * mult };
+  };
+
   return {
     bld,
     skillLv,
     price,
     mktMult,
     getTotalGPS,
+    getGpsBreakdown,
     getManualGain,
     affordableCount,
     purchaseCost,
