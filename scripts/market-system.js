@@ -137,39 +137,50 @@ const createMarketSystem = ({
     if (st.marketTimer <= 0) doMarketSwitch();
   };
 
+  // renderMarket 值变化缓存：避免每帧无条件重写 DOM
+  const _mc = {}; // renderMarket local cache
+  const _mcSet = (k, v) => { if (_mc[k] !== v) { _mc[k] = v; return true; } return false; };
+
   const renderMarket = () => {
     const bull = st.marketIsBull;
     const mult = mktMult();
     const macro = getActiveMacro();
-    marketMultEl.textContent = `×${mult.toFixed(2)}`;
+    if (_mcSet('mult', mult.toFixed(2))) marketMultEl.textContent = `×${mult.toFixed(2)}`;
     marketMultEl.style.color = bull ? 'var(--bull)' : 'var(--bear)';
-    marketStatusEl.textContent = bull ? '多头市场' : '空头市场';
-    marketStatusEl.style.color = bull ? 'var(--bull)' : 'var(--bear)';
+    if (_mcSet('status', bull ? '多头市场' : '空头市场')) {
+      marketStatusEl.textContent = bull ? '多头市场' : '空头市场';
+      marketStatusEl.style.color = bull ? 'var(--bull)' : 'var(--bear)';
+    }
     marketDotEl.classList.toggle('bear', !bull);
-    marketLabelEl.textContent = bull ? '多头市场' : '空头市场';
-    marketLabelEl.style.color = bull ? 'var(--bull)' : 'var(--bear)';
+    if (_mcSet('label', bull ? '多头市场' : '空头市场')) {
+      marketLabelEl.textContent = bull ? '多头市场' : '空头市场';
+      marketLabelEl.style.color = bull ? 'var(--bull)' : 'var(--bear)';
+    }
 
     const pct = bull
       ? 50 + (1 - st.marketTimer / st.marketCycleDuration) * 50
       : (st.marketTimer / st.marketCycleDuration) * 50;
-    marketWaveEl.style.width = `${Math.max(5, Math.min(95, pct))}%`;
-    marketCountEl.textContent = `切换：${Math.ceil(st.marketTimer)}s`;
-    marketEffectEl.textContent = bull
-      ? `多头加成 ×${MARKET_BULL_BONUS.toFixed(1)}`
-      : `空头折损 ×${MARKET_BEAR_PENALTY.toFixed(1)}`;
-    marketEffectEl.style.color = bull ? 'var(--bull)' : 'var(--bear)';
+    if (_mcSet('wave', pct)) marketWaveEl.style.width = `${Math.max(5, Math.min(95, pct))}%`;
+    if (_mcSet('count', `切换：${Math.ceil(st.marketTimer)}s`)) marketCountEl.textContent = `切换：${Math.ceil(st.marketTimer)}s`;
+    const effTxt = bull ? `多头加成 ×${MARKET_BULL_BONUS.toFixed(1)}` : `空头折损 ×${MARKET_BEAR_PENALTY.toFixed(1)}`;
+    if (_mcSet('effect', effTxt)) {
+      marketEffectEl.textContent = effTxt;
+      marketEffectEl.style.color = bull ? 'var(--bull)' : 'var(--bear)';
+    }
 
     if (marketEventEl) {
-      marketEventEl.textContent = macro
+      const evTxt = macro
         ? `宏观事件：${macro.name}（剩余 ${st.macroEventTimer} 次切换｜偏好 ${st.macroPreferredBuildingId || 'none'}｜连锁 ${st.macroChainCount || 0}）`
         : '宏观事件：暂无';
+      if (_mcSet('event', evTxt)) marketEventEl.textContent = evTxt;
     }
     if (marketOutlookEl) {
       const arrow = st.rateOutlookDirection === '上调' ? '↑' : '↓';
       const hits = Math.max(0, Number(st.rateOutlookHits) || 0);
       const misses = Math.max(0, Number(st.rateOutlookMisses) || 0);
       const hitRatePct = (getOutlookHitRate() * 100).toFixed(1);
-      marketOutlookEl.textContent = `利率前瞻：${st.rateOutlookDirection}${arrow}（置信 ${st.rateOutlookConfidence || 0}%｜命中 ${hitRatePct}% ${hits}/${hits + misses}）`;
+      const outlookTxt = `利率前瞻：${st.rateOutlookDirection}${arrow}（置信 ${st.rateOutlookConfidence || 0}%｜命中 ${hitRatePct}% ${hits}/${hits + misses}）`;
+      if (_mcSet('outlook', outlookTxt)) marketOutlookEl.textContent = outlookTxt;
     }
   };
 

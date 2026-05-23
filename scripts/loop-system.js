@@ -49,7 +49,7 @@ const createLoopSystem = ({
       }
     }
 
-    dirty.gears = dirty.market = true;
+    dirty.gears = true;
 
     // 驱动统一定时管理器（所有面板刷新由 RAF 统一调度，不再有独立 setInterval）
     if (window.__timerManager) window.__timerManager.tick(now);
