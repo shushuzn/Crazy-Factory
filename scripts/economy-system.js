@@ -19,6 +19,22 @@ const createEconomySystem = ({
   sfxBuy,
   applyUpgradeEffect
 }) => {
+  // 预计算 1.15^n 查表（消除每帧 Math.pow 调用，n>TABLE_MAX 时回退）
+  const _powTable = [];
+  const _POW_TABLE_MAX = 5000;
+  for (let i = 0; i <= _POW_TABLE_MAX; i++) _powTable[i] = Math.pow(PRICE_GROWTH, i);
+  const _cachedPow = (n) => (n <= _POW_TABLE_MAX ? _powTable[n] : Math.pow(PRICE_GROWTH, n));
+
+  // 每建筑价格缓存：owned 变化时才重算，消除 render 帧内重复 price() 调用
+  const _priceCache = new Map(); // b.id → { owned, price0 }
+  const _getCachedPrice = (b) => {
+    const c = _priceCache.get(b.id);
+    if (c && c.owned === b.owned) return c.price0;
+    const p0 = Math.floor(b.basePrice * _cachedPow(b.owned) * discount());
+    _priceCache.set(b.id, { owned: b.owned, price0: p0 });
+    return p0;
+  };
+
   // 预计算查找表（消除 O(n) find 在热路径中的每帧调用）
   const _bldMap = new Map(buildings.map(b => [b.id, b]));
   const _skillMap = new Map(skills.map(s => [s.id, s]));
@@ -27,7 +43,11 @@ const createEconomySystem = ({
   const bld = (id) => _bldMap.get(id) || null;
   const skillLv = (id) => _skillMap.get(id)?.level || 0;
   const discount = () => Math.max(0.6, 1 - skillLv('bulk_discount') * 0.04);
-  const price = (b, off = 0) => Math.floor(b.basePrice * Math.pow(PRICE_GROWTH, b.owned + off) * discount());
+  // price(b,off) 在购买逻辑中用 offset>0，render 帧内只用 off=0 用 _getCachedPrice 缓存
+  const price = (b, off = 0) => {
+    if (off === 0) return _getCachedPrice(b);
+    return Math.floor(b.basePrice * _cachedPow(b.owned + off) * discount());
+  };
 
   const bldPreferredMult = (b) => (st.macroPreferredBuildingId && st.macroPreferredBuildingId === b.id ? 1 + MACRO_PREFERRED_BONUS : 1);
   const bldGPS = (b) => b.dps * b.owned * (bldBoost[b.id] || 1) * bldPreferredMult(b);
@@ -264,5 +284,7 @@ const createEconomySystem = ({
     tryAutoBuy,
     setSynergyMultiplier,
     invalidateROICache: _invalidateROICache,
+    invalidateBaseGPS: _invalidateBaseGPS,
+    invalidateGPSMult: _invalidateGPSMult,
   };
 };

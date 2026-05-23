@@ -227,6 +227,8 @@
       tryAutoBuy,
       setSynergyMultiplier,
       invalidateROICache,
+      invalidateBaseGPS,
+      invalidateGPSMult,
     } = economy;
 
     const skillSystem = createSkillSystem({
@@ -618,8 +620,8 @@
     analyticsSystem.init();
 
     // ROI 缓存失效：宏观偏好建筑或市场多空切换时，ROI 排序可能反转
-    eventBus.on('market:switched', () => { invalidateROICache(); });
-    eventBus.on('macro:changed', () => { invalidateROICache(); });
+    eventBus.on('market:switched', () => { invalidateROICache(); invalidateGPSMult(); });
+    eventBus.on('macro:changed', () => { invalidateROICache(); invalidateBaseGPS(); });
 
     // 监听 Prestige 事件
     eventBus.on('prestige:executed', () => {
