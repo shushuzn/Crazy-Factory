@@ -4,6 +4,9 @@
     // 存档脏哈希：避免数据未变时重复写入 localStorage（减少 GC 和存储写入）
     let _lastSaveHash = null;
 
+    // ── 增量存档快照：上次完整存档的深拷贝，用于计算字段级 diff ──
+    let _prevSnapshot = null;
+
     // ── IndexedDB 异步存储（避免 localStorage 同步阻塞主线程）──
     let _idb = null;
     const _openIDB = () => {
@@ -31,7 +34,27 @@
       }
     };
 
-    const _makeSaveData = () => ({
+    // 顶层存档字段白名单（数值类频繁变动，字符串类稀疏变动，统一 diff）
+    const _TOP_LEVEL_FIELDS = [
+      'gears','purchaseMode','gameSpeed','autoBuy','questIndex','lastAutoPlanTarget','logs',
+      'manualPower','manualMult','gpsMultiplier','totalClicks','lifetimeGears','researchPoints',
+      'bullClicks','marketMomentum','marketMomentumTimer','policyRate','policyHedge',
+      'macroEventId','macroEventTimer','macroPreferredBuildingId','lastMacroEventId','macroChainCount',
+      'rateOutlookDirection','rateOutlookBiasUp','rateOutlookConfidence','rateOutlookHits','rateOutlookMisses',
+      'marketIsBull','soundEnabled','skillMasteryTier','pendingOfflineGears',
+    ];
+
+    // 两个值是否相等（用于 diff 比较）
+    const _eq = (a, b) => {
+      if (a === b) return true;
+      if (typeof a !== typeof b) return false;
+      if (Array.isArray(a) && Array.isArray(b)) return false; // 数组直接认为不等（全量序列化）
+      if (typeof a === 'object' && a !== null && b !== null) return false;
+      return false;
+    };
+
+    // 构建完整存档数据（用于全量写入和快照比较）
+    const _makeFullSaveData = () => ({
       gears:st.gears, purchaseMode:st.purchaseMode, gameSpeed:st.gameSpeed,
       autoBuy:st.autoBuy, questIndex:st.questIndex, lastAutoPlanTarget:st.lastAutoPlanTarget, logs:st.logs.slice(0,LOG_CAP),
       manualPower:st.manualPower, manualMult:st.manualMult, gpsMultiplier:st.gpsMultiplier,
@@ -64,20 +87,73 @@
     };
 
     const saveGame = () => {
-      const data = _makeSaveData();
-      const hash = _fastHash(data);
+      const fullData = _makeFullSaveData();
+      const hash = _fastHash(fullData);
       if (hash === _lastSaveHash) return;
       _lastSaveHash = hash;
       st.saveWriteCount = (st.saveWriteCount || 0) + 1;
       st.lastSaveAt = Date.now();
-      // 异步写入 IndexedDB（主线程不被阻塞），localStorage 作为降级方案
-      _saveToIDB(data).catch(() => localStorage.setItem(SAVE_KEY, JSON.stringify(data)));
+
+      // 增量存档：比较快照 diff，只写入变化的顶层字段
+      // _prevSnapshot 持久化在 localStorage 的 _BASE_KEY，页面刷新后仍可还原
+      if (_prevSnapshot) {
+        const delta = { _isDelta: true, savedAt: fullData.savedAt };
+        for (const k of _TOP_LEVEL_FIELDS) {
+          if (!_eq(fullData[k], _prevSnapshot[k])) delta[k] = fullData[k];
+        }
+        delta.buildings = fullData.buildings;
+        delta.upgrades = fullData.upgrades;
+        delta.skills = fullData.skills;
+        delta.achievements = fullData.achievements;
+        delta.bldBoost = fullData.bldBoost;
+
+        const deltaKeys = Object.keys(delta).filter(k => k !== '_isDelta' && k !== 'savedAt');
+        if (deltaKeys.length < _TOP_LEVEL_FIELDS.length) {
+          // 有 diff：写入 delta + 更新持久化的 base snapshot
+          _prevSnapshot = JSON.parse(JSON.stringify(fullData));
+          localStorage.setItem(SAVE_KEY + '_base', JSON.stringify(_prevSnapshot));
+          _saveToIDB(delta).catch(() => localStorage.setItem(SAVE_KEY, JSON.stringify(delta)));
+        } else {
+          // 无实际 diff（hash 不同但所有值相同，可能是浮点问题），写全量
+          _prevSnapshot = JSON.parse(JSON.stringify(fullData));
+          localStorage.setItem(SAVE_KEY + '_base', JSON.stringify(_prevSnapshot));
+          _saveToIDB(fullData).catch(() => localStorage.setItem(SAVE_KEY, JSON.stringify(fullData)));
+        }
+      } else {
+        // 首次保存：全量 + 建立快照
+        _prevSnapshot = JSON.parse(JSON.stringify(fullData));
+        localStorage.setItem(SAVE_KEY + '_base', JSON.stringify(_prevSnapshot));
+        _saveToIDB(fullData).catch(() => localStorage.setItem(SAVE_KEY, JSON.stringify(fullData)));
+      }
     };
 
     const loadGame = () => {
       try {
         const raw = localStorage.getItem(SAVE_KEY); if(!raw) return;
         const d = JSON.parse(raw); if(!d||typeof d!=="object") return;
+
+        // 增量存档恢复：如果加载的是 delta，先从持久化 base snapshot 合并
+        if (d._isDelta) {
+          const baseRaw = localStorage.getItem(SAVE_KEY + '_base');
+          const base = baseRaw ? JSON.parse(baseRaw) : null;
+          if (base) {
+            // 合并：base + delta = 完整状态
+            for (const k of _TOP_LEVEL_FIELDS) {
+              if (k in d) base[k] = d[k];
+            }
+            base.buildings  = d.buildings  || base.buildings;
+            base.upgrades   = d.upgrades   || base.upgrades;
+            base.skills     = d.skills     || base.skills;
+            base.achievements = d.achievements || base.achievements;
+            base.bldBoost   = d.bldBoost   || base.bldBoost;
+            base.savedAt    = d.savedAt;
+            Object.assign(d, base); // 让下面的统一逻辑继续用 d
+          }
+          // 即使 base 不存在，d 中也有所有必要字段（建筑/升级等全量存储），不会缺字段
+        }
+
+        // 清除加载过程中 proxy 追踪的 dirty 字段（加载是干净的状态）
+        _stDirtyFields.clear();
 
         st.gears          = Number(d.gears)||0;
         st.manualPower    = Math.max(1,Number(d.manualPower)||1);
@@ -127,6 +203,8 @@
       } catch(e){ console.warn("存档读取失败",e); }
       // 重置哈希：确保加载后首次保存必定写入
       _lastSaveHash = null;
+      // 重建快照：加载完成后的 d（可能是 delta 合并后的完整状态）作为下次 diff 的基准
+      _prevSnapshot = JSON.parse(JSON.stringify(d));
     };
 
     const exportSave = async () => {
@@ -139,7 +217,16 @@
       const raw=prompt("粘贴存档文本（覆盖当前进度）");if(!raw)return;
       try{
         const d=JSON.parse(raw);if(!d||typeof d!=="object")throw 0;
-        localStorage.setItem(SAVE_KEY,raw);loadGame();render();pushLog("存档导入成功");
+        localStorage.setItem(SAVE_KEY,raw);
+        // 导入后同步 base snapshot（导入的是全量存档，重建 base）
+        if (!d._isDelta) {
+          localStorage.setItem(SAVE_KEY + '_base', raw);
+        } else {
+          // 导入 delta 无意义（缺少 base），清除 base 强制下次全量
+          localStorage.removeItem(SAVE_KEY + '_base');
+        }
+        _prevSnapshot = null; // 强制下次全量写入
+        loadGame();render();pushLog("存档导入成功");
       }catch{alert("存档格式无效");}
     };
 

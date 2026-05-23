@@ -99,7 +99,8 @@
     // ════════════════════════════════════════════════
     // ⑦ 游戏状态
     // ════════════════════════════════════════════════
-    const st = {
+    // st 原始对象（所有子系统的引用源）
+    let st = {
       gears:0, purchaseMode:"1", lastTimestamp:performance.now(), accumulator:0,
       pendingOfflineGears:0, manualPower:1, manualMult:1, gpsMultiplier:1,
       totalClicks:0, lifetimeGears:0, researchPoints:0,
@@ -110,6 +111,17 @@
       soundEnabled:true,
       skillMasteryTier:0,
     };
+
+    // ── st 写入追踪 Proxy：所有对 st.XX = YY 的写入自动记录 dirty 字段 ──
+    // 增量存档核心：_makeSaveData 只序列化 dirty 字段 + 完整引用数组
+    const _stDirtyFields = new Set();
+    st = new Proxy(st, {
+      set(target, key, value) {
+        target[key] = value;
+        if (typeof key === 'string') _stDirtyFields.add(key);
+        return true;
+      },
+    });
 
     // 显示值（用于平滑滚动）
     const disp = { gears:0, gps:0, rp:0 };
