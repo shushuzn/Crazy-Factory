@@ -225,6 +225,8 @@
       buyBuilding,
       buyUpgrade,
       tryAutoBuy,
+      setSynergyMultiplier,
+      invalidateROICache,
     } = economy;
 
     const skillSystem = createSkillSystem({
@@ -614,6 +616,10 @@
 
     // 初始化数据分析
     analyticsSystem.init();
+
+    // ROI 缓存失效：宏观偏好建筑或市场多空切换时，ROI 排序可能反转
+    eventBus.on('market:switched', () => { invalidateROICache(); });
+    eventBus.on('macro:changed', () => { invalidateROICache(); });
 
     // 监听 Prestige 事件
     eventBus.on('prestige:executed', () => {

@@ -134,6 +134,7 @@ const createEconomySystem = ({
     dirty.buildings = dirty.stats = dirty.logs = true;
     _invalidateGPSMult();
     _invalidateBaseGPS();
+    _invalidateROICache();
     saveGame();
   };
 
@@ -149,8 +150,16 @@ const createEconomySystem = ({
     dirty.upgrades = dirty.buildings = dirty.stats = dirty.logs = true;
     _invalidateGPSMult();
     _invalidateBaseGPS();
+    _invalidateROICache(); // bldBoost 改变时 ROI 排序可能变化
     saveGame();
   };
+
+  // ROI 排序缓存：tryAutoBuy 每 0.5s 调用，sort 内每对调用 _buildingROI (price→pow+floor)
+  // 改为 dirty 时才重算，避免每 0.5s 重复 O(n log n) 排序
+  let _roiDirty = true;
+  let _roiSorted = null;
+  let _roiUnlocked = null;
+  const _invalidateROICache = () => { _roiDirty = true; };
 
   // 边际 DPS = 买第 owned 个后再买 1 个的增量 DPS（边际产出）
   const _marginalDPS = (b) => b.dps * (bldBoost[b.id] || 1) * bldPreferredMult(b);
@@ -162,14 +171,22 @@ const createEconomySystem = ({
     return mc > 0 ? _marginalDPS(b) / mc : 0;
   };
 
+  const _getROISorted = () => {
+    if (!_roiDirty) return _roiSorted;
+    _roiUnlocked = buildings.filter(isBldUnlocked);
+    _roiSorted = _roiUnlocked.slice().sort((a, b) => _buildingROI(b) - _buildingROI(a));
+    _roiDirty = false;
+    return _roiSorted;
+  };
+
   // Deep RL Job Shop Scheduling 启发：用 ROI 评分替代逆序贪心
   const tryAutoBuy = () => {
     let totalBought = 0;
 
-    // —— 建筑：按 ROI 降序贪心满预算购买（买得越多越划算）
-    const unlocked = buildings.filter(isBldUnlocked);
-    if (unlocked.length > 0 && st.gears > 0) {
-      const sorted = unlocked.slice().sort((a, b) => _buildingROI(b) - _buildingROI(a));
+    // —— 建筑：使用 ROI 缓存排序，避免每 0.5s 重复 O(n log n) sort+pow+floor
+    const sorted = _getROISorted();
+    let didBuyBuilding = false;
+    if (sorted.length > 0 && st.gears > 0) {
       let budget = st.gears;
       for (const b of sorted) {
         if (budget <= 0) break;
@@ -191,8 +208,13 @@ const createEconomySystem = ({
           st.gears -= cost; b.owned += maxN;
           totalBought += maxN; budget -= cost;
         }
+        didBuyBuilding = true;
+      }
+      // 购买后一次性失效（而非每建筑重复调用）
+      if (didBuyBuilding) {
         _invalidateGPSMult();
         _invalidateBaseGPS();
+        _invalidateROICache();
       }
     }
 
@@ -206,6 +228,7 @@ const createEconomySystem = ({
         st.gears -= u.price; u.purchased = true; applyUpgradeEffect(u);
         _invalidateGPSMult();
         _invalidateBaseGPS();
+        _invalidateROICache(); // bldBoost 改变后 ROI 排序可能变化
         totalBought++;
       }
     }
@@ -240,5 +263,6 @@ const createEconomySystem = ({
     buyUpgrade,
     tryAutoBuy,
     setSynergyMultiplier,
+    invalidateROICache: _invalidateROICache,
   };
 };

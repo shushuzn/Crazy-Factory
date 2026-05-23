@@ -96,6 +96,7 @@ const createMarketSystem = ({
     st.lastMacroEventId = ev.id;
     st.macroEventTimer = Math.max(1, Number(ev.durationSwitches) || 1);
     st.macroPreferredBuildingId = ev.preferredBuildingId || '';
+    eventBus.emit('macro:changed', { preferredBuildingId: st.macroPreferredBuildingId });
     if (chainPick && ev.id === chainTargetId) {
       st.macroChainCount = Math.max(0, Number(st.macroChainCount) || 0) + 1;
     }
@@ -117,6 +118,7 @@ const createMarketSystem = ({
       if (ev) pushLog(`📰 事件结束：${ev.name}`);
       st.macroEventId = '';
       st.macroPreferredBuildingId = '';
+      eventBus.emit('macro:changed', { preferredBuildingId: '' });
       dirty.logs = true;
       updateRateOutlook();
     }
