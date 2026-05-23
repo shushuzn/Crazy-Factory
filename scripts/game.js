@@ -83,7 +83,9 @@
     // ════════════════════════════════════════════════
     // ⑭ DOM 构建（只调用一次）
     // ════════════════════════════════════════════════
-    const createBuildingRow = (b) => {
+    // 灵感来源：CSDN游戏开发文章 — DocumentFragment批量DOM操作，减少初始化时的DOM回流次数
+    // 创建建筑行（返回row元素，由调用方批量插入DOM）
+    const createBuildingRow = (b, parentEl) => {
       const row=document.createElement("div");
       row.className="building";
       row.innerHTML=`
@@ -97,7 +99,7 @@
           <div class="locked-note" data-lock="${b.id}"></div>
         </div>
         <button class="btn buy-btn" data-buy="${b.id}">购买 ×1（¥0）</button>`;
-      buildingListEl.appendChild(row);
+      (parentEl || buildingListEl).appendChild(row);
       buildingViewMap.set(b.id,{
         row, ownedEl:row.querySelector(`[data-owned="${b.id}"]`),
         buyBtn:row.querySelector(`[data-buy="${b.id}"]`),
@@ -112,7 +114,8 @@
       b._ck.hint  = `${b.id}|hint`;
     };
 
-    const createUpgradeRow = (u) => {
+    // 创建升级行（支持DocumentFragment批量插入）
+    const createUpgradeRow = (u, parentEl) => {
       const row=document.createElement("div");
       row.className="upgrade";
       row.innerHTML=`
@@ -122,7 +125,7 @@
           <div class="meta" data-ulock="${u.id}" style="color:#f87171;margin-top:3px"></div>
         </div>
         <button class="btn upgrade-btn" data-upgrade="${u.id}">研发（${fmt(u.price)}）</button>`;
-      upgradeListEl.appendChild(row);
+      (parentEl || upgradeListEl).appendChild(row);
       upgradeViewMap.set(u.id,{
         row,
         btn:row.querySelector(`[data-upgrade="${u.id}"]`),
@@ -134,7 +137,8 @@
       u._ck.disabled = `${u.id}|disabled`;
     };
 
-    const createSkillRow = (sk) => {
+    // 创建技能行（支持DocumentFragment批量插入）
+    const createSkillRow = (sk, parentEl) => {
       const row=document.createElement("div");
       row.className="skill";
       row.innerHTML=`
@@ -144,7 +148,7 @@
           <div class="meta" data-smeta="${sk.id}"></div>
         </div>
         <button class="btn skill-btn" data-skbuy="${sk.id}">升级（${sk.costRP} RP）</button>`;
-      skillListEl.appendChild(row);
+      (parentEl || skillListEl).appendChild(row);
       skillViewMap.set(sk.id,{
         btn:row.querySelector(`[data-skbuy="${sk.id}"]`),
         meta:row.querySelector(`[data-smeta="${sk.id}"]`),
@@ -160,16 +164,19 @@
       if(appVersionEl) appVersionEl.textContent = APP_VERSION;
       if(!changelogListEl) return;
       changelogListEl.innerHTML = "";
+      const frag = document.createDocumentFragment();
       for(const item of CHANGELOG){
         const wrap=document.createElement("article");
         wrap.className="changelog-item";
         const notes=item.notes.map(n=>`<li>${n}</li>`).join("");
         wrap.innerHTML=`<div class="changelog-head"><strong>${item.version}</strong><span>${item.date}</span></div><ul class="changelog-notes">${notes}</ul>`;
-        changelogListEl.appendChild(wrap);
+        frag.appendChild(wrap);
       }
+      changelogListEl.appendChild(frag);
     };
 
-    const createAchievRow = (a) => {
+    // 创建成就行（支持DocumentFragment批量插入）
+    const createAchievRow = (a, parentEl) => {
       const row=document.createElement("div");
       row.className="achievement";
       row.innerHTML=`
@@ -178,7 +185,7 @@
           <div class="meta">${a.desc}</div>
         </div>
         <span class="badge" data-abadge="${a.id}">未完成</span>`;
-      achievListEl.appendChild(row);
+      (parentEl || achievListEl).appendChild(row);
       achievViewMap.set(a.id,{badge:row.querySelector(`[data-abadge="${a.id}"]`)});
       if (!a._ck) a._ck = {};
       a._ck.badge = `${a.id}|badge`;
@@ -509,8 +516,11 @@
       }
     }, { threshold: 0.1 });
 
-    buildings.forEach(createBuildingRow);
-    // 标记 buildingId 并开始观察
+    // 灵感来源：CSDN游戏开发文章 — DocumentFragment 批量插入，将每列表的 N 次 DOM 回流合并为 1 次
+    const _bldFrag = document.createDocumentFragment();
+    buildings.forEach((b) => createBuildingRow(b, _bldFrag));
+    buildingListEl.appendChild(_bldFrag);
+    // 标记 buildingId 并开始观察（row 已在 DOM 中）
     buildings.forEach((b) => {
       const v = buildingViewMap.get(b.id);
       if (v) { v.row.dataset.buildingId = b.id; _bldObserver.observe(v.row); }
@@ -527,13 +537,22 @@
       }
     }, { threshold: 0.1 });
 
-    upgrades.forEach(createUpgradeRow);
+    const _upgFrag = document.createDocumentFragment();
+    upgrades.forEach((u) => createUpgradeRow(u, _upgFrag));
+    upgradeListEl.appendChild(_upgFrag);
     upgrades.forEach((u) => {
       const v = upgradeViewMap.get(u.id);
       if (v) { v.row.dataset.upgradeId = u.id; _upgObserver.observe(v.row); }
     });
-    skills.forEach(createSkillRow);
-    achievements.forEach(createAchievRow);
+
+    const _skFrag = document.createDocumentFragment();
+    skills.forEach((sk) => createSkillRow(sk, _skFrag));
+    skillListEl.appendChild(_skFrag);
+
+    const _achFrag = document.createDocumentFragment();
+    achievements.forEach((a) => createAchievRow(a, _achFrag));
+    achievListEl.appendChild(_achFrag);
+
     renderChangelog();
 
     loadGame();
