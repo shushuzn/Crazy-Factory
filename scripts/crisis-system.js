@@ -182,6 +182,9 @@ const createCrisisSystem = ({
   // 危机触发
   // ═══════════════════════════════════════════════════════════════════════════
 
+  // 预计算静态列表：Object.values(CRISES) 每 100ms 调用一次，缓存避免重复分配
+  const _crisisList = Object.values(CRISES);
+
   const checkCrisisTrigger = () => {
     const now = Date.now();
 
@@ -190,8 +193,7 @@ const createCrisisSystem = ({
     if (now < st.crisis.immuneUntil) return false;
 
     // 检查每个危机的触发概率
-    const availableCrises = Object.values(CRISES).filter(crisis => {
-      // 检查资金要求
+    const availableCrises = _crisisList.filter(crisis => {
       if (st.money < crisis.minMoney) return false;
       return true;
     });
