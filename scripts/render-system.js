@@ -111,17 +111,20 @@ const createRenderSystem = ({
     disp.gears = smoothUpdate(st.gears);
     gearsEl.textContent = fmt(disp.gears);
     gpsEl.textContent = `收益率 ${fmt(disp.gps)}/s`;
-    rpDisplayEl.textContent = `${st.researchPoints} RP`;
-    rpMetaEl.textContent = `研究加成 ×${(1 + st.researchPoints * 0.1).toFixed(1)}`;
+    if(_changed('rp|val', st.researchPoints)) {
+      rpDisplayEl.textContent = `${st.researchPoints} RP`;
+      rpMetaEl.textContent = `研究加成 ×${(1 + st.researchPoints * 0.1).toFixed(1)}`;
+    }
     const momentumStacks = Math.max(0, Math.floor(st.marketMomentum || 0));
     const momentumPct = momentumStacks * 8;
     const baseDrag = Math.max(0.72, 1 - (st.policyRate || 0) * 0.035);
     const hedge = Math.max(0, Math.min(0.6, Number(st.policyHedge) || 0));
     const policyMult = Math.min(1, baseDrag + (1 - baseDrag) * hedge);
     const rateHint = `利率效率 ${(policyMult * 100).toFixed(1)}%`;
-    manualDesc.textContent = momentumStacks > 0
+    const manualTxt = momentumStacks > 0
       ? `每次撮合 +${fmt(getManualGain())}（多头连击 ${momentumStacks} 层，手动+${momentumPct}%｜${rateHint}）`
       : `每次撮合 +${fmt(getManualGain())}（${rateHint}）`;
+    if(_changed('manual', manualTxt)) manualDesc.textContent = manualTxt;
     if(dirty.market) renderMarket();
 
     if(dirty.buildings){
@@ -212,7 +215,7 @@ const createRenderSystem = ({
       if(_changed('offline|show','0')) offlineEl.style.display='none';
     }
 
-    rewardFeedEl.textContent=st.lastRewardText||'';
+    if(_changed('reward', st.lastRewardText||'')) rewardFeedEl.textContent=st.lastRewardText||'';
 
     // 增量日志渲染：只创建/删除差异节点，不做 innerHTML='' 全量重建
 
