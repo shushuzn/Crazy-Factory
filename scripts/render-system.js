@@ -134,11 +134,18 @@ const createRenderSystem = ({
     if(dirty.upgrades){
       for(const u of upgrades){
         const v=upgradeViewMap.get(u.id); if(!v) continue;
-        if(u.purchased){v.btn.textContent='已研发';v.btn.disabled=true;v.lockEl.textContent='';continue;}
+        if(u.purchased){
+          if(_changed(u.id+'|btn','已研发')) v.btn.textContent='已研发';
+          v.btn.disabled=true;
+          if(_changed(u.id+'|lock','')) v.lockEl.textContent='';
+          continue;
+        }
         const lr=upgradeLockedReason(u);
-        v.lockEl.textContent=lr;
-        v.btn.textContent=`研发（${fmt(u.price)}）`;
-        v.btn.disabled=st.gears<u.price||Boolean(lr);
+        const btnTxt=`研发（${fmt(u.price)}）`;
+        const isDisabled=st.gears<u.price||Boolean(lr);
+        if(_changed(u.id+'|lock',lr)) v.lockEl.textContent=lr;
+        if(_changed(u.id+'|btn',btnTxt)) v.btn.textContent=btnTxt;
+        if(_changed(u.id+'|disabled',String(isDisabled))) v.btn.disabled=isDisabled;
       }
       dirty.upgrades = false;
     }
@@ -148,13 +155,22 @@ const createRenderSystem = ({
     if(dirty.skills){
       for(const sk of skills){
         const v=skillViewMap.get(sk.id); if(!v) continue;
-        v.meta.textContent=`等级 ${sk.level}/${sk.maxLevel}`;
-        if(sk.level>=sk.maxLevel){v.btn.disabled=true;v.btn.textContent='已满级';}
-        else{v.btn.disabled=st.researchPoints<sk.costRP;v.btn.textContent=`升级（${sk.costRP} RP）`;}
+        const metaTxt=`等级 ${sk.level}/${sk.maxLevel}`;
+        if(_changed(sk.id+'|meta',metaTxt)) v.meta.textContent=metaTxt;
+        if(sk.level>=sk.maxLevel){
+          if(_changed(sk.id+'|btn','已满级')) v.btn.textContent='已满级';
+          v.btn.disabled=true;
+        }else{
+          const isDisabled=st.researchPoints<sk.costRP;
+          const btnTxt=`升级（${sk.costRP} RP）`;
+          if(_changed(sk.id+'|btn',btnTxt)) v.btn.textContent=btnTxt;
+          if(_changed(sk.id+'|disabled',String(isDisabled))) v.btn.disabled=isDisabled;
+        }
       }
       if(skillMasteryMetaEl){
         const totalLv = getTotalSkillLevels();
-        skillMasteryMetaEl.textContent = `专精 T${st.skillMasteryTier} · 总技能等级 ${totalLv} · 总收益加成 ×${(1 + st.skillMasteryTier * SKILL_MASTERY_BONUS).toFixed(2)}`;
+        const masteryTxt=`专精 T${st.skillMasteryTier} · 总技能等级 ${totalLv} · 总收益加成 ×${(1 + st.skillMasteryTier * SKILL_MASTERY_BONUS).toFixed(2)}`;
+        if(_changed('skillMastery',masteryTxt)) skillMasteryMetaEl.textContent=masteryTxt;
       }
       dirty.skills = false;
     }
@@ -163,14 +179,21 @@ const createRenderSystem = ({
       for(const a of achievements){
         if(!a.done&&a.check()){a.done=true;claimAchievement(a);}
         const v=achievViewMap.get(a.id); if(!v) continue;
-        v.badge.classList.toggle('done',a.done);
-        v.badge.textContent=a.done?(a.claimed?'已完成✓':'已完成'):'未完成';
+        const done=a.done;
+        v.badge.classList.toggle('done',done);
+        const badgeTxt=done?(a.claimed?'已完成✓':'已完成'):'未完成';
+        if(_changed(a.id+'|badge',badgeTxt)) v.badge.textContent=badgeTxt;
       }
       dirty.achievements = false;
     }
 
-    if(st.pendingOfflineGears>0){offlineEl.style.display='flex';offlineTextEl.textContent=`离线期间产生收益 ${fmt(st.pendingOfflineGears)}`;}
-    else{offlineEl.style.display='none';}
+    if(st.pendingOfflineGears>0){
+      if(_changed('offline|show','1')) offlineEl.style.display='flex';
+      const txt=`离线期间产生收益 ${fmt(st.pendingOfflineGears)}`;
+      if(_changed('offline|txt',txt)) offlineTextEl.textContent=txt;
+    }else{
+      if(_changed('offline|show','0')) offlineEl.style.display='none';
+    }
 
     rewardFeedEl.textContent=st.lastRewardText||'';
 
