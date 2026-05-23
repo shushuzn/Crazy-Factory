@@ -61,6 +61,10 @@ const createRenderSystem = ({
   // 值变化缓存：直接存原始值 + 键由 game.js 初始化时预计算（消除每帧 b.id+'|field' 拼接分配）
   const _prevVals = new Map();
 
+  // fmt 缓存：整数部分不变时跳过，避免每帧生成新字符串（减少 GC 压力）
+  let _gearsFmtKey = null, _gearsFmtTxt = '';
+  let _gpsFmtKey = null, _gpsFmtTxt = '';
+
   // 增量日志渲染状态（提升到闭包顶层，避免每次 render() 重建）
   let _renderedLogKeys = [];
 
@@ -109,8 +113,12 @@ const createRenderSystem = ({
     const targetGPS = getTotalGPS();
     disp.gps += (targetGPS - disp.gps) * SMOOTH_SPEED;
     disp.gears = smoothUpdate(st.gears);
-    gearsEl.textContent = fmt(disp.gears);
-    gpsEl.textContent = `收益率 ${fmt(disp.gps)}/s`;
+    const gKey = Math.floor(disp.gears);
+    if (gKey !== _gearsFmtKey) { _gearsFmtKey = gKey; _gearsFmtTxt = fmt(disp.gears); }
+    gearsEl.textContent = _gearsFmtTxt;
+    const gpsKey = Math.floor(disp.gps);
+    if (gpsKey !== _gpsFmtKey) { _gpsFmtKey = gpsKey; _gpsFmtTxt = fmt(disp.gps); }
+    gpsEl.textContent = `收益率 ${_gpsFmtTxt}/s`;
     if(_changed('rp|val', st.researchPoints)) {
       rpDisplayEl.textContent = `${st.researchPoints} RP`;
       rpMetaEl.textContent = `研究加成 ×${(1 + st.researchPoints * 0.1).toFixed(1)}`;
