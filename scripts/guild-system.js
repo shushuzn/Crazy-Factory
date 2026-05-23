@@ -247,22 +247,20 @@ const createGuildSystem = ({
     }
   };
 
+  // 预计算等级阈值（避免 checkGuildLevelUp 每次重新分配对象）
+  const _LEVEL_THRESHOLDS = {
+    2: 1e15, 3: 5e15, 4: 2e16, 5: 1e17,
+    6: 5e17, 7: 2e18, 8: 1e19, 9: 5e19, 10: 2e20,
+  };
+
+  // 排名缓存（避免每秒对 5 个公会重复排序）
+  let _cachedRanking = null;
+  let _rankingDirty = true;
+
   // 检查公会升级
   const checkGuildLevelUp = (guild) => {
-    const levelThresholds = {
-      2: 1e15,
-      3: 5e15,
-      4: 2e16,
-      5: 1e17,
-      6: 5e17,
-      7: 2e18,
-      8: 1e19,
-      9: 5e19,
-      10: 2e20,
-    };
-
     const nextLevel = guild.level + 1;
-    if (levelThresholds[nextLevel] && guild.totalContribution >= levelThresholds[nextLevel]) {
+    if (_LEVEL_THRESHOLDS[nextLevel] && guild.totalContribution >= _LEVEL_THRESHOLDS[nextLevel]) {
       guild.level = nextLevel;
 
       // 升级时增强加成
@@ -291,14 +289,17 @@ const createGuildSystem = ({
     guilds.sort((a, b) => b.totalContribution - a.totalContribution);
 
     // 更新排名
-    guilds.forEach((guild, index) => {
-      guild.rank = index + 1;
-    });
+    for (let i = 0; i < guilds.length; i++) {
+      guilds[i].rank = i + 1;
+    }
+    _rankingDirty = false;
+    _cachedRanking = null; // 数据变化时清除缓存
   };
 
   const getGuildRanking = () => {
-    updateGuildRanks();
-    return Object.values(st.virtualGuilds)
+    if (_rankingDirty) updateGuildRanks();
+    if (_cachedRanking) return _cachedRanking;
+    _cachedRanking = Object.values(st.virtualGuilds)
       .sort((a, b) => a.rank - b.rank)
       .map(g => ({
         rank: g.rank,
@@ -310,6 +311,7 @@ const createGuildSystem = ({
         totalContribution: g.totalContribution,
         bonuses: g.bonuses,
       }));
+    return _cachedRanking;
   };
 
   // ═══════════════════════════════════════════════════════════════════════════

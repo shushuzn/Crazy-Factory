@@ -3,6 +3,7 @@
 const createFeedbackSystem = ({ st, JUICE, fmt, manualBtn, manualZone, marketFlashEl, gameShellEl }) => {
   // 轻量事件总线：保持事件驱动，不把反馈细节写进业务逻辑。
   const listeners = new Map();
+  const _emptyArr = []; // 消除每帧 emit() 调用时的数组分配
 
   // 粒子对象池：限制同时在屏幕上的粒子数量，防止 DOM 泄漏
   const MAX_PARTICLES = 60;
@@ -15,7 +16,7 @@ const createFeedbackSystem = ({ st, JUICE, fmt, manualBtn, manualZone, marketFla
       listeners.set(event, bucket);
     },
     emit(event, payload) {
-      (listeners.get(event) || []).forEach((fn) => fn(payload));
+      (listeners.get(event) ?? _emptyArr).forEach((fn) => fn(payload));
     }
   };
 

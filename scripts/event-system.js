@@ -133,6 +133,10 @@ const createEventSystem = ({
     }
   ];
 
+  // 预计算总权重（消除 rollRandomEvent 内每帧 reduce 分配）
+  const _BONUS_WEIGHT_TOTAL = BONUS_EVENTS.reduce((s, e) => s + e.weight, 0);
+  const _CRISIS_WEIGHT_TOTAL = CRISIS_EVENTS.reduce((s, e) => s + e.weight, 0);
+
   // Initialize event state
   const initEventState = () => {
     if (!st.activeEvents) st.activeEvents = [];
@@ -167,7 +171,7 @@ const createEventSystem = ({
     if (roll < 0.001) { // 0.1% chance per tick
       const isBonus = Math.random() < 0.7; // 70% chance for good event
       const events = isBonus ? BONUS_EVENTS : CRISIS_EVENTS;
-      const totalWeight = events.reduce((sum, e) => sum + e.weight, 0);
+      const totalWeight = isBonus ? _BONUS_WEIGHT_TOTAL : _CRISIS_WEIGHT_TOTAL;
       let randomWeight = Math.random() * totalWeight;
 
       for (const event of events) {
