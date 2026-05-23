@@ -58,14 +58,20 @@ const createRenderSystem = ({
 }) => {
   let lastRender = 0;
 
-  // 值变化缓存：避免值未变时重复写入 DOM
-  const _prevVals = new Map(); // `${buildingId}:${field}` -> previous string value
+  // 值变化缓存：直接存原始值（而非 String()），消除布尔/数值比较时的多余 allocation）
+  const _prevVals = new Map(); // `${buildingId}:${field}` -> previous value (any type)
 
   // 增量日志渲染状态（提升到闭包顶层，避免每次 render() 重建）
   let _renderedLogKeys = [];
 
   // 统计面板缓存（dirty.stats 时才更新，避免每帧 reduce/filter）
   let _statsCache = { bldCount: 0, purchasedUpgrades: 0, totalUpgrades: 0, doneAchiev: 0, totalAchiev: 0 };
+
+  // 按钮状态缓存（避免每帧 classList.toggle / textContent 无谓执行）
+  let _prevAutoBuy = null;
+  let _prevSoundEnabled = null;
+  let _prevPurchaseMode = null;
+  let _prevGameSpeed = null;
 
   const _changed = (key, next) => {
     if (_prevVals.get(key) !== next) { _prevVals.set(key, next); return true; }
@@ -152,7 +158,7 @@ const createRenderSystem = ({
         const isDisabled=st.gears<u.price||Boolean(lr);
         if(_changed(u.id+'|lock',lr)) v.lockEl.textContent=lr;
         if(_changed(u.id+'|btn',btnTxt)) v.btn.textContent=btnTxt;
-        if(_changed(u.id+'|disabled',String(isDisabled))) v.btn.disabled=isDisabled;
+        if(_changed(u.id+'|disabled', isDisabled)) v.btn.disabled=isDisabled;
       }
       dirty.upgrades = false;
       _statsCache.purchasedUpgrades = upgrades.filter(u => u.purchased).length;
@@ -173,7 +179,7 @@ const createRenderSystem = ({
           const isDisabled=st.researchPoints<sk.costRP;
           const btnTxt=`升级（${sk.costRP} RP）`;
           if(_changed(sk.id+'|btn',btnTxt)) v.btn.textContent=btnTxt;
-          if(_changed(sk.id+'|disabled',String(isDisabled))) v.btn.disabled=isDisabled;
+          if(_changed(sk.id+'|disabled', isDisabled)) v.btn.disabled=isDisabled;
         }
       }
       if(skillMasteryMetaEl){
@@ -214,8 +220,9 @@ const createRenderSystem = ({
     const newLogs = st.logs.slice(0, 8);
     const newKeys = newLogs.map((_, i) => `log-${i}`);
 
-    // 删除多余的 DOM 节点
-    for (const key of _renderedLogKeys) {
+    // 删除多余的 DOM 节点（innerHTML='' 触发完整解析/重建，改为定向删除）
+    const existingKeys = new Set(_renderedLogKeys);
+    for (const key of existingKeys) {
       if (!newKeys.includes(key)) {
         const el = eventLogEl.querySelector(`[data-log-key="${key}"]`);
         if (el) el.remove();
@@ -223,23 +230,17 @@ const createRenderSystem = ({
     }
 
     // 复用或新建节点
-    const frag = document.createDocumentFragment();
-    newLogs.forEach((line, i) => {
+    for (let i = 0; i < newLogs.length; i++) {
       const key = newKeys[i];
       let el = eventLogEl.querySelector(`[data-log-key="${key}"]`);
       if (!el) {
         el = document.createElement('div');
         el.className = 'log-item';
         el.dataset.logKey = key;
-        frag.appendChild(el);
+        eventLogEl.appendChild(el);
       }
-      el.textContent = line;
-    });
-
-    // 将新节点追加到现有列表之前（保持顺序）
-    // 先清空再重建：无法直接原地 diff，但用 frag 批量插入只触发 1 次 layout
-    eventLogEl.innerHTML = '';
-    eventLogEl.appendChild(frag);
+      el.textContent = newLogs[i];
+    }
     _renderedLogKeys = newKeys;
 
     dirty.logs = false;
@@ -255,11 +256,24 @@ const createRenderSystem = ({
       dirty.stats = false;
     }
 
-    modeButtons.forEach(b =>b.classList.toggle('active',b.dataset.mode===st.purchaseMode));
-    speedButtons.forEach(b=>b.classList.toggle('active',Number(b.dataset.speed)===st.gameSpeed));
-    autoBuyBtn.classList.toggle('active',st.autoBuy);
-    autoBuyBtn.textContent=`自动投资: ${st.autoBuy?'开':'关'}`;
-    soundBtn.textContent  =`音效: ${st.soundEnabled?'开':'关'}`;
+    // 用缓存值避免每帧无谓 classList 操作（active 状态只在值变化时更新）
+    if (_prevPurchaseMode !== st.purchaseMode) {
+      _prevPurchaseMode = st.purchaseMode;
+      modeButtons.forEach(b => b.classList.toggle('active', b.dataset.mode === st.purchaseMode));
+    }
+    if (_prevGameSpeed !== st.gameSpeed) {
+      _prevGameSpeed = st.gameSpeed;
+      speedButtons.forEach(b => b.classList.toggle('active', Number(b.dataset.speed) === st.gameSpeed));
+    }
+    if (_prevAutoBuy !== st.autoBuy) {
+      _prevAutoBuy = st.autoBuy;
+      autoBuyBtn.classList.toggle('active', st.autoBuy);
+      autoBuyBtn.textContent = `自动投资: ${st.autoBuy ? '开' : '关'}`;
+    }
+    if (_prevSoundEnabled !== st.soundEnabled) {
+      _prevSoundEnabled = st.soundEnabled;
+      soundBtn.textContent = `音效: ${st.soundEnabled ? '开' : '关'}`;
+    }
 
     dirty.gears = dirty.market = false;
   };
