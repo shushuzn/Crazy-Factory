@@ -2,11 +2,14 @@
 'use strict';
 
 const { spawnSync } = require('node:child_process');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const DEFAULT_SWITCHES = 600;
 const DEFAULT_SEED = 42;
 const DEFAULT_BONUS_SET = '0.08,0.12,0.16';
 const DEFAULT_COST_SET = '0.01,0.015,0.02';
+const FAILURES_FILE = path.join(__dirname, '..', 'output', 'macro_plan_failures.json');
 
 const help = `用法:
   node scripts/run_macro_plan_sensitivity_scan.js [options]
@@ -135,6 +138,64 @@ const safeZone = {
 
 const best = [...passing].sort((a, b) => (b.liftPerSwitch - a.liftPerSwitch) || (a.volatilityRatio - b.volatilityRatio))[0] || null;
 
+// ── M8-T14: 失败组合归档与趋势对比 ──
+const failingCombos = records
+  .filter((r) => !r.passed)
+  .map((r) => ({
+    preferredBonus: r.preferredBonus,
+    planSwitchCost: r.planSwitchCost,
+    liftPerSwitch: r.liftPerSwitch,
+    volatilityRatio: r.volatilityRatio,
+  }));
+
+// 读取上次归档的失败组合
+let previousFailures = [];
+try {
+  if (fs.existsSync(FAILURES_FILE)) {
+    const prev = JSON.parse(fs.readFileSync(FAILURES_FILE, 'utf8'));
+    previousFailures = prev.failingCombos || [];
+  }
+} catch { /* 忽略解析错误，视为无历史数据 */ }
+
+// 计算趋势差异
+const comboKey = (c) => `${c.preferredBonus}:${c.planSwitchCost}`;
+const prevKeys = new Set(previousFailures.map(comboKey));
+const currKeys = new Set(failingCombos.map(comboKey));
+
+const newFailures = failingCombos.filter((c) => !prevKeys.has(comboKey(c)));
+const resolvedFailures = previousFailures.filter((c) => !currKeys.has(comboKey(c)));
+const persistentFailures = failingCombos.filter((c) => prevKeys.has(comboKey(c)));
+
+const trendSummary = {
+  newFailures,
+  resolvedFailures,
+  persistentFailures,
+  previousFailureCount: previousFailures.length,
+  currentFailureCount: failingCombos.length,
+};
+
+// 写入归档文件
+const archiveData = {
+  timestamp: new Date().toISOString(),
+  switches: opts.switches,
+  seed: opts.seed,
+  failingCombos,
+  firstFailingCombo: firstFailingCombo ? {
+    preferredBonus: firstFailingCombo.preferredBonus,
+    planSwitchCost: firstFailingCombo.planSwitchCost,
+    liftPerSwitch: firstFailingCombo.liftPerSwitch,
+    volatilityRatio: firstFailingCombo.volatilityRatio,
+  } : null,
+  trend: trendSummary,
+};
+
+try {
+  fs.mkdirSync(path.dirname(FAILURES_FILE), { recursive: true });
+  fs.writeFileSync(FAILURES_FILE, JSON.stringify(archiveData, null, 2));
+} catch (err) {
+  console.error(`归档写入失败: ${err.message}`);
+}
+
 const result = {
   switches: opts.switches,
   seed: opts.seed,
@@ -148,6 +209,7 @@ const result = {
   recommendation: best
     ? `推荐优先参数：preferred-bonus=${best.preferredBonus}, plan-switch-cost=${best.planSwitchCost}`
     : '本轮参数集中未找到通过门禁组合，建议提高 bonus 或放宽波动阈值后重跑。',
+  trend: trendSummary,
 };
 
 if (opts.ciSummary) {
@@ -156,7 +218,16 @@ if (opts.ciSummary) {
     passCount: result.passCount,
     failCount: result.failCount,
     bestCandidate: result.bestCandidate,
-    firstFailingCombo: result.firstFailingCombo,
+    firstFailingCombo: result.firstFailingCombo ? {
+      preferredBonus: result.firstFailingCombo.preferredBonus,
+      planSwitchCost: result.firstFailingCombo.planSwitchCost,
+    } : null,
+    trend: {
+      newFailures: trendSummary.newFailures.length,
+      resolvedFailures: trendSummary.resolvedFailures.length,
+      persistentFailures: trendSummary.persistentFailures.length,
+    },
+    archiveFile: FAILURES_FILE,
   }));
   process.exit(result.failCount > 0 ? 2 : 0);
 }

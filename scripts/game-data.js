@@ -19,6 +19,34 @@
     const SKILL_MASTERY_STEP = 3;     // 每 3 级技能提升 1 个专精层级
     const SKILL_MASTERY_BONUS = 0.05; // 每层专精提供 +5% 总收益
 
+    // 政策利率参数
+    const POLICY_RATE_MIN = 0;
+    const POLICY_RATE_MAX = 10;
+    const POLICY_RATE_DEFAULT = 2;
+    const POLICY_GUIDANCE_BASE_BIAS = 0.5;
+
+    // 前瞻奖惩参数
+    const OUTLOOK_REWARD_BASE = 100;
+    const OUTLOOK_REWARD_RATE_SCALE = 35;
+    const OUTLOOK_PENALTY_BASE = 80;
+    const OUTLOOK_PENALTY_RATE_SCALE = 24;
+    const OUTLOOK_PENALTY_GEAR_RATIO = 0.03;
+
+    // 连击（动量）参数
+    const MARKET_MOMENTUM_CAP = 10;
+    const MARKET_MOMENTUM_DURATION = 30;
+    const MARKET_MOMENTUM_GPS_PER_STACK = 0.05;
+    const MARKET_MOMENTUM_MANUAL_PER_STACK = 0.1;
+
+    // 宏观策略预案参数
+    const MACRO_PREFERRED_BONUS = 0.12;
+
+    // 宏观事件定义
+    const MACRO_EVENTS = [
+      { id: 'inflation_hot', name: '通胀升温', guidanceBiasUp: 0.8, durationSwitches: 3, preferredBuildingId: 'bank', nextEventId: 'growth_cool' },
+      { id: 'growth_cool', name: '增长放缓', guidanceBiasUp: 0.2, durationSwitches: 3, preferredBuildingId: 'logistics', nextEventId: 'inflation_hot' },
+    ];
+
     // ════════════════════════════════════════════════
     // ② 产业链数据
     //    新增 2 层：中央银行 + 金融集团（M3 新建筑层级）

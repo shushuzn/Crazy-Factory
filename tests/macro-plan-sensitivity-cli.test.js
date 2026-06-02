@@ -47,5 +47,10 @@ test('run_macro_plan_sensitivity_scan ci-summary returns first failing combo whe
   assert.equal(report.totalCombos, 1);
   assert.equal(report.failCount, 1);
   assert.ok(report.firstFailingCombo);
-  assert.equal(report.firstFailingCombo.passed, false);
+  assert.equal(report.firstFailingCombo.preferredBonus, 0.16);
+  assert.equal(report.firstFailingCombo.planSwitchCost, 0.01);
+  assert.ok(report.trend, 'ci-summary should include trend data');
+  assert.equal(typeof report.trend.newFailures, 'number');
+  assert.equal(typeof report.trend.resolvedFailures, 'number');
+  assert.equal(typeof report.trend.persistentFailures, 'number');
 });

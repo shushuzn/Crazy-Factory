@@ -160,6 +160,11 @@ const I18N = {
     return this.currentLang;
   },
 
+  // Alias for getLanguage() - used by most subsystems
+  getCurrentLang() {
+    return this.getLanguage();
+  },
+
   // Initialize language from storage
   init() {
     const savedLang = localStorage.getItem('gameLanguage');

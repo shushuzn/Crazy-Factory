@@ -265,4 +265,6 @@ const createEventSystem = ({
   };
 };
 
-module.exports = { createEventSystem };
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { createEventSystem };
+}

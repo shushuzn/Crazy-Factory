@@ -45,6 +45,7 @@
       'combo','maxCombo','maxOfflineGears',
       'perkAutoCombo','perkOfflineMult','perkSynergyPlus','perkCrispImmune','perkRpBonus',
       'speedRecords',
+      'derivatives','crisis','guild','boost','subscription','globalMarket',
     ];
 
     // 两个值是否相等（用于 diff 比较）
@@ -75,6 +76,12 @@
       skills:    skills.map(s=>({id:s.id,level:s.level})),
       achievements: achievements.map(a=>({id:a.id,done:a.done,claimed:a.claimed})),
       bldBoost: {...bldBoost},
+      derivatives: st.derivatives ? {...st.derivatives} : undefined,
+      crisis: st.crisis ? {...st.crisis} : undefined,
+      guild: st.guild ? {...st.guild} : undefined,
+      boost: st.boost ? {...st.boost} : undefined,
+      subscription: st.subscription ? {...st.subscription} : undefined,
+      globalMarket: st.globalMarket ? {...st.globalMarket} : undefined,
       savedAt: Date.now(),
     });
 
@@ -82,7 +89,8 @@
     const _fastHash = (data) => {
       let h = 0;
       const keys = ['gears','totalClicks','lifetimeGears','researchPoints','questIndex',
-        'skillMasteryTier','buildings','upgrades','skills','achievements','bldBoost'];
+        'skillMasteryTier','buildings','upgrades','skills','achievements','bldBoost',
+        'derivatives','crisis','guild','boost','subscription','globalMarket'];
       for (const k of keys) {
         const v = data[k];
         if (v !== undefined) {
@@ -217,6 +225,14 @@
         if(typeof refreshSkillMastery === "function") refreshSkillMastery(true);
         (d.achievements||[]).forEach(s=>{const t=achievements.find(a=>a.id===s.id);if(t){t.done=Boolean(s.done);t.claimed=Boolean(s.claimed);}});
         if(d.bldBoost&&typeof d.bldBoost==="object") Object.assign(bldBoost,d.bldBoost);
+
+        // 恢复高级子系统状态（旧存档缺失时安全跳过）
+        if(d.derivatives&&typeof d.derivatives==="object") st.derivatives={...st.derivatives,...d.derivatives};
+        if(d.crisis&&typeof d.crisis==="object") st.crisis={...st.crisis,...d.crisis};
+        if(d.guild&&typeof d.guild==="object") st.guild={...st.guild,...d.guild};
+        if(d.boost&&typeof d.boost==="object") st.boost={...st.boost,...d.boost};
+        if(d.subscription&&typeof d.subscription==="object") st.subscription={...st.subscription,...d.subscription};
+        if(d.globalMarket&&typeof d.globalMarket==="object") st.globalMarket={...st.globalMarket,...d.globalMarket};
 
         const off = (Date.now()-(Number(d.savedAt)||Date.now()))/1000;
         const ofg = GameFormulas.calcOfflineGain({ gps: getTotalGPS(), elapsedSec: off, capSec: OFFLINE_CAP_SECONDS });

@@ -78,6 +78,29 @@
       return `${sg}¥${Number.isInteger(abs) ? _fmtInt(abs) : abs.toFixed(1).replace(/\.0$/,'')}`;
     };
 
+    // ── 安全面板注入辅助 ──
+    // 用法: injectPanel(delay, parentSelector, panelId, renderFn, insertBeforeId?)
+    const injectPanel = (delay, parentSelector, panelId, renderFn, insertBeforeId) => {
+      setTimeout(() => {
+        const parent = document.querySelector(parentSelector);
+        if (!parent) {
+          console.warn(`[injectPanel] 父元素未找到: ${parentSelector}，跳过面板 ${panelId}`);
+          return;
+        }
+        const container = document.createElement('div');
+        container.id = panelId;
+        container.innerHTML = renderFn();
+        if (insertBeforeId) {
+          const ref = document.getElementById(insertBeforeId);
+          if (ref && ref.parentNode === parent) {
+            parent.insertBefore(container, ref);
+            return;
+          }
+        }
+        parent.appendChild(container);
+      }, delay);
+    };
+
     // 反馈系统初始化（为什么：反馈层高频迭代，独立工厂减少对主循环的干扰）
     const feedback = createFeedbackSystem({ st, JUICE, fmt, manualBtn, manualZone, marketFlashEl, gameShellEl });
     const { eventBus, sfxBuy, sfxUpgrade, sfxMarket, spawnFloat, tickCanvas } = feedback;
@@ -758,6 +781,7 @@
     dailyQuestSystem.setupEventListeners();
 
     // 在游戏循环中追踪收益
+    // 注：使用装饰器模式是因为 dailyQuestSystem 在 loopSystem.startLoop() 之后才初始化
     const originalOnAfterFrame = debugSystem.update;
     debugSystem.update = (dtSec) => {
       originalOnAfterFrame(dtSec);
@@ -997,7 +1021,7 @@
     // ════════════════════════════════════════════════
     const derivativesSystem = createDerivativesSystem({
       st,
-      market,
+      market: marketSystem,
       eventBus,
       pushLog,
       I18N,
@@ -1040,20 +1064,20 @@
 
     // 监听衍生品事件
     eventBus.on('futures:opened', ({ contract, margin }) => {
-      pushLog(`📈 期货${contract.type === 'long' ? '做多' : '做空'}开仓成功，保证金: ${formatNumber(margin)}`);
+      pushLog(`📈 期货${contract.type === 'long' ? '做多' : '做空'}开仓成功，保证金: ${fmt(margin)}`);
     });
 
     eventBus.on('futures:closed', ({ contract, pnl }) => {
       const profit = pnl >= 0;
-      pushLog(`${profit ? '📈' : '📉'} 期货平仓: ${profit ? '盈利' : '亏损'} ${formatNumber(Math.abs(pnl))}`);
+      pushLog(`${profit ? '📈' : '📉'} 期货平仓: ${profit ? '盈利' : '亏损'} ${fmt(Math.abs(pnl))}`);
     });
 
     eventBus.on('futures:liquidated', ({ contract, pnl }) => {
-      pushLog(`💥 期货爆仓！亏损: ${formatNumber(Math.abs(pnl))}`);
+      pushLog(`💥 期货爆仓！亏损: ${fmt(Math.abs(pnl))}`);
     });
 
     eventBus.on('options:purchased', ({ contract, premium }) => {
-      pushLog(`🛡️ 购买${contract.type === 'call' ? '看涨' : '看跌'}期权，权利金: ${formatNumber(premium)}`);
+      pushLog(`🛡️ 购买${contract.type === 'call' ? '看涨' : '看跌'}期权，权利金: ${fmt(premium)}`);
     });
 
     // 调试命令：window.openFutures(type, leverage, value) 开期货仓
@@ -1091,7 +1115,7 @@
     // ════════════════════════════════════════════════
     const globalMarketSystem = createGlobalMarketSystem({
       st,
-      market,
+      market: marketSystem,
       eventBus,
       pushLog,
       I18N,
@@ -1150,7 +1174,7 @@
 
     // 监听套利交易
     eventBus.on('arbitrage:executed', ({ opportunity, profit }) => {
-      pushLog(`💱 套利成功！收益: ${formatNumber(profit)}`);
+      pushLog(`💱 套利成功！收益: ${fmt(profit)}`);
     });
 
     // 调试命令：window.switchRegion(regionId) 切换地区
@@ -1369,7 +1393,7 @@
     });
 
     eventBus.on('guild:contributed', ({ guildId, amount }) => {
-      pushLog(`💎 向公会贡献 ${formatNumber(amount)}！`);
+      pushLog(`💎 向公会贡献 ${fmt(amount)}！`);
     });
 
     eventBus.on('guild:leveledUp', ({ guildId, newLevel }) => {
