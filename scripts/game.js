@@ -511,6 +511,8 @@
         lastRewardText:"",gameSpeed:1,questIndex:0,autoBuy:false,autoBuyAccumulator:0,lastAutoPlanTarget:"",bullClicks:0,marketMomentum:0,marketMomentumTimer:0,policyRate:POLICY_RATE_DEFAULT,policyHedge:0,macroEventId:"",macroEventTimer:0,macroPreferredBuildingId:"",lastMacroEventId:"",macroChainCount:0,rateOutlookDirection:"上调",rateOutlookBiasUp:POLICY_GUIDANCE_BASE_BIAS,rateOutlookConfidence:0,rateOutlookHits:0,rateOutlookMisses:0,skillMasteryTier:0,logTrimNotified:false,
         // 速通本轮数据重置（speedRecords 永久保留）
         gameStartTime:Date.now(), speedQuestIndex:0,
+        // 资产配置重置为默认值（风险偏好保留，但资金分配重置）
+        assetAllocation:{riskProfile:st.assetAllocation?.riskProfile||'balanced',allocation:{buildings:0.65,upgrades:0.20,derivativesMargin:0.15},stats:{lastRebalanceAt:0,totalRebalances:0}},
       });
       buildings.forEach(b=>b.owned=0);
       upgrades.forEach(u=>u.purchased=false);
@@ -530,6 +532,8 @@
         soundEnabled:true,skillMasteryTier:0,logs:["[--:--:--] 清盘重来"],logTrimNotified:false,
         combo:0,maxCombo:0,
         gameStartTime:Date.now(), speedQuestIndex:0,
+        // 资产配置重置为默认值（全量重置）
+        assetAllocation:{riskProfile:'balanced',allocation:{buildings:0.65,upgrades:0.20,derivativesMargin:0.15},stats:{lastRebalanceAt:0,totalRebalances:0}},
         // perks 在清盘时保留（永久）
       });
       buildings.forEach(b=>b.owned=0);
@@ -676,6 +680,7 @@
       tickMarket,
       tickEvent,
       tryAutoBuy,
+      getBudgetSplit: allocationSystem.getBudgetSplit, // 资产配置系统预算分配
       saveGame,
       render,
       onAfterFrame: (now) => { debugSystem.update(now); tickCanvas(now); },
@@ -1286,6 +1291,44 @@
       pushLog(`✅ ${crisisName} ${methodText}`);
       spawnFloat(window.innerWidth/2, window.innerHeight/2, `✅ ${crisisName}结束`, '#22c55e');
     });
+
+    // ════════════════════════════════════════════════
+    // ㉜ 资产配置/风险偏好系统 (v1.0)
+    // ════════════════════════════════════════════════
+    const allocationSystem = createAssetAllocationSystem({
+      st,
+      eventBus,
+      pushLog,
+      I18N,
+      buildings,
+    });
+
+    // 初始化资产配置系统
+    allocationSystem.init();
+
+    // 注入风险偏好参数到经济系统
+    economy.setRiskLambdaFn(() => allocationSystem.getLambda());
+    economy.setRiskVolatilityFn(() => allocationSystem.getVolatilityScale());
+
+    // 监听资产配置变化事件
+    eventBus.on('risk:changed', () => {
+      economy.invalidateROICache();
+      economy.invalidateGPSMult();
+    });
+    eventBus.on('allocation:changed', () => {
+      economy.invalidateROICache();
+    });
+
+    // 添加资产配置面板到UI
+    setTimeout(() => {
+      const controls = document.querySelector('.controls');
+      if (controls) {
+        const allocationPanel = document.createElement('div');
+        allocationPanel.id = 'allocationPanel';
+        allocationPanel.innerHTML = allocationSystem.renderFullPanel();
+        controls.parentNode.insertBefore(allocationPanel, controls.nextSibling);
+      }
+    }, 3800);
 
     // perk_auto_combo: 每 10s 自动触发一次虚拟撮合
     window.__timerManager.schedule(() => {

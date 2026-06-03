@@ -252,10 +252,12 @@ const createCrisisSystem = ({
 
     const crisis = st.crisis.active;
     const effects = crisis.effects;
+    // 危机损失减免：保守模式减免 30%
+    const crisisDampening = (st.assetAllocation && st.assetAllocation.riskProfile === 'conservative') ? 0.30 : 0;
 
-    // 恶性通胀的资金流失
+    // 恶性通胀的资金流失（应用减免）
     if (effects.moneyDrainRate && st.money > 0) {
-      const drain = st.money * effects.moneyDrainRate * 0.1; // 每0.1秒
+      const drain = st.money * effects.moneyDrainRate * 0.1 * (1 - crisisDampening); // 每0.1秒
       st.money = Math.max(0, st.money - drain);
     }
   };
@@ -272,9 +274,12 @@ const createCrisisSystem = ({
 
     const crisisConfig = CRISES[crisis.id];
     const now = Date.now();
+    // 危机损失减免：保守模式减免 30%
+    const crisisDampening = (st.assetAllocation && st.assetAllocation.riskProfile === 'conservative') ? 0.30 : 0;
 
     if (method === 'bailout') {
-      const cost = crisisConfig.recovery.cost(st);
+      const baseCost = crisisConfig.recovery.cost(st);
+      const cost = baseCost * (1 - crisisDampening); // 应用减免
 
       if (st.money < cost) {
         return { success: false, error: lang === 'en' ? 'Insufficient funds' : '资金不足' };
@@ -348,7 +353,10 @@ const createCrisisSystem = ({
     const config = CRISES[crisis.id];
     const now = Date.now();
     const remaining = Math.max(0, crisis.endsAt - now);
-    const bailoutCost = config.recovery.cost(st);
+    const baseCost = config.recovery.cost(st);
+    // 危机损失减免：保守模式减免 30%（用于 UI 显示）
+    const crisisDampening = (st.assetAllocation && st.assetAllocation.riskProfile === 'conservative') ? 0.30 : 0;
+    const bailoutCost = baseCost * (1 - crisisDampening);
 
     return {
       ...crisis,

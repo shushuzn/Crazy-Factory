@@ -47,7 +47,11 @@ const createLoopSystem = ({
         st.autoBuyAccumulator += FIXED_STEP * st.gameSpeed;
         if (st.autoBuyAccumulator >= 0.5) {
           st.autoBuyAccumulator = 0;
-          tryAutoBuy();
+          // 如果有资产配置系统，传入预算分配；否则回退到无参数调用
+          const budgetSplit = (getBudgetSplit && typeof getBudgetSplit === 'function')
+            ? getBudgetSplit(st.gears)
+            : null;
+          tryAutoBuy(budgetSplit);
         }
       }
     }
@@ -95,4 +99,5 @@ const createLoopSystem = ({
   };
 
   return { startLoop, stopLoop, handleVisibilityChange };
+};
 };

@@ -17,6 +17,7 @@ const REQUIRED_SUBSYSTEMS = [
   'boost',
   'subscription',
   'globalMarket',
+  'assetAllocation',  // v1.0 资产配置系统
 ];
 
 test('_TOP_LEVEL_FIELDS includes all subsystem states', () => {

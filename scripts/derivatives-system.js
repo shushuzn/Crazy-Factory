@@ -60,6 +60,14 @@ const createDerivativesSystem = ({
     liquidationFee: 0.01,   // 爆仓手续费 1%
   };
 
+  // 根据风险偏好获取可用杠杆选项
+  const getAvailableLeverage = () => {
+    const riskProfile = st.assetAllocation?.riskProfile;
+    if (riskProfile === 'conservative') return [2];
+    if (riskProfile === 'aggressive') return [2, 5, 10];
+    return [2, 5]; // balanced: 默认仅 2x 和 5x
+  };
+
   // 创建期货合约
   const createFuturesContract = ({
     type,           // 'long' | 'short'
@@ -115,8 +123,9 @@ const createDerivativesSystem = ({
       return { success: false, error: lang === 'en' ? 'Invalid type' : '无效的类型' };
     }
 
-    if (!FUTURES_CONFIG.leverageOptions.includes(leverage)) {
-      return { success: false, error: lang === 'en' ? 'Invalid leverage' : '无效的杠杆倍数' };
+    const availableLeverage = getAvailableLeverage();
+    if (!availableLeverage.includes(leverage)) {
+      return { success: false, error: lang === 'en' ? `Invalid leverage (max ${Math.max(...availableLeverage)}x)` : `无效杠杆（最大${Math.max(...availableLeverage)}x）` };
     }
 
     if (contractValue < FUTURES_CONFIG.minContractValue ||

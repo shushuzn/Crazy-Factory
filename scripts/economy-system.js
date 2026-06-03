@@ -75,6 +75,10 @@ const createEconomySystem = ({
   const _invalidateGPSMult = () => { _gpsMultDirty = true; };
   let _synergyMultFn = null; // () => number，由 synergy-system 注入
   const setSynergyMultiplier = (fn) => { _synergyMultFn = fn; _invalidateGPSMult(); };
+  let _riskLambdaFn = null;  // () => number，由 asset-allocation-system 注入
+  let _riskVolatilityFn = null; // () => number，由 asset-allocation-system 注入
+  const setRiskLambdaFn = (fn) => { _riskLambdaFn = fn; _invalidateROICache(); };
+  const setRiskVolatilityFn = (fn) => { _riskVolatilityFn = fn; _invalidateGPSMult(); };
 
   // baseGPS 缓存：buildings.reduce() 在主循环每帧调用，改为 dirty 时才重算
   let _baseGPSCache = null;
@@ -89,7 +93,8 @@ const createEconomySystem = ({
 
   const _getGPSMult = () => {
     if (!_gpsMultDirty) return _gpsMultCache;
-    _gpsMultCache = st.gpsMultiplier * resMult() * skillGPS() * mktMult() * skillMasteryMult() * ((_synergyMultFn && _synergyMultFn()) || 1);
+    const riskVolScale = (_riskVolatilityFn && _riskVolatilityFn()) || 1.0;
+    _gpsMultCache = st.gpsMultiplier * resMult() * skillGPS() * mktMult() * skillMasteryMult() * ((_synergyMultFn && _synergyMultFn()) || 1) * riskVolScale;
     _gpsMultDirty = false;
     return _gpsMultCache;
   };
@@ -195,9 +200,16 @@ const createEconomySystem = ({
 
   // ROI = 边际 DPS / 边际成本（买第 owned+1 个时，第 owned 个的 price）
   // 越高越值得优先买
+  // 风险偏好：lambda 幂运算调整排序（保守压缩差距，激进放大差距）
   const _buildingROI = (b) => {
     const mc = price(b);
-    return mc > 0 ? _marginalDPS(b) / mc : 0;
+    const rawROI = mc > 0 ? _marginalDPS(b) / mc : 0;
+    // 应用 lambda 幂运算凸性变换（由 asset-allocation-system 注入）
+    const lambda = (_riskLambdaFn && _riskLambdaFn()) || 1.0;
+    if (lambda !== 1.0 && rawROI > 0) {
+      return Math.pow(rawROI, lambda);
+    }
+    return rawROI;
   };
 
   const _getROISorted = () => {
@@ -209,14 +221,19 @@ const createEconomySystem = ({
   };
 
   // Deep RL Job Shop Scheduling 启发：用 ROI 评分替代逆序贪心
-  const tryAutoBuy = () => {
+  // budgetSplit: {buildingBudget, upgradeBudget, marginReserve}，来自 asset-allocation-system
+  const tryAutoBuy = (budgetSplit) => {
     let totalBought = 0;
 
-    // —— 建筑：使用 ROI 缓存排序，避免每 0.5s 重复 O(n log n) sort+pow+floor
+    // 使用分配预算或回退到全部资金
+    const buildingBudget = budgetSplit ? budgetSplit.buildingBudget : st.gears;
+    const upgradeBudget = budgetSplit ? budgetSplit.upgradeBudget : st.gears;
+
+    // —— 建筑：使用 ROI 缓存排序 + 分配预算，避免每 0.5s 重复 O(n log n) sort+pow+floor
     const sorted = _getROISorted();
     let didBuyBuilding = false;
-    if (sorted.length > 0 && st.gears > 0) {
-      let budget = st.gears;
+    if (sorted.length > 0 && buildingBudget > 0) {
+      let budget = buildingBudget;
       for (const b of sorted) {
         if (budget <= 0) break;
         const maxN = affordableCount(b, budget, 'max');
@@ -247,13 +264,15 @@ const createEconomySystem = ({
       }
     }
 
-    // —— 升级：按价格升序（便宜优先），买得起多少买多少
-    if (st.gears > 0) {
+    // —— 升级：按价格升序（便宜优先），买得起多少买多少（使用升级预算）
+    if (upgradeBudget > 0 && st.gears >= upgradeBudget) {
+      // 如果升级预算大于当前余额，只能花掉余额
+      const actualUpgradeBudget = Math.min(upgradeBudget, st.gears);
       const avail = upgrades
-        .filter(u => !u.purchased && !upgradeLockedReason(u) && st.gears >= u.price)
+        .filter(u => !u.purchased && !upgradeLockedReason(u) && actualUpgradeBudget >= u.price)
         .sort((a, b) => a.price - b.price);
       for (const u of avail) {
-        if (st.gears < u.price) break;
+        if (actualUpgradeBudget < u.price) break;
         st.gears -= u.price; u.purchased = true; applyUpgradeEffect(u);
         _invalidateGPSMult();
         _invalidateBaseGPS();
@@ -292,6 +311,8 @@ const createEconomySystem = ({
     buyUpgrade,
     tryAutoBuy,
     setSynergyMultiplier,
+    setRiskLambdaFn,
+    setRiskVolatilityFn,
     invalidateROICache: _invalidateROICache,
     invalidateBaseGPS: _invalidateBaseGPS,
     invalidateGPSMult: _invalidateGPSMult,

@@ -231,6 +231,12 @@
       speedRecords:{},    // { [questId]: bestTimeMs } — 永久记录
       gameStartTime:0,    // 每局开始时间戳（毫秒）
       speedQuestIndex:0,  // 当前活跃速通任务索引
+      // 资产配置/风险偏好系统
+      assetAllocation:{
+        riskProfile:'balanced',
+        allocation:{buildings:0.65, upgrades:0.20, derivativesMargin:0.15},
+        stats:{lastRebalanceAt:0, totalRebalances:0},
+      },
     };
 
     // ── st 写入追踪 Proxy：所有对 st.XX = YY 的写入自动记录 dirty 字段 ──

@@ -71,6 +71,23 @@ const I18N = {
       questComplete: '任务完成',
       eventTriggered: '事件触发',
       achievementUnlocked: '成就解锁',
+
+      // Asset Allocation (v1.0)
+      riskProfile: '风险偏好',
+      conservative: '保守',
+      balanced: '平衡',
+      aggressive: '激进',
+      assetAllocation: '资产配置',
+      buildingAllocation: '建筑投资',
+      upgradeAllocation: '升级研发',
+      marginReserve: '保证金预留',
+      lambda: '凸性系数',
+      maxLeverage: '最大杠杆',
+      crisisDampening: '危机减免',
+      rebalances: '再平衡次数',
+      buildings: '建筑',
+      upgrades: '升级',
+      margin: '保证金',
     },
 
     en: {
@@ -134,6 +151,23 @@ const I18N = {
       questComplete: 'Quest Complete',
       eventTriggered: 'Event Triggered',
       achievementUnlocked: 'Achievement Unlocked',
+
+      // Asset Allocation (v1.0)
+      riskProfile: 'Risk Profile',
+      conservative: 'Conservative',
+      balanced: 'Balanced',
+      aggressive: 'Aggressive',
+      assetAllocation: 'Asset Allocation',
+      buildingAllocation: 'Building Investment',
+      upgradeAllocation: 'Upgrade R&D',
+      marginReserve: 'Margin Reserve',
+      lambda: 'Lambda',
+      maxLeverage: 'Max Leverage',
+      crisisDampening: 'Crisis Dampening',
+      rebalances: 'Rebalances',
+      buildings: 'Buildings',
+      upgrades: 'Upgrades',
+      margin: 'Margin',
     }
   },
 
