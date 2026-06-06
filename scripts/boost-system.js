@@ -31,42 +31,6 @@ const createBoostSystem = ({
     research:   { name: { zh: '研究加速', en: 'Research' },       icon: '🔬' },
     bundle:     { name: { zh: '组合包',   en: 'Bundles' },        icon: '🎁' },
   };
-
-  // 预计算 category → items 映射（init 时一次性构建）
-  const _catItems = {};
-  Object.keys(CATEGORIES).forEach(cat => { _catItems[cat] = []; });
-  Object.values(BOOST_ITEMS).forEach(item => {
-    if (_catItems[item.category]) _catItems[item.category].push(item);
-  });
-
-  const initBoostData = () => {
-    if (!st.boost) {
-      st.boost = {
-        // 道具背包
-        inventory: {},
-        // 激活的加成效果
-        activeEffects: [],
-        // 购买统计
-        stats: {
-          totalPurchases: 0,
-          totalSpent: 0,
-          totalItemsUsed: 0,
-        },
-      };
-    }
-
-    // 确保所有道具类型都有库存记录
-    Object.keys(BOOST_ITEMS).forEach(itemId => {
-      if (st.boost.inventory[itemId] === undefined) {
-        st.boost.inventory[itemId] = 0;
-      }
-    });
-  };
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // 道具配置
-  // ═══════════════════════════════════════════════════════════════════════════
-
   const BOOST_ITEMS = {
     // 时间跃迁类
     time_warp_1h: {
@@ -689,6 +653,42 @@ const createBoostSystem = ({
     html += `</div></div>`;
     return html;
   };
+
+  // 预计算 category → items 映射（init 时一次性构建）
+  const _catItems = {};
+  Object.keys(CATEGORIES).forEach(cat => { _catItems[cat] = []; });
+  Object.values(BOOST_ITEMS).forEach(item => {
+    if (_catItems[item.category]) _catItems[item.category].push(item);
+  });
+
+  const initBoostData = () => {
+    if (!st.boost) {
+      st.boost = {
+        // 道具背包
+        inventory: {},
+        // 激活的加成效果
+        activeEffects: [],
+        // 购买统计
+        stats: {
+          totalPurchases: 0,
+          totalSpent: 0,
+          totalItemsUsed: 0,
+        },
+      };
+    }
+
+    // 确保所有道具类型都有库存记录
+    Object.keys(BOOST_ITEMS).forEach(itemId => {
+      if (st.boost.inventory[itemId] === undefined) {
+        st.boost.inventory[itemId] = 0;
+      }
+    });
+  };
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 道具配置
+  // ═══════════════════════════════════════════════════════════════════════════
+
 
   // ═══════════════════════════════════════════════════════════════════════════
   // 初始化
