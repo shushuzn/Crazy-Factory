@@ -76,7 +76,7 @@ const createMarketSystem = ({
 
   const maybeRollMacroEvent = () => {
     if (st.macroEventTimer > 0 || !Array.isArray(MACRO_EVENTS) || MACRO_EVENTS.length === 0) return;
-    if (Math.random() >= 0.35) return;
+    if (Math.random() >= 0.22) return;   // 0.35 → 0.22：降低宏观事件触发概率，减少市场冲击
 
     const prev = getEventById(st.lastMacroEventId || '');
     const chainTargetId = prev?.nextEventId || '';

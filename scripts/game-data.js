@@ -12,10 +12,11 @@
     const RENDER_THROTTLE      = 100;     // 渲染节流间隔(ms)
 
     // 市场参数
-    const MARKET_CYCLE_MIN  = 25;
-    const MARKET_CYCLE_MAX  = 55;
-    const MARKET_BULL_BONUS = 1.4;
-    const MARKET_BEAR_PENALTY = 0.7;
+    // 优化市场稳定性：增加周期长度，缩小多头/空头差距
+    const MARKET_CYCLE_MIN  = 35;        // 25 → 35：延长最小周期，减少频繁切换
+    const MARKET_CYCLE_MAX  = 75;        // 55 → 75：延长最大周期，提升稳定性
+    const MARKET_BULL_BONUS = 1.25;      // 1.4 → 1.25：降低多头加成，减少极端收益
+    const MARKET_BEAR_PENALTY = 0.8;     // 0.7 → 0.8：提高空头底线，减少极端损失
     const SKILL_MASTERY_STEP = 3;     // 每 3 级技能提升 1 个专精层级
     const SKILL_MASTERY_BONUS = 0.05; // 每层专精提供 +5% 总收益
 
@@ -159,8 +160,8 @@
       { id:"central_bank", name:"央行行长",  desc:"拥有 1 家中央银行",               reward:{type:"rp",value:3},       check:()=>bld("central").owned>=1,                                               done:false, claimed:false },
       { id:"conglom_owner",name:"金融帝国",  desc:"拥有 1 个金融集团",               reward:{type:"rp",value:5},       check:()=>bld("conglom").owned>=1,                                               done:false, claimed:false },
       // ── 新成就：产业链 ──
-      { id:"synergy_1",   name:"产业链初成",desc:"激活首个产业链加成",               reward:{type:"gear",value:500},    check:()=>synergySystem&&synergySystem.calculateGlobalSynergy().globalMultiplier>1.01, done:false, claimed:false },
-      { id:"synergy_chain",name:"全链贯通",desc:"产业链全线激活（每层都有建筑）",    reward:{type:"rp",value:3},        check:()=>{ const gs=synergySystem.calculateGlobalSynergy(); return gs.globalMultiplier>=1.5; }, done:false, claimed:false },
+      { id:"synergy_1",   name:"产业链初成",desc:"激活首个产业链加成",               reward:{type:"gear",value:500},    check:()=>{ const s = typeof window.synergySystem !== "undefined" ? window.synergySystem : null; return s && s.calculateGlobalSynergy().globalMultiplier > 1.01; }, done:false, claimed:false },
+      { id:"synergy_chain",name:"全链贯通",desc:"产业链全线激活（每层都有建筑）",    reward:{type:"rp",value:3},        check:()=>{ const s = typeof window.synergySystem !== "undefined" ? window.synergySystem : null; if (!s) return false; const gs=s.calculateGlobalSynergy(); return gs.globalMultiplier>=1.5; }, done:false, claimed:false },
       // ── 新成就：撮合连击 ──
       { id:"combo_5",     name:"五连击",   desc:"连续撮合 5 次（间隔 < 2s）",       reward:{type:"gear",value:100},    check:()=>st.maxCombo>=5,                                                       done:false, claimed:false },
       { id:"combo_20",   name:"二十连击",  desc:"连续撮合 20 次（间隔 < 2s）",      reward:{type:"gear",value:2000},   check:()=>st.maxCombo>=20,                                                      done:false, claimed:false },
@@ -244,6 +245,14 @@
     const _stDirtyFields = new Set();
     st = new Proxy(st, {
       set(target, key, value) {
+        // NaN 防护：阻止任何数值字段被设为 NaN
+        if (typeof value === 'number' && Number.isNaN(value)) {
+          if (typeof target[key] !== 'number' || !Number.isNaN(target[key])) {
+            const stack = new Error().stack;
+            console.warn(`[NaN guard] Blocked NaN write to st.${key}, keeping ${target[key]}\n${stack}`);
+          }
+          return true;
+        }
         target[key] = value;
         if (typeof key === 'string') _stDirtyFields.add(key);
         return true;
